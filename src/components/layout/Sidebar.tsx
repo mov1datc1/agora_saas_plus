@@ -13,8 +13,13 @@ const navigation = [
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
+
+  const filteredNavigation = navigation.filter(item => {
+    if (item.name === 'Configuración' && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-full w-64 flex-col bg-surface border-r border-border shadow-sm">
@@ -25,7 +30,7 @@ export default function Sidebar() {
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
         <nav className="flex-1 space-y-1">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link

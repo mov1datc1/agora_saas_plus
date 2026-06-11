@@ -1,14 +1,27 @@
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import { createClient } from "@/utils/supabase/server";
+import prisma from "@/lib/prisma";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+
+  if (user?.email) {
+    const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+    if (dbUser?.role === 'ADMIN') {
+      isAdmin = true;
+    }
+  }
+
   return (
     <div className="h-full overflow-hidden flex bg-background">
-      <Sidebar />
+      <Sidebar isAdmin={isAdmin} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto bg-background p-6">
