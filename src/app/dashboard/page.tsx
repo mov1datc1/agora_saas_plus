@@ -136,7 +136,7 @@ export default async function DashboardPage() {
             <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional Histórico</h3>
             <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Ver reporte detallado</button>
           </div>
-          <div className="h-72 w-full mt-auto">
+          <div className="flex-1 w-full min-h-[300px] mt-4">
             <TransactionsChart data={chartData} />
           </div>
         </div>
