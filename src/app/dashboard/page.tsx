@@ -1,4 +1,5 @@
 import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText } from 'lucide-react'
+import prisma from '@/lib/prisma'
 
 const stats = [
   { name: 'Nuevas Transacciones', value: '142', change: '+12.5%', icon: Activity },
@@ -6,42 +7,54 @@ const stats = [
   { name: 'Firmas Activas', value: '89', change: '+4.1%', icon: TrendingUp },
 ]
 
-const recentTransactions = [
-  {
-    id: 1,
-    title: 'Adquisición de StartUp Tech Latam',
-    type: 'M&A',
-    value: '$45.0M',
-    date: '10 Jun 2026',
-    status: 'Completada',
-  },
-  {
-    id: 2,
-    title: 'Financiamiento Serie B FinTech',
-    type: 'Venture Capital',
-    value: '$120.0M',
-    date: '08 Jun 2026',
-    status: 'En Proceso',
-  },
-  {
-    id: 3,
-    title: 'Fusión de Grupos Logísticos',
-    type: 'Fusión',
-    value: 'No revelado',
-    date: '05 Jun 2026',
-    status: 'Anunciada',
-  },
-  {
-    id: 4,
-    title: 'Emisión de Bonos Verdes',
-    type: 'Mercado de Capitales',
-    value: '$300.0M',
-    date: '01 Jun 2026',
-    status: 'Completada',
-  },
-]
+export default async function DashboardPage() {
+  const dbTransactions = await prisma.transaction.findMany({
+    orderBy: { dateAnnounced: 'desc' },
+    take: 5
+  })
 
-export default function DashboardPage() {
+  const recentTransactions = dbTransactions.length > 0 ? dbTransactions.map(t => ({
+    id: t.id,
+    title: t.title,
+    type: t.type || 'Operación General',
+    value: t.valueString || 'No revelado',
+    date: t.dateAnnounced ? t.dateAnnounced.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+    status: t.status || 'Completada',
+  })) : [
+    {
+      id: 1,
+      title: 'Adquisición de StartUp Tech Latam',
+      type: 'M&A',
+      value: '$45.0M',
+      date: '10 Jun 2026',
+      status: 'Completada',
+    },
+    {
+      id: 2,
+      title: 'Financiamiento Serie B FinTech',
+      type: 'Venture Capital',
+      value: '$120.0M',
+      date: '08 Jun 2026',
+      status: 'En Proceso',
+    },
+    {
+      id: 3,
+      title: 'Fusión de Grupos Logísticos',
+      type: 'Fusión',
+      value: 'No revelado',
+      date: '05 Jun 2026',
+      status: 'Anunciada',
+    },
+    {
+      id: 4,
+      title: 'Emisión de Bonos Verdes',
+      type: 'Mercado de Capitales',
+      value: '$300.0M',
+      date: '01 Jun 2026',
+      status: 'Completada',
+    },
+  ]
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center justify-between">
