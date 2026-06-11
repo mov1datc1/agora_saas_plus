@@ -1,5 +1,6 @@
 import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText } from 'lucide-react'
 import prisma from '@/lib/prisma'
+import { TransactionsChart } from '@/components/charts/TransactionsChart'
 
 const stats = [
   { name: 'Nuevas Transacciones', value: '142', change: '+12.5%', icon: Activity },
@@ -8,12 +9,44 @@ const stats = [
 ]
 
 export default async function DashboardPage() {
+  // Obtenemos todas las transacciones para calcular volumen
   const dbTransactions = await prisma.transaction.findMany({
-    orderBy: { dateAnnounced: 'desc' },
-    take: 5
+    orderBy: { dateAnnounced: 'asc' },
   })
 
-  const recentTransactions = dbTransactions.length > 0 ? dbTransactions.map(t => ({
+  // 1. Agrupación por Mes y Año para el Gráfico
+  const groupedData = dbTransactions.reduce((acc, tx) => {
+    if (!tx.dateAnnounced) return acc
+    const month = tx.dateAnnounced.toLocaleString('es-ES', { month: 'short' })
+    const year = tx.dateAnnounced.getFullYear()
+    const key = `${month} ${year}`
+    
+    if (!acc[key]) acc[key] = 0
+    acc[key] += 1
+    return acc
+  }, {} as Record<string, number>)
+
+  let chartData = Object.entries(groupedData).map(([name, transacciones]) => ({
+    name,
+    transacciones
+  }))
+
+  // Si no hay datos, mostramos un fallback bonito
+  if (chartData.length === 0) {
+    chartData = [
+      { name: 'Ene', transacciones: 12 },
+      { name: 'Feb', transacciones: 19 },
+      { name: 'Mar', transacciones: 15 },
+      { name: 'Abr', transacciones: 22 },
+      { name: 'May', transacciones: 28 },
+      { name: 'Jun', transacciones: 25 },
+    ]
+  }
+
+  // Las 5 transacciones recientes para la lista
+  const recentList = [...dbTransactions].reverse().slice(0, 5)
+
+  const recentTransactions = recentList.length > 0 ? recentList.map(t => ({
     id: t.id,
     title: t.title,
     type: t.type || 'Operación General',
@@ -98,17 +131,13 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main Chart Area */}
-        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional (YTD)</h3>
-            <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40]">Ver reporte detallado</button>
+            <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional Histórico</h3>
+            <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Ver reporte detallado</button>
           </div>
-          {/* Placeholder for Chart */}
-          <div className="h-72 rounded-xl bg-gradient-to-tr from-gray-50 to-gray-100 border border-dashed border-gray-200 flex items-center justify-center">
-            <div className="text-center">
-              <Activity className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-              <span className="text-sm text-gray-500">Gráfico interactivo de M&A (Integración en progreso)</span>
-            </div>
+          <div className="h-72 w-full mt-auto">
+            <TransactionsChart data={chartData} />
           </div>
         </div>
 
