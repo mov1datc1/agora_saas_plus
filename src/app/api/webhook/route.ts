@@ -77,16 +77,16 @@ export async function POST(req: Request) {
                 status: stripeSubscription.status === 'trialing' ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
                 priceId: stripeSubscription.items.data[0].price.id,
                 trialEndsAt: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
-                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-                cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
+                currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || stripeSubscription.trial_end || stripeSubscription.created || Math.floor(Date.now() / 1000)) * 1000),
+                cancelAtPeriodEnd: Boolean((stripeSubscription as any).cancel_at_period_end),
               },
               update: {
                 stripeSubscriptionId: stripeSubscription.id,
                 status: stripeSubscription.status === 'trialing' ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
                 priceId: stripeSubscription.items.data[0].price.id,
                 trialEndsAt: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
-                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-                cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
+                currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || stripeSubscription.trial_end || stripeSubscription.created || Math.floor(Date.now() / 1000)) * 1000),
+                cancelAtPeriodEnd: Boolean((stripeSubscription as any).cancel_at_period_end),
               }
             })
           }
@@ -112,8 +112,8 @@ export async function POST(req: Request) {
             data: {
               status: newStatus,
               priceId: subscription.items.data[0].price.id,
-              currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
-              cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+              currentPeriodEnd: new Date(((subscription as any).current_period_end || subscription.trial_end || subscription.created || Math.floor(Date.now() / 1000)) * 1000),
+              cancelAtPeriodEnd: Boolean((subscription as any).cancel_at_period_end),
             }
           })
         }
