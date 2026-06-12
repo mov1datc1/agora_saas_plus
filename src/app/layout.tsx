@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Detecta oportunidades de negocio antes de que el mercado las vea.",
 };
 
+import { AuthListener } from "@/components/auth/AuthListener";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="h-full bg-background antialiased">
       <body className={`${geistSans.variable} ${geistMono.variable} h-full`}>
+        <AuthListener />
         {children}
       </body>
     </html>
