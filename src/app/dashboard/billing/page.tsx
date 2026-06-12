@@ -4,12 +4,13 @@ import prisma from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import CheckoutButton from './CheckoutButton'
 import PortalButton from './PortalButton'
+import CancelSubscriptionModal from './CancelSubscriptionModal'
 
 export default async function BillingPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user?.email) {
+  if (!user || !user.email) {
     redirect('/login')
   }
 
@@ -18,19 +19,10 @@ export default async function BillingPage() {
     include: { subscription: true }
   })
 
-  if (!dbUser) {
-    redirect('/login')
-  }
-
-  const subscription = dbUser.subscription
-  const hasActiveTrial = subscription && subscription.status === 'TRIAL'
-  const isActive = subscription && subscription.status === 'ACTIVE'
-  
-  let daysLeft = 0
-  if (hasActiveTrial && subscription.trialEndsAt) {
-    const diffTime = subscription.trialEndsAt.getTime() - new Date().getTime()
-    daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  }
+  const subscription = dbUser?.subscription
+  const hasActiveTrial = subscription?.status === 'TRIAL'
+  const isCanceled = subscription?.status === 'CANCELED'
+  const isCancelingAtPeriodEnd = subscription?.cancelAtPeriodEnd
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl">
@@ -41,45 +33,59 @@ export default async function BillingPage() {
         </p>
       </div>
 
-      {!subscription || subscription.status === 'INCOMPLETE' || subscription.status === 'CANCELED' ? (
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-          <div className="px-6 py-8 sm:p-10 text-center">
-            <h3 className="text-2xl font-bold leading-7 text-gray-900 mb-4">Empieza tu Prueba Gratuita</h3>
-            <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-              Obtén acceso total a la plataforma de Ágora Plus durante 15 días. Se requiere tarjeta de crédito para evitar interrupciones, pero no se hará ningún cargo hasta que termine el periodo de prueba.
-            </p>
-            <CheckoutButton />
-          </div>
+      {(!subscription || subscription.status === 'INCOMPLETE') ? (
+        <div className="bg-white p-12 rounded-3xl border border-gray-100 shadow-sm text-center">
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">Empieza tu Prueba Gratuita</h3>
+          <p className="text-gray-500 max-w-lg mx-auto mb-8 leading-relaxed">
+            Obtén acceso total a la plataforma de Ágora Plus durante 15 días. Se requiere tarjeta de crédito para evitar interrupciones, pero no se hará ningún cargo hasta que termine el periodo de prueba.
+          </p>
+          <CheckoutButton />
         </div>
       ) : (
-        <>
-          {/* Subscription Status Card */}
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-            <div className="px-6 py-8 sm:p-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold leading-7 text-gray-900">Plan Actual</h3>
-                  <div className="mt-2 flex items-baseline gap-x-2">
-                    <span className="text-5xl font-bold tracking-tight text-gray-900">
-                      {hasActiveTrial ? 'Prueba Activa' : 'Plan Pro'}
-                    </span>
-                  </div>
-                  <p className="mt-4 text-sm leading-6 text-gray-600">
-                    Tienes acceso total a todas las métricas de M&A y el directorio de firmas.
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <CreditCard className="w-32 h-32" />
+            </div>
+            
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className={`p-2 rounded-full ${hasActiveTrial ? 'bg-amber-100' : isCanceled ? 'bg-red-100' : 'bg-green-100'}`}>
+                  <CreditCard className={`w-5 h-5 ${hasActiveTrial ? 'text-amber-600' : isCanceled ? 'text-red-600' : 'text-green-600'}`} />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Plan Actual</h3>
+              </div>
+              
+              <div className="space-y-1">
+                <p className="text-4xl font-bold text-gray-900">
+                  {isCanceled ? 'Cancelado' : 'Ágora Plus'}
+                </p>
+                <p className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                  Estado: 
+                  <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                    hasActiveTrial ? 'bg-amber-50 text-amber-700 ring-amber-600/20' : 
+                    isCanceled ? 'bg-red-50 text-red-700 ring-red-600/20' : 
+                    'bg-green-50 text-green-700 ring-green-600/20'
+                  }`}>
+                    {hasActiveTrial ? 'Prueba Activa' : isCanceled ? 'Cancelado' : 'Activo'}
+                  </span>
+                </p>
+              </div>
+              
+              {isCancelingAtPeriodEnd && (
+                <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-none mt-0.5" />
+                  <p className="text-sm text-red-800">
+                    Tu suscripción se cancelará automáticamente el <strong>{subscription.currentPeriodEnd?.toLocaleDateString()}</strong>. Después de esta fecha perderás acceso a la plataforma.
                   </p>
                 </div>
-                {hasActiveTrial && daysLeft > 0 && (
-                  <div className="hidden sm:block">
-                    <span className="inline-flex items-center gap-x-1.5 rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-                      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                      {daysLeft} días restantes
-                    </span>
-                  </div>
-                )}
-              </div>
+              )}
               
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <PortalButton />
+                {!isCanceled && !isCancelingAtPeriodEnd && (
+                  <CancelSubscriptionModal />
+                )}
               </div>
             </div>
             {hasActiveTrial && subscription.trialEndsAt && (
@@ -91,7 +97,7 @@ export default async function BillingPage() {
               </div>
             )}
           </div>
-        </>
+          </div>
       )}
     </div>
   )
