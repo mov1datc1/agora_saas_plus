@@ -26,8 +26,7 @@ export async function GET(req: Request) {
       subscription_data: {
         trial_period_days: 15,
       },
-      // Collect email at checkout since they are not logged in
-      customer_creation: 'always',
+      // Collect email at checkout since they are not logged in (Stripe does this automatically in subscription mode)
       success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/`,
     })
