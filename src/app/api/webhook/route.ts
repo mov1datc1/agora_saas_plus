@@ -122,9 +122,9 @@ export async function POST(req: Request) {
       default:
         console.log(`[WEBHOOK_UNHANDLED] Event type ${event.type}`)
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('[WEBHOOK_DB_ERROR]', error)
-    return new NextResponse('Database Error', { status: 500 })
+    return new NextResponse(`Database Error: ${error?.message || 'Unknown error'}`, { status: 500 })
   }
 
   return new NextResponse('Webhook processed', { status: 200 })
