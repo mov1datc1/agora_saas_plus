@@ -383,7 +383,7 @@ export default function LandingPage() {
                       <span className="text-sm font-semibold leading-6 tracking-wide text-gray-400">/ los primeros 15 días</span>
                     </p>
                     <a
-                      href="/api/checkout/trial"
+                      href="/api/public-checkout"
                       className="mt-10 block w-full rounded-full bg-[#E05C50] px-3 py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-[#c94b40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E05C50]"
                     >
                       Comenzar prueba →

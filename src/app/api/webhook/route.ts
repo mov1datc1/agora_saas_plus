@@ -31,10 +31,42 @@ export async function POST(req: Request) {
       case 'checkout.session.completed':
         if (session.subscription) {
           const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          const customerEmail = session.customer_details?.email
           
-          const dbUser = await prisma.user.findUnique({
-            where: { stripeCustomerId: session.customer as string }
+          if (!customerEmail) {
+            console.error('[WEBHOOK_ERROR] No email found in session')
+            break;
+          }
+
+          let dbUser = await prisma.user.findUnique({
+            where: { email: customerEmail }
           })
+          
+          if (!dbUser) {
+            // Auto-signup flow: create user in Supabase Auth
+            const { supabaseAdmin } = await import('@/utils/supabase/admin')
+            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(customerEmail)
+            
+            if (authError || !authData.user) {
+              console.error('[WEBHOOK_AUTH_ERROR]', authError)
+              break;
+            }
+
+            dbUser = await prisma.user.create({
+              data: {
+                id: authData.user.id,
+                email: customerEmail,
+                name: session.customer_details?.name || customerEmail.split('@')[0],
+                role: 'USER',
+                stripeCustomerId: session.customer as string,
+              }
+            })
+          } else if (!dbUser.stripeCustomerId) {
+            dbUser = await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { stripeCustomerId: session.customer as string }
+            })
+          }
           
           if (dbUser) {
             await prisma.subscription.upsert({

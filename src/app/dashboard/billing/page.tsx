@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import prisma from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import CheckoutButton from './CheckoutButton'
+import PortalButton from './PortalButton'
 
 export default async function BillingPage() {
   const supabase = await createClient()
@@ -78,9 +79,7 @@ export default async function BillingPage() {
               </div>
               
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <button className="rounded-xl bg-[#E05C50] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#c94b40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E05C50] transition-all disabled:opacity-50">
-                  Gestionar Suscripción
-                </button>
+                <PortalButton />
               </div>
             </div>
             {hasActiveTrial && subscription.trialEndsAt && (
