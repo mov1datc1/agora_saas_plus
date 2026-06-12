@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/utils/supabase/client'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -15,6 +16,14 @@ const navigation = [
 
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
 
   const filteredNavigation = navigation.filter(item => {
     if (item.name === 'Configuración' && !isAdmin) return false;
@@ -57,7 +66,10 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
         </nav>
       </div>
       <div className="border-t border-border p-4">
-        <button className="flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+        >
           <LogOut className="mr-3 h-5 w-5 text-foreground/50" aria-hidden="true" />
           Cerrar Sesión
         </button>
