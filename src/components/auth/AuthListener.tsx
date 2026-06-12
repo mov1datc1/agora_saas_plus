@@ -9,14 +9,21 @@ export function AuthListener() {
   const supabase = createClient()
 
   useEffect(() => {
+    // Check if session was established before the listener attached (INITIAL_SESSION)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && window.location.hash.includes('access_token')) {
+        router.refresh()
+        router.push('/dashboard')
+      }
+    })
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
-        // If the user signed in via a magic link (hash fragment), the client SDK
-        // automatically detects it, establishes the session, and fires SIGNED_IN.
-        // We just need to refresh the router so the server components pick up the cookie,
-        // and redirect to the dashboard.
+        router.refresh()
+        router.push('/dashboard')
+      } else if (event === 'INITIAL_SESSION' && session && window.location.hash.includes('access_token')) {
         router.refresh()
         router.push('/dashboard')
       }
