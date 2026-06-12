@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             
             if (authError || !authData.user) {
               console.error('[WEBHOOK_AUTH_ERROR]', authError)
-              break;
+              throw new Error(`Auth Error: ${authError?.message || 'Failed to create user in Supabase'}`);
             }
 
             dbUser = await prisma.user.create({
