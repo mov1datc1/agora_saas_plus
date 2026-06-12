@@ -20,7 +20,9 @@ export async function POST(req: Request) {
       return new NextResponse('Stripe customer not found', { status: 404 })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL 
+      || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null)
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
     const session = await stripe.billingPortal.sessions.create({
       customer: dbUser.stripeCustomerId,
