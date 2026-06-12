@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { redirect } from 'next/navigation'
 
 export async function GET(req: Request) {
   try {
@@ -32,7 +31,7 @@ export async function GET(req: Request) {
     })
 
     if (session.url) {
-      redirect(session.url)
+      return NextResponse.redirect(session.url)
     }
 
     return new NextResponse('Error creating session', { status: 500 })
