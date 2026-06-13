@@ -10,9 +10,10 @@ interface FirmsClientProps {
   totalFirms: number
   historyData: { year: string, transacciones: number }[]
   practiceData: { name: string, value: number }[]
+  topFirmsList: { name: string, deals: number }[]
 }
 
-export default function FirmsClient({ totalTransactions, totalFirms, historyData, practiceData }: FirmsClientProps) {
+export default function FirmsClient({ totalTransactions, totalFirms, historyData, practiceData, topFirmsList }: FirmsClientProps) {
   return (
     <>
       {/* Stats row */}
@@ -33,13 +34,22 @@ export default function FirmsClient({ totalTransactions, totalFirms, historyData
           <p className="text-3xl font-bold text-foreground">{totalFirms}</p>
           <p className="text-sm text-muted-foreground mt-2">En el histórico de LexLatin</p>
         </div>
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border opacity-50">
+        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
           <div className="flex items-center gap-3 text-muted-foreground mb-2">
             <Users className="h-5 w-5" />
-            <h3 className="text-sm font-semibold">Abogados Clave</h3>
+            <h3 className="text-sm font-semibold">Firmas Top Ranking</h3>
           </div>
-          <p className="text-3xl font-bold text-foreground">--</p>
-          <p className="text-sm text-muted-foreground mt-2">Próximamente</p>
+          <div className="mt-4 space-y-2">
+            {topFirmsList.slice(0, 3).map((firm, i) => (
+              <div key={i} className="flex justify-between items-center bg-muted p-2 rounded-lg">
+                <span className="text-xs font-semibold truncate max-w-[120px]">{firm.name}</span>
+                <span className="text-xs bg-surface px-2 py-1 rounded">{firm.deals} ops</span>
+              </div>
+            ))}
+            {topFirmsList.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-2">Sin datos.</p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -48,11 +48,23 @@ export default async function MetricsFirmsPage() {
     .sort((a, b) => b.value - a.value)
     .slice(0, 5) // Mostrar solo el Top 5 en la gráfica circular
 
+  // 4. Firmas Top
+  const firmsData = await prisma.firm.findMany({
+    include: { _count: { select: { transactions: true } } },
+    orderBy: { transactions: { _count: 'desc' } },
+    take: 5
+  })
+  
+  const topFirmsList = firmsData.map(f => ({
+    name: f.name,
+    deals: f._count.transactions
+  }))
+
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Métricas del Mercado Global</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Metricas del Mercado Global</h2>
           <p className="mt-2 text-sm text-muted-foreground">Analiza el desempeño y volumen histórico de transacciones.</p>
         </div>
       </div>
@@ -62,6 +74,7 @@ export default async function MetricsFirmsPage() {
         totalFirms={totalFirms}
         historyData={historyData} 
         practiceData={practiceData} 
+        topFirmsList={topFirmsList}
       />
     </div>
   )
