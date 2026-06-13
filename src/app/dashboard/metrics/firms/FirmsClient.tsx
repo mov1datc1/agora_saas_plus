@@ -7,11 +7,12 @@ const COLORS = ['#E05C50', '#1C1F33', '#82ca9d', '#ffc658', '#8884d8', '#8dd1e1'
 
 interface FirmsClientProps {
   totalTransactions: number
+  totalFirms: number
   historyData: { year: string, transacciones: number }[]
   practiceData: { name: string, value: number }[]
 }
 
-export default function FirmsClient({ totalTransactions, historyData, practiceData }: FirmsClientProps) {
+export default function FirmsClient({ totalTransactions, totalFirms, historyData, practiceData }: FirmsClientProps) {
   return (
     <>
       {/* Stats row */}
@@ -24,13 +25,13 @@ export default function FirmsClient({ totalTransactions, historyData, practiceDa
           <p className="text-3xl font-bold text-foreground">{totalTransactions}</p>
           <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
         </div>
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border opacity-50">
+        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
           <div className="flex items-center gap-3 text-muted-foreground mb-2">
             <Building2 className="h-5 w-5" />
-            <h3 className="text-sm font-semibold">Clientes Activos</h3>
+            <h3 className="text-sm font-semibold">Firmas Registradas</h3>
           </div>
-          <p className="text-3xl font-bold text-foreground">--</p>
-          <p className="text-sm text-muted-foreground mt-2">Próximamente</p>
+          <p className="text-3xl font-bold text-foreground">{totalFirms}</p>
+          <p className="text-sm text-muted-foreground mt-2">En el histórico de LexLatin</p>
         </div>
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border opacity-50">
           <div className="flex items-center gap-3 text-muted-foreground mb-2">

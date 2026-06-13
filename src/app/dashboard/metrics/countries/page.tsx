@@ -37,10 +37,25 @@ export default async function MetricsCountriesPage() {
     .sort((a, b) => b.deals - a.deals)
     .slice(0, 2)
 
-  // 4. Top Firmas (Placeholder hasta que ETL expanda Firms)
-  const topFirms = [
-    { name: 'Global Counsel LLC (Placeholder)', deals: 0 }
-  ]
+  // 4. Top Firmas Reales
+  const firms = await prisma.firm.findMany({
+    include: {
+      _count: {
+        select: { transactions: true }
+      }
+    },
+    orderBy: {
+      transactions: {
+        _count: 'desc'
+      }
+    },
+    take: 5
+  })
+
+  const topFirms = firms.map(f => ({
+    name: f.name,
+    deals: f._count.transactions
+  }))
 
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     // 2. Fetch data from Drupal (node--post = Transactions)
     // We request the included relationships to get Firm, Lawyer, Company, and Industry details in one go.
-    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas&page[limit]=50`
+    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados&page[limit]=50`
     
     const response = await fetch(url)
     if (!response.ok) {
@@ -73,6 +73,23 @@ export async function POST(request: Request) {
         }
       }
 
+      // Process Countries
+      let countryNames: string[] = []
+      if (relationships?.field_paises_involucrados?.data) {
+        const paisesData = Array.isArray(relationships.field_paises_involucrados.data)
+          ? relationships.field_paises_involucrados.data
+          : [relationships.field_paises_involucrados.data];
+          
+        for (const p of paisesData) {
+          if (!p) continue;
+          const paisNode = getIncludedResource(p.type, p.id)
+          if (paisNode && (paisNode.attributes.name || paisNode.attributes.title)) {
+            countryNames.push(paisNode.attributes.name || paisNode.attributes.title)
+          }
+        }
+      }
+      const combinedCountries = countryNames.length > 0 ? countryNames.join(', ') : null
+
       // Upsert Transaction Core
       await prisma.transaction.upsert({
         where: { id: transactionId },
@@ -82,6 +99,7 @@ export async function POST(request: Request) {
           status,
           type,
           link,
+          country: combinedCountries,
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
@@ -92,15 +110,52 @@ export async function POST(request: Request) {
           status,
           type,
           link,
+          country: combinedCountries,
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
         }
       })
 
-      // We would normally process Firms, Lawyers, and Companies here...
-      // Since relationships are complex, we skip deeper mappings for the prototype sync 
-      // but ensure the main transaction logic functions perfectly.
+      // Process Firms
+      if (relationships?.field_firmas_involucradas?.data) {
+        const firmasData = Array.isArray(relationships.field_firmas_involucradas.data)
+          ? relationships.field_firmas_involucradas.data
+          : [relationships.field_firmas_involucradas.data];
+          
+        for (const f of firmasData) {
+          if (!f) continue;
+          const firmaNode = getIncludedResource(f.type, f.id)
+          if (firmaNode && (firmaNode.attributes.name || firmaNode.attributes.title)) {
+            const firmaName = firmaNode.attributes.name || firmaNode.attributes.title
+            
+            // Create or update Firm
+            const upsertedFirm = await prisma.firm.upsert({
+              where: { name: firmaName },
+              create: { id: f.id, name: firmaName },
+              update: { name: firmaName }
+            })
+            
+            // Link to Transaction
+            await prisma.transactionAdvisor.upsert({
+              where: {
+                transactionId_firmId_role: {
+                  transactionId: transactionId,
+                  firmId: upsertedFirm.id,
+                  role: 'Asesor Legal'
+                }
+              },
+              create: {
+                id: `${transactionId}-${upsertedFirm.id}`,
+                transactionId: transactionId,
+                firmId: upsertedFirm.id,
+                role: 'Asesor Legal'
+              },
+              update: {}
+            })
+          }
+        }
+      }
 
       processedCount++
     }

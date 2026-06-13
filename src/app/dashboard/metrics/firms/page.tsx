@@ -12,6 +12,9 @@ export default async function MetricsFirmsPage() {
   })
 
   const totalTransactions = transactions.length
+  
+  // Conteo de Firmas reales en la DB
+  const totalFirms = await prisma.firm.count()
 
   // 2. Agrupar por Año para la gráfica del Histórico
   const yearCounts: Record<string, number> = {}
@@ -56,6 +59,7 @@ export default async function MetricsFirmsPage() {
 
       <FirmsClient 
         totalTransactions={totalTransactions} 
+        totalFirms={totalFirms}
         historyData={historyData} 
         practiceData={practiceData} 
       />
