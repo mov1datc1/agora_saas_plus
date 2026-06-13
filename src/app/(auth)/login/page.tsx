@@ -1,4 +1,4 @@
-import { login } from './actions'
+import { login, loginWithMagicLink } from './actions'
 import Link from 'next/link'
 
 export default function LoginPage() {
