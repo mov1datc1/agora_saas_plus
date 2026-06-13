@@ -2,7 +2,13 @@
 
 import { Search, Bell } from 'lucide-react'
 
-export default function Header() {
+interface HeaderProps {
+  userName?: string;
+}
+
+export default function Header({ userName = 'Usuario' }: HeaderProps) {
+  const initials = userName.substring(0, 2).toUpperCase();
+
   return (
     <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center gap-x-4 border-b border-border bg-surface/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
@@ -30,11 +36,11 @@ export default function Header() {
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />
           <div className="flex items-center gap-x-4">
             <div className="h-8 w-8 rounded-full bg-brand/20 flex items-center justify-center text-brand font-semibold text-sm">
-              JD
+              {initials}
             </div>
             <span className="hidden lg:flex lg:items-center">
               <span className="text-sm font-semibold leading-6 text-foreground" aria-hidden="true">
-                John Doe
+                {userName}
               </span>
             </span>
           </div>

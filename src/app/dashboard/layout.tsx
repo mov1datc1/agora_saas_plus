@@ -13,6 +13,7 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
   let isAdmin = false;
   let subscriptionStatus = 'INCOMPLETE';
+  let userName = 'Usuario';
 
   if (user?.email) {
     const dbUser = await prisma.user.findUnique({ 
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
     if (dbUser?.subscription) {
       subscriptionStatus = dbUser.subscription.status;
     }
+    userName = dbUser?.name || user.email.split('@')[0];
   }
 
   return (
@@ -32,7 +34,7 @@ export default async function DashboardLayout({
       <Sidebar isAdmin={isAdmin} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DunningBanner status={subscriptionStatus} />
-        <Header />
+        <Header userName={userName} />
         <main className="flex-1 overflow-y-auto bg-background p-6">
           {children}
         </main>
