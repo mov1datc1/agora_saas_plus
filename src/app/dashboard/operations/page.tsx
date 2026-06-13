@@ -67,9 +67,9 @@ export default function OperationsPage() {
             <label className="block text-xs font-medium text-foreground/70 mb-1">Monto Mínimo</label>
             <select className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none focus:ring-1 focus:ring-brand">
               <option>Cualquiera</option>
-              <option>> $10M</option>
-              <option>> $50M</option>
-              <option>> $100M</option>
+              <option>&gt; $10M</option>
+              <option>&gt; $50M</option>
+              <option>&gt; $100M</option>
             </select>
           </div>
           <div>
