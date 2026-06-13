@@ -1,6 +1,8 @@
 import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/utils/supabase/server'
 import prisma from '@/lib/prisma'
+import { stripe } from '@/lib/stripe'
+import Stripe from 'stripe'
 import { redirect } from 'next/navigation'
 import CheckoutButton from './CheckoutButton'
 import PortalButton from './PortalButton'
@@ -23,6 +25,28 @@ export default async function BillingPage() {
   const hasActiveTrial = subscription?.status === 'TRIAL'
   const isCanceled = subscription?.status === 'CANCELED'
   const isCancelingAtPeriodEnd = subscription?.cancelAtPeriodEnd
+
+  let paymentMethod: Stripe.PaymentMethod | null = null;
+  if (dbUser?.stripeCustomerId) {
+    try {
+      const customer = await stripe.customers.retrieve(dbUser.stripeCustomerId, {
+        expand: ['invoice_settings.default_payment_method']
+      });
+      if (customer && !customer.deleted && customer.invoice_settings?.default_payment_method) {
+        paymentMethod = customer.invoice_settings.default_payment_method as Stripe.PaymentMethod;
+      } else if (subscription?.stripeSubscriptionId) {
+        // Fallback: check subscription's default payment method
+        const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId, {
+          expand: ['default_payment_method']
+        });
+        if (stripeSub.default_payment_method) {
+          paymentMethod = stripeSub.default_payment_method as Stripe.PaymentMethod;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching payment method:', e);
+    }
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl">
@@ -49,11 +73,19 @@ export default async function BillingPage() {
             </div>
             
             <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className={`p-2 rounded-full ${hasActiveTrial ? 'bg-amber-100' : isCanceled ? 'bg-red-100' : 'bg-green-100'}`}>
-                  <CreditCard className={`w-5 h-5 ${hasActiveTrial ? 'text-amber-600' : isCanceled ? 'text-red-600' : 'text-green-600'}`} />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${hasActiveTrial ? 'bg-amber-100' : isCanceled ? 'bg-red-100' : 'bg-green-100'}`}>
+                    <CreditCard className={`w-5 h-5 ${hasActiveTrial ? 'text-amber-600' : isCanceled ? 'text-red-600' : 'text-green-600'}`} />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Plan Actual</h3>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Plan Actual</h3>
+                {paymentMethod?.card && (
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 z-10">
+                    <span className="text-xs font-bold text-gray-600 uppercase">{paymentMethod.card.brand}</span>
+                    <span className="text-xs text-gray-500 font-mono">•••• {paymentMethod.card.last4}</span>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-1">

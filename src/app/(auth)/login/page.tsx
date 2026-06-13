@@ -46,19 +46,34 @@ export default function LoginPage() {
               name="password"
               type="password"
               autoComplete="current-password"
-              required
               className="block w-full rounded-xl border-0 py-3 px-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#E05C50] sm:text-sm sm:leading-6 transition-all"
-              placeholder="••••••••"
+              placeholder="•••••••• (Opcional si usas Enlace Mágico)"
             />
           </div>
         </div>
 
-        <div>
+        <div className="space-y-3">
           <button
             formAction={login}
             className="flex w-full justify-center rounded-xl bg-[#E05C50] px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-[#c94b40] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E05C50] transition-all hover:scale-[1.02]"
           >
-            Iniciar Sesión
+            Iniciar Sesión con Contraseña
+          </button>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm font-medium leading-6">
+              <span className="bg-white px-6 text-gray-900">O sin contraseña</span>
+            </div>
+          </div>
+
+          <button
+            formAction={loginWithMagicLink}
+            className="flex w-full justify-center rounded-xl bg-white px-3 py-3 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E05C50] transition-all hover:scale-[1.02]"
+          >
+            Enviar Enlace Mágico de Acceso
           </button>
         </div>
       </form>
