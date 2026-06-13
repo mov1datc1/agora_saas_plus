@@ -19,26 +19,68 @@ export type UITransaction = {
 
 export default function OperationsClient({ transactions }: { transactions: UITransaction[] }) {
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
+  
+  // Estados para los filtros
+  const [selectedType, setSelectedType] = useState('Todos')
+  const [selectedIndustry, setSelectedIndustry] = useState('Todas')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Extraer valores únicos para los selects
+  const uniqueTypes = Array.from(new Set(transactions.map(tx => tx.type))).filter(Boolean)
+  const uniqueIndustries = Array.from(new Set(transactions.map(tx => tx.industry))).filter(Boolean)
+
+  // Lógica de filtrado
+  const filteredTransactions = transactions.filter(tx => {
+    const matchType = selectedType === 'Todos' || tx.type === selectedType
+    const matchIndustry = selectedIndustry === 'Todas' || tx.industry === selectedIndustry
+    const matchSearch = tx.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        tx.firm.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        tx.industry.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    return matchType && matchIndustry && matchSearch
+  })
 
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 bg-surface rounded-2xl p-6 shadow-sm border border-border">
-        {/* Same filters as before, but purely UI for now unless we add filtering state */}
         <div className="col-span-full flex items-center gap-2 mb-2 text-foreground font-semibold">
           <Filter className="h-5 w-5" /> Filtros Avanzados
         </div>
-        {/* Simplified filters for UI only */}
         <div>
           <label className="block text-xs font-medium text-foreground/70 mb-1">Tipo de Operación</label>
-          <select className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"><option>Todos</option></select>
+          <select 
+            className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+          >
+            <option value="Todos">Todos</option>
+            {uniqueTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-foreground/70 mb-1">Industria</label>
-          <select className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"><option>Todas</option></select>
+          <select 
+            className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"
+            value={selectedIndustry}
+            onChange={(e) => setSelectedIndustry(e.target.value)}
+          >
+            <option value="Todas">Todas</option>
+            {uniqueIndustries.map(ind => (
+              <option key={ind} value={ind}>{ind}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-foreground/70 mb-1">Buscar</label>
-          <input type="text" placeholder="Empresa o título..." className="w-full rounded-lg border border-border bg-background text-sm p-2 outline-none" />
+          <input 
+            type="text" 
+            placeholder="Empresa o título..." 
+            className="w-full rounded-lg border border-border bg-background text-sm p-2 outline-none"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 
@@ -54,7 +96,7 @@ export default function OperationsClient({ transactions }: { transactions: UITra
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
-              {transactions.map((tx) => (
+              {filteredTransactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setSelectedTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[250px] truncate" title={tx.title}>{tx.title}</td>
@@ -66,8 +108,8 @@ export default function OperationsClient({ transactions }: { transactions: UITra
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80">{tx.amount}</td>
                 </tr>
               ))}
-              {transactions.length === 0 && (
-                <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones sincronizadas aún.</td></tr>
+              {filteredTransactions.length === 0 && (
+                <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
           </table>
@@ -75,9 +117,9 @@ export default function OperationsClient({ transactions }: { transactions: UITra
 
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Resumen</h3>
-            <p className="text-2xl font-bold text-foreground">{transactions.length}</p>
-            <p className="text-xs text-muted-foreground">Operaciones recientes cargadas desde Drupal.</p>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
+            <p className="text-2xl font-bold text-foreground">{filteredTransactions.length}</p>
+            <p className="text-xs text-muted-foreground">Operaciones coinciden con los filtros aplicados.</p>
           </div>
         </div>
       </div>
