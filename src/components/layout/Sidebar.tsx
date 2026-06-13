@@ -8,8 +8,10 @@ import { createClient } from '@/utils/supabase/client'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Transacciones', href: '/dashboard/transactions', icon: ArrowLeftRight },
-  { name: 'Directorio', href: '/dashboard/directory', icon: Users },
+  { name: 'Operaciones', href: '/dashboard/operations', icon: ArrowLeftRight },
+  { name: 'Métricas: Firmas', href: '/dashboard/metrics/firms', icon: Building2 },
+  { name: 'Métricas: Industrias', href: '/dashboard/metrics/industries', icon: Briefcase },
+  { name: 'Métricas: Países', href: '/dashboard/metrics/countries', icon: Users },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ]

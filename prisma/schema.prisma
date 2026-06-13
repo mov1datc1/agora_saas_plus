@@ -56,12 +56,43 @@ model Transaction {
   country       String?
   dateAnnounced DateTime?
   dateClosed    DateTime?
+  link          String?  // Enlace a LexLatin
+  industryId    String?
+  industry      Industry? @relation(fields: [industryId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
   // Relations
   advisors      TransactionAdvisor[]
+  lawyers       TransactionLawyer[]
+  companies     TransactionCompany[]
 }
+
+model Industry {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  transactions  Transaction[]
+}
+
+model Company {
+  id            String   @id @default(uuid())
+  name          String
+  country       String?
+  transactions  TransactionCompany[]
+}
+
+model TransactionCompany {
+  id            String   @id @default(uuid())
+  transactionId String
+  companyId     String
+  role          String   // e.g. "Comprador", "Vendedor", "Target", "Emisor"
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, companyId, role])
+}
+
 
 model Firm {
   id          String   @id @default(uuid())
@@ -84,6 +115,8 @@ model Lawyer {
   position    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  transactions TransactionLawyer[]
 }
 
 model TransactionAdvisor {
@@ -95,5 +128,17 @@ model TransactionAdvisor {
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   firm          Firm        @relation(fields: [firmId], references: [id], onDelete: Cascade)
 
-  @@unique([transactionId, firmId])
+  @@unique([transactionId, firmId, role])
+}
+
+model TransactionLawyer {
+  id            String      @id @default(uuid())
+  transactionId String
+  lawyerId      String
+  role          String      // e.g. "Lead Counsel"
+  
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  lawyer        Lawyer      @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, lawyerId, role])
 }
