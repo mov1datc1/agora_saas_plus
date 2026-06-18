@@ -44,6 +44,25 @@ export async function POST(request: Request) {
       return included?.find((item: any) => item.type === type && item.id === id)
     }
 
+    // 3.5 Heuristic Industry Guesser
+    const guessIndustryFromText = (text: string): string | null => {
+      const t = text.toLowerCase()
+      if (t.includes('banco') || t.includes('banca') || t.includes('scotiabank') || t.includes('citigroup') || t.includes('financiero') || t.includes('fideicomiso') || t.includes('crédito') || t.includes('bonos')) return 'Banca'
+      if (t.includes('inmobiliari') || t.includes('bienes raíces') || t.includes('hotel') || t.includes('resort') || t.includes('terreno')) return 'Bienes Raíces'
+      if (t.includes('energía') || t.includes('petróleo') || t.includes('gas') || t.includes('solar') || t.includes('eólica') || t.includes('eléctric')) return 'Energía y recursos naturales | No Renovable - Petróleo'
+      if (t.includes('minería') || t.includes('mina') || t.includes('cobre') || t.includes('litio') || t.includes('oro')) return 'Minería'
+      if (t.includes('retail') || t.includes('supermercado') || t.includes('tienda') || t.includes('comercio')) return 'Retail'
+      if (t.includes('tecnología') || t.includes('software') || t.includes('app') || t.includes('informática') || t.includes('startup') || t.includes('fintech')) return 'Informática'
+      if (t.includes('telecomunicacion') || t.includes('telefon') || t.includes('internet') || t.includes('fibra óptica')) return 'Telecomunicaciones'
+      if (t.includes('salud') || t.includes('hospital') || t.includes('clínica') || t.includes('farmacéutic') || t.includes('medicamento')) return 'Salud'
+      if (t.includes('transporte') || t.includes('logística') || t.includes('aerolínea') || t.includes('aviación') || t.includes('marítim') || t.includes('autopista')) return 'Transporte y logística'
+      if (t.includes('alimento') || t.includes('bebida') || t.includes('agrícola') || t.includes('agro') || t.includes('pesca')) return 'Agrícola'
+      if (t.includes('educación') || t.includes('universidad') || t.includes('colegio')) return 'Educación'
+      if (t.includes('seguro') || t.includes('reaseguro')) return 'Seguros y reaseguros'
+      if (t.includes('construcción') || t.includes('infraestructura')) return 'Infraestructura'
+      return null
+    }
+
     // 4. Process and Upsert each Post (Transaction)
     let processedCount = 0
 
@@ -62,6 +81,9 @@ export async function POST(request: Request) {
 
       // Process Relationships (Industries)
       let prismaIndustryId = null
+      let finalIndustryName = null
+      let originalIndId = null
+
       if (relationships?.field_industrias_asociadas?.data) {
         const indData = Array.isArray(relationships.field_industrias_asociadas.data) 
           ? relationships.field_industrias_asociadas.data[0] 
@@ -70,17 +92,34 @@ export async function POST(request: Request) {
         if (indData) {
           const industryNode = getIncludedResource(indData.type, indData.id)
           if (industryNode) {
-            const industryName = industryNode.attributes.name || industryNode.attributes.title
-            if (industryName) {
-              const upsertedIndustry = await prisma.industry.upsert({
-                where: { name: industryName },
-                create: { id: indData.id, name: industryName },
-                update: { name: industryName }
-              })
-              prismaIndustryId = upsertedIndustry.id
-            }
+            finalIndustryName = industryNode.attributes.name || industryNode.attributes.title
+            originalIndId = indData.id
           }
         }
+      }
+
+      // If no industry was found in Drupal, try to guess it from Title and Body
+      if (!finalIndustryName) {
+        const textToAnalyze = `${title} ${attributes.body?.value || ''}`
+        const guessed = guessIndustryFromText(textToAnalyze)
+        if (guessed) {
+          finalIndustryName = guessed
+        }
+      }
+
+      // Upsert the industry (either official or guessed)
+      if (finalIndustryName) {
+        const upsertData: any = { name: finalIndustryName }
+        if (originalIndId) {
+          upsertData.id = originalIndId
+        }
+        
+        const upsertedIndustry = await prisma.industry.upsert({
+          where: { name: finalIndustryName },
+          create: upsertData,
+          update: { name: finalIndustryName }
+        })
+        prismaIndustryId = upsertedIndustry.id
       }
 
       // Process Countries
