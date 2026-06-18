@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma'
 import IndustriesClient from './IndustriesClient'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 43200 // 12 hours cache
 
 export default async function MetricsIndustriesPage({
   searchParams
