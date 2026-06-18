@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { BarChart3, Users, Settings } from 'lucide-react'
+import { BarChart3, Users, Settings, Target } from 'lucide-react'
 
 const adminNav = [
   { name: 'Dashboard', href: '/dashboard/admin', icon: BarChart3 },
   { name: 'Control de Usuarios', href: '/dashboard/admin/users', icon: Users },
   { name: 'Configuración de Sistema', href: '/dashboard/admin/settings', icon: Settings },
+  { name: 'Marketing y Tracking', href: '/dashboard/admin/marketing', icon: Target },
 ]
 
 export default function AdminLayout({
