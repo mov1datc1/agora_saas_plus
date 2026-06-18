@@ -13,7 +13,7 @@ const navigation = [
   { name: 'Métricas: Industrias', href: '/dashboard/metrics/industries', icon: Briefcase },
   { name: 'Métricas: Países', href: '/dashboard/metrics/countries', icon: Users },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
-  { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
+  { name: 'Administración', href: '/dashboard/admin', icon: Settings },
 ]
 
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -28,7 +28,7 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   const filteredNavigation = navigation.filter(item => {
-    // if (item.name === 'Configuración' && !isAdmin) return false;
+    // if (item.name === 'Administración' && !isAdmin) return false;
     return true;
   });
 

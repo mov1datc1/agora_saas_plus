@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
-const DRUPAL_API_BASE = 'https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi'
+const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi'
 
 export async function POST(request: Request) {
   try {
