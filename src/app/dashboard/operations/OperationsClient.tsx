@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 export type UITransaction = {
@@ -21,9 +22,20 @@ export default function OperationsClient({ transactions }: { transactions: UITra
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
   
   // Estados para los filtros
+  const searchParams = useSearchParams()
+  const initialSearch = searchParams.get('search') || ''
+  
   const [selectedType, setSelectedType] = useState('Todos')
   const [selectedIndustry, setSelectedIndustry] = useState('Todas')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+
+  // Actualizar search query si cambia la URL (para volver atrás, etc.)
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q !== null) {
+      setSearchQuery(q)
+    }
+  }, [searchParams])
   const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'amount' | null, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
 
   // Extraer valores únicos para los selects

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Building2, Users, FileText, ArrowUpRight, X } from 'lucide-react'
 
@@ -130,17 +131,21 @@ export default function FirmsClient({ totalTransactions, totalFirms, historyData
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {topFirmsList.map((firm, i) => (
-                <div key={i} className="flex justify-between items-center bg-muted p-4 rounded-xl border border-border/50 hover:border-[#E05C50]/30 transition-colors">
+                <Link 
+                  href={`/dashboard/operations?search=${encodeURIComponent(firm.name)}`}
+                  key={i} 
+                  className="flex justify-between items-center bg-muted p-4 rounded-xl border border-border/50 hover:border-[#E05C50]/30 hover:bg-muted/80 transition-all cursor-pointer group"
+                >
                   <div className="flex items-center gap-4">
-                    <span className="flex items-center justify-center h-8 w-8 rounded-full bg-background text-sm font-bold text-foreground ring-1 ring-border shadow-sm">
+                    <span className="flex items-center justify-center h-8 w-8 rounded-full bg-background text-sm font-bold text-foreground ring-1 ring-border shadow-sm group-hover:bg-[#E05C50] group-hover:text-white transition-colors">
                       {i + 1}
                     </span>
-                    <span className="text-sm font-semibold text-foreground">{firm.name}</span>
+                    <span className="text-sm font-semibold text-foreground group-hover:text-[#E05C50] transition-colors">{firm.name}</span>
                   </div>
                   <span className="text-xs font-bold bg-[#E05C50]/10 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
                     {firm.deals} ops
                   </span>
-                </div>
+                </Link>
               ))}
               {topFirmsList.length === 0 && (
                 <p className="text-sm text-muted-foreground mt-2 text-center">No hay datos de firmas disponibles.</p>

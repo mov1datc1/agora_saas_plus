@@ -1,19 +1,21 @@
+import { Suspense } from 'react'
 import prisma from '@/lib/prisma'
 import OperationsClient, { UITransaction } from './OperationsClient'
 
-// Configurar para que la página sea dinámica y siempre traiga la data más fresca
-export const dynamic = 'force-dynamic'
+// Configurar ISR
+export const revalidate = 43200 // 12 hours cache
 
 export default async function OperationsPage() {
   // Fetch real transactions from Prisma
   const dbTransactions = await prisma.transaction.findMany({
     include: {
       industry: true,
+      advisors: { include: { firm: true } }
     },
     orderBy: {
       dateAnnounced: 'desc',
     },
-    take: 100 // Mostrar las últimas 100 por ahora
+    take: 2500 // Allow loading full history
   })
 
   // Mapear los datos de la base de datos al formato de la UI
@@ -25,8 +27,8 @@ export default async function OperationsPage() {
     amount: tx.valueString || 'Por definir',
     status: tx.status || 'Completada',
     industry: tx.industry?.name || 'Varios',
-    country: 'Latinoamérica', // Dato genérico por ahora, se puede expandir el ETL
-    firm: 'Ver detalle', 
+    country: tx.country || 'Latinoamérica',
+    firm: tx.advisors?.map(a => a.firm.name).join(', ') || 'Sin firmas listadas', 
     lawyer: 'Varios',
     link: tx.link || '#'
   }))
@@ -40,7 +42,9 @@ export default async function OperationsPage() {
         </div>
       </div>
 
-      <OperationsClient transactions={mappedTransactions} />
+      <Suspense fallback={<div className="h-[600px] flex items-center justify-center text-muted-foreground">Cargando operaciones...</div>}>
+        <OperationsClient transactions={mappedTransactions} />
+      </Suspense>
     </div>
   )
 }
