@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic'
 export default async function MetricsCountriesPage({
   searchParams
 }: {
-  searchParams: { country?: string }
+  searchParams: Promise<{ country?: string }>
 }) {
-  const selectedCountry = searchParams.country
+  const params = await searchParams
+  const selectedCountry = params.country
 
   const whereClause = selectedCountry && selectedCountry !== 'Todos'
     ? { country: { contains: selectedCountry } }

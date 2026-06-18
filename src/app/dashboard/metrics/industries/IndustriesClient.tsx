@@ -110,7 +110,8 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
               <Geographies geography={geoUrl}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const isLatAm = ["MEX", "BRA", "ARG", "CHL", "COL", "PER"].includes(geo.id);
+                    const latAmCountries = ["Mexico", "Brazil", "Argentina", "Chile", "Colombia", "Peru", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay"];
+                    const isLatAm = latAmCountries.includes(geo.properties?.name);
                     return (
                       <Geography
                         key={geo.rsmKey}

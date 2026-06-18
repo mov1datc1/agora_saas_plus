@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic'
 export default async function MetricsIndustriesPage({
   searchParams
 }: {
-  searchParams: { industry?: string }
+  searchParams: Promise<{ industry?: string }>
 }) {
-  const selectedIndustry = searchParams.industry
+  const params = await searchParams
+  const selectedIndustry = params.industry
 
   const whereClause = selectedIndustry && selectedIndustry !== 'Todas' 
     ? { industry: { name: selectedIndustry } } 
