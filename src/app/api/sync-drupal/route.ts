@@ -15,8 +15,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Fetch data from Drupal (node--post = Transactions)
-    // We request the included relationships to get Firm, Lawyer, Company, and Industry details in one go.
-    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados&page[limit]=50&sort=-created`
+    // We request the included relationships to get Firm, Lawyer, Company, Industry, and Financial data.
+    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=50&sort=-created`
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
@@ -100,6 +100,34 @@ export async function POST(request: Request) {
       }
       const combinedCountries = countryNames.length > 0 ? countryNames.join(', ') : null
 
+      // Process Value String (Monto)
+      let transactionValue = 'Por definir'
+      if (relationships?.field_operacion?.data) {
+        const opDataArray = Array.isArray(relationships.field_operacion.data) ? relationships.field_operacion.data : [relationships.field_operacion.data]
+        for (const opData of opDataArray) {
+          if (!opData) continue
+          const opNode = getIncludedResource(opData.type, opData.id)
+          if (opNode && opNode.relationships?.field_datos_monetarios?.data) {
+            const moneyData = opNode.relationships.field_datos_monetarios.data
+            const moneyNode = getIncludedResource(moneyData.type, moneyData.id)
+            if (moneyNode && moneyNode.attributes?.field_monto_transaccion_en_dolar) {
+              const rawMonto = moneyNode.attributes.field_monto_transaccion_en_dolar
+              const num = parseFloat(rawMonto.toString().replace(/,/g, ''))
+              if (!isNaN(num) && num > 0) {
+                if (num >= 1000000) {
+                  transactionValue = `$${(num / 1000000).toFixed(1)}M`
+                } else {
+                  transactionValue = `$${num.toLocaleString('en-US')}`
+                }
+              } else {
+                transactionValue = `$${rawMonto}`
+              }
+              break
+            }
+          }
+        }
+      }
+
       // Upsert Transaction Core
       await prisma.transaction.upsert({
         where: { id: transactionId },
@@ -113,7 +141,7 @@ export async function POST(request: Request) {
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
-          valueString: 'Por definir', // API does not expose exact amount at the top level usually
+          valueString: transactionValue,
         },
         update: {
           title,
@@ -124,6 +152,7 @@ export async function POST(request: Request) {
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
+          valueString: transactionValue,
         }
       })
 
