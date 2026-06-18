@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight } from 'lucide-react'
+import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 export type UITransaction = {
   id: string
@@ -24,6 +24,7 @@ export default function OperationsClient({ transactions }: { transactions: UITra
   const [selectedType, setSelectedType] = useState('Todos')
   const [selectedIndustry, setSelectedIndustry] = useState('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'amount' | null, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
 
   // Extraer valores únicos para los selects
   const uniqueTypes = Array.from(new Set(transactions.map(tx => tx.type))).filter(Boolean)
@@ -39,6 +40,49 @@ export default function OperationsClient({ transactions }: { transactions: UITra
     
     return matchType && matchIndustry && matchSearch
   })
+
+  // Parseadores para ordenamiento
+  const parseDate = (dateStr: string) => {
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime()
+    }
+    return 0
+  }
+
+  const parseAmount = (amountStr: string) => {
+    if (!amountStr || amountStr === 'Por definir') return 0
+    let num = parseFloat(amountStr.replace(/[^0-9.-]/g, ''))
+    if (amountStr.includes('B')) num *= 1000
+    return isNaN(num) ? 0 : num
+  }
+
+  // Ordenar transacciones filtradas
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    if (!sortConfig.key) return 0
+    
+    let aValue = 0
+    let bValue = 0
+
+    if (sortConfig.key === 'date') {
+      aValue = parseDate(a.date)
+      bValue = parseDate(b.date)
+    } else if (sortConfig.key === 'amount') {
+      aValue = parseAmount(a.amount)
+      bValue = parseAmount(b.amount)
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const handleSort = (key: 'date' | 'amount') => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
+    }))
+  }
 
   return (
     <>
@@ -89,14 +133,24 @@ export default function OperationsClient({ transactions }: { transactions: UITra
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-muted sticky top-0">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Fecha</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider cursor-pointer hover:bg-muted-foreground/10 transition-colors" onClick={() => handleSort('date')}>
+                  <div className="flex items-center gap-1">
+                    Fecha
+                    {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />}
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Título</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider">Monto</th>
+                <th className="px-6 py-4 text-right text-xs font-semibold text-foreground/70 uppercase tracking-wider cursor-pointer hover:bg-muted-foreground/10 transition-colors" title="Valores expresados en Dólares Estadounidenses (USD)" onClick={() => handleSort('amount')}>
+                  <div className="flex items-center justify-end gap-1">
+                    {sortConfig.key === 'amount' ? (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />}
+                    Monto (USD)
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
-              {filteredTransactions.map((tx) => (
+              {sortedTransactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setSelectedTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[250px] truncate" title={tx.title}>{tx.title}</td>
@@ -105,10 +159,10 @@ export default function OperationsClient({ transactions }: { transactions: UITra
                       {tx.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80">{tx.amount}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80 font-medium" title="Dólares Estadounidenses (USD)">{tx.amount === 'Por definir' ? <span className="text-muted-foreground font-normal">Por definir</span> : tx.amount}</td>
                 </tr>
               ))}
-              {filteredTransactions.length === 0 && (
+              {sortedTransactions.length === 0 && (
                 <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
