@@ -65,7 +65,7 @@ export default function CountriesClient({ crossBorderData, topFirms, topIndustri
                     dataKey="count" 
                     name="Operaciones" 
                     radius={[4, 4, 0, 0]}
-                    onClick={(data) => {
+                    onClick={(data: any) => {
                       if (!data || !data.year) return
                       const params = new URLSearchParams(searchParams.toString())
                       if (params.get('year') === data.year) {
