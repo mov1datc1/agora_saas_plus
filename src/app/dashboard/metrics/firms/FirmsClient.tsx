@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { Building2, Users, FileText, ArrowUpRight } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X } from 'lucide-react'
 
 const COLORS = ['#E05C50', '#1C1F33', '#82ca9d', '#ffc658', '#8884d8', '#8dd1e1']
 
@@ -14,6 +15,8 @@ interface FirmsClientProps {
 }
 
 export default function FirmsClient({ totalTransactions, totalFirms, historyData, practiceData, topFirmsList }: FirmsClientProps) {
+  const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
+
   return (
     <>
       {/* Stats row */}
@@ -35,9 +38,19 @@ export default function FirmsClient({ totalTransactions, totalFirms, historyData
           <p className="text-sm text-muted-foreground mt-2">En el histórico de LexLatin</p>
         </div>
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-          <div className="flex items-center gap-3 text-muted-foreground mb-2">
-            <Users className="h-5 w-5" />
-            <h3 className="text-sm font-semibold">Firmas Top Ranking</h3>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Users className="h-5 w-5" />
+              <h3 className="text-sm font-semibold">Firmas Top Ranking</h3>
+            </div>
+            {topFirmsList.length > 0 && (
+              <button 
+                onClick={() => setIsRankingModalOpen(true)}
+                className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-2 py-1 rounded"
+              >
+                Ver todas
+              </button>
+            )}
           </div>
           <div className="mt-4 space-y-2">
             {topFirmsList.slice(0, 3).map((firm, i) => (
@@ -101,6 +114,41 @@ export default function FirmsClient({ totalTransactions, totalFirms, historyData
           </div>
         </div>
       </div>
+
+      {isRankingModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsRankingModalOpen(false)}>
+          <div className="w-full max-w-md bg-surface h-full shadow-2xl p-6 flex flex-col animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <div className="flex items-center gap-2">
+                <Users className="h-6 w-6 text-[#E05C50]" />
+                <h3 className="text-xl font-bold text-foreground">Ranking Completo de Firmas</h3>
+              </div>
+              <button onClick={() => setIsRankingModalOpen(false)} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {topFirmsList.map((firm, i) => (
+                <div key={i} className="flex justify-between items-center bg-muted p-4 rounded-xl border border-border/50 hover:border-[#E05C50]/30 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center justify-center h-8 w-8 rounded-full bg-background text-sm font-bold text-foreground ring-1 ring-border shadow-sm">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">{firm.name}</span>
+                  </div>
+                  <span className="text-xs font-bold bg-[#E05C50]/10 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
+                    {firm.deals} ops
+                  </span>
+                </div>
+              ))}
+              {topFirmsList.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2 text-center">No hay datos de firmas disponibles.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
