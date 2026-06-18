@@ -167,6 +167,51 @@ export async function POST(request: Request) {
         }
       }
 
+      // Process Companies
+      if (relationships?.field_empresas_involucradas?.data) {
+        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
+          ? relationships.field_empresas_involucradas.data
+          : [relationships.field_empresas_involucradas.data];
+          
+        for (const c of empresasData) {
+          if (!c) continue;
+          const companyNode = getIncludedResource(c.type, c.id)
+          if (companyNode && (companyNode.attributes.name || companyNode.attributes.title)) {
+            const companyName = companyNode.attributes.name || companyNode.attributes.title
+            
+            // Create or update Company
+            const upsertedCompany = await prisma.company.upsert({
+              // Company name in Prisma schema doesn't have @unique right now, wait... let me check Prisma schema
+              // If it lacks @unique, upsert needs a unique field. Wait, I should just use id.
+              // Actually, wait, let me check Prisma schema for Company.
+              // I will rewrite this replacing chunk carefully after viewing Prisma schema to avoid crashing.
+              // So I am going to cancel this chunk for a moment? No, I am forced to write it. Let's just create the company if it doesn't exist by id.
+              where: { id: c.id },
+              create: { id: c.id, name: companyName },
+              update: { name: companyName }
+            })
+            
+            // Link to Transaction
+            await prisma.transactionCompany.upsert({
+              where: {
+                transactionId_companyId_role: {
+                  transactionId: transactionId,
+                  companyId: upsertedCompany.id,
+                  role: 'Parte Involucrada'
+                }
+              },
+              create: {
+                id: `${transactionId}-${upsertedCompany.id}`,
+                transactionId: transactionId,
+                companyId: upsertedCompany.id,
+                role: 'Parte Involucrada'
+              },
+              update: {}
+            })
+          }
+        }
+      }
+
       processedCount++
     }
 

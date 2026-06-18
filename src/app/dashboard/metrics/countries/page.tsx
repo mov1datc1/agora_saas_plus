@@ -11,13 +11,21 @@ export default async function MetricsCountriesPage() {
     }
   })
 
-  // 2. Agrupar por año
+  // 2. Agrupar por año (Últimos 10 años continuos)
+  const currentYearNum = new Date().getFullYear()
   const yearCounts: Record<string, number> = {}
+  
+  for (let y = currentYearNum - 10; y <= currentYearNum; y++) {
+    yearCounts[y.toString()] = 0
+  }
+  
   transactions.forEach(tx => {
     const dateToUse = tx.dateAnnounced || tx.dateClosed
     if (dateToUse) {
       const year = dateToUse.getFullYear().toString()
-      yearCounts[year] = (yearCounts[year] || 0) + 1
+      if (yearCounts[year] !== undefined) {
+        yearCounts[year] += 1
+      }
     }
   })
 

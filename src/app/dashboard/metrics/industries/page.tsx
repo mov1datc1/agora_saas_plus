@@ -11,8 +11,28 @@ export default async function MetricsIndustriesPage() {
     }
   })
 
-  // 2. Agrupar por "Quarter/Trimestre" para la gráfica lineal
-  const quarterCounts: Record<string, number> = {}
+  // 2. Agrupar por "Quarter/Trimestre" para la gráfica lineal (Últimos 4 cuartiles)
+  // Crear estructura base continua de los últimos 6 quarters para asegurar línea continua
+  const d = new Date()
+  const currentYear = d.getFullYear()
+  const currentMonth = d.getMonth()
+  let currentQuarter = 1
+  if (currentMonth >= 3 && currentMonth <= 5) currentQuarter = 2
+  if (currentMonth >= 6 && currentMonth <= 8) currentQuarter = 3
+  if (currentMonth >= 9) currentQuarter = 4
+
+  const baseQuarters: Record<string, number> = {}
+  for (let i = 5; i >= 0; i--) {
+    let q = currentQuarter - i
+    let y = currentYear
+    while (q <= 0) {
+      q += 4
+      y -= 1
+    }
+    baseQuarters[`Q${q} ${y}`] = 0
+  }
+
+  const quarterCounts: Record<string, number> = { ...baseQuarters }
   
   transactions.forEach(tx => {
     const date = tx.dateAnnounced || tx.dateClosed
@@ -25,19 +45,17 @@ export default async function MetricsIndustriesPage() {
       if (month >= 9) quarter = 'Q4'
       
       const label = `${quarter} ${year}`
-      quarterCounts[label] = (quarterCounts[label] || 0) + 1
+      if (quarterCounts[label] !== undefined) {
+        quarterCounts[label] += 1
+      }
     }
   })
 
-  // Ordenar cronológicamente asumiendo un formato "Q1 2026"
-  const historyData = Object.entries(quarterCounts)
-    .map(([quarter, volume]) => ({ quarter, volume }))
-    .sort((a, b) => {
-      const [qa, ya] = a.quarter.split(' ')
-      const [qb, yb] = b.quarter.split(' ')
-      if (ya !== yb) return ya.localeCompare(yb)
-      return qa.localeCompare(qb)
-    })
+  // Conservar solo los que están en baseQuarters (los últimos 6 quarters) para mantener coherencia temporal
+  const historyData = Object.keys(baseQuarters).map(quarter => ({
+    quarter,
+    volume: quarterCounts[quarter]
+  }))
 
   // 3. Obtener industrias más activas
   const industryCounts: Record<string, number> = {}
@@ -51,8 +69,14 @@ export default async function MetricsIndustriesPage() {
     .sort((a, b) => b.deals - a.deals)
     .slice(0, 5)
 
-  // 4. Empresa más activa (Fake por ahora hasta que ETL mapee las empresas)
-  const topCompany = "Por recolectar en ETL"
+  // 4. Empresa más activa
+  const dbCompanies = await prisma.company.findMany({
+    include: { _count: { select: { transactions: true } } },
+    orderBy: { transactions: { _count: 'desc' } },
+    take: 1
+  })
+
+  const topCompany = dbCompanies.length > 0 ? dbCompanies[0].name : "Sin registros"
 
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">

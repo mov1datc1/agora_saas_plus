@@ -16,16 +16,21 @@ export default async function MetricsFirmsPage() {
   // Conteo de Firmas reales en la DB
   const totalFirms = await prisma.firm.count()
 
-  // 2. Agrupar por Año para la gráfica del Histórico
+  // 2. Agrupar por Año para la gráfica del Histórico (Últimos 10 años)
+  const currentYearNum = new Date().getFullYear()
   const yearCounts: Record<string, number> = {}
+  
+  for (let y = currentYearNum - 10; y <= currentYearNum; y++) {
+    yearCounts[y.toString()] = 0
+  }
   
   transactions.forEach(tx => {
     const dateToUse = tx.dateAnnounced || tx.dateClosed
     if (dateToUse) {
       const year = dateToUse.getFullYear().toString()
-      yearCounts[year] = (yearCounts[year] || 0) + 1
-    } else {
-      yearCounts['Sin Fecha'] = (yearCounts['Sin Fecha'] || 0) + 1
+      if (yearCounts[year] !== undefined) {
+        yearCounts[year] += 1
+      }
     }
   })
 
