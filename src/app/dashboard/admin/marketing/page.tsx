@@ -1,4 +1,4 @@
-import { Server, Target, LineChart, Facebook } from 'lucide-react'
+import { Server, Target, LineChart, Activity } from 'lucide-react'
 
 export default function MarketingSettingsPage() {
   return (
@@ -123,7 +123,7 @@ export default function MarketingSettingsPage() {
       <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
         <div className="px-4 sm:px-0">
           <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
-            <Facebook className="h-5 w-5 text-brand" />
+            <Activity className="h-5 w-5 text-brand" />
             Meta Ads (Pixel)
           </h2>
           <p className="mt-1 text-sm leading-6 text-foreground/60">
