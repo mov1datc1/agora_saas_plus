@@ -6,10 +6,11 @@ export const revalidate = 43200 // 12 hours cache
 export default async function MetricsCountriesPage({
   searchParams
 }: {
-  searchParams: Promise<{ country?: string }>
+  searchParams: Promise<{ country?: string, year?: string }>
 }) {
   const params = await searchParams
   const selectedCountry = params.country
+  const selectedYear = params.year
 
   const whereClause = selectedCountry && selectedCountry !== 'Todos'
     ? { country: { contains: selectedCountry } }
@@ -19,7 +20,8 @@ export default async function MetricsCountriesPage({
   const transactions = await prisma.transaction.findMany({
     where: whereClause,
     include: {
-      industry: true
+      industry: true,
+      advisors: { include: { firm: true } }
     }
   })
 
@@ -58,9 +60,17 @@ export default async function MetricsCountriesPage({
     .map(([year, count]) => ({ year, count }))
     .sort((a, b) => a.year.localeCompare(b.year))
 
-  // 3. Top Industrias
+  // Filtrar transacciones por año para los Tops
+  const filteredTransactions = transactions.filter(tx => {
+    if (!selectedYear) return true
+    const d = tx.dateAnnounced || tx.dateClosed
+    if (!d) return false
+    return d.getFullYear().toString() === selectedYear
+  })
+
+  // 3. Top Industrias (Basado en el año/país filtrado)
   const industryCounts: Record<string, number> = {}
-  transactions.forEach(tx => {
+  filteredTransactions.forEach(tx => {
     const indName = tx.industry?.name || 'Varios'
     industryCounts[indName] = (industryCounts[indName] || 0) + 1
   })
@@ -70,25 +80,20 @@ export default async function MetricsCountriesPage({
     .sort((a, b) => b.deals - a.deals)
     .slice(0, 2)
 
-  // 4. Top Firmas Reales
-  const firms = await prisma.firm.findMany({
-    include: {
-      _count: {
-        select: { transactions: true }
+  // 4. Top Firmas Reales (Basado en el año/país filtrado)
+  const firmCounts: Record<string, number> = {}
+  filteredTransactions.forEach(tx => {
+    tx.advisors?.forEach(adv => {
+      if (adv.firm?.name) {
+        firmCounts[adv.firm.name] = (firmCounts[adv.firm.name] || 0) + 1
       }
-    },
-    orderBy: {
-      transactions: {
-        _count: 'desc'
-      }
-    },
-    take: 5
+    })
   })
 
-  const topFirms = firms.map(f => ({
-    name: f.name,
-    deals: f._count.transactions
-  }))
+  const topFirms = Object.entries(firmCounts)
+    .map(([name, deals]) => ({ name, deals }))
+    .sort((a, b) => b.deals - a.deals)
+    .slice(0, 5)
 
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
