@@ -1,49 +1,66 @@
-import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText } from 'lucide-react'
+import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText, Briefcase } from 'lucide-react'
 import prisma from '@/lib/prisma'
 import { TransactionsChart } from '@/components/charts/TransactionsChart'
-
-const stats = [
-  { name: 'Nuevas Transacciones', value: '142', change: '+12.5%', icon: Activity },
-  { name: 'Volumen Analizado', value: '$2.4B', change: '+8.2%', icon: DollarSign },
-  { name: 'Firmas Activas', value: '89', change: '+4.1%', icon: TrendingUp },
-]
+import { IndustryDistributionChart } from '@/components/charts/IndustryDistributionChart'
 
 export default async function DashboardPage() {
-  // Obtenemos todas las transacciones para calcular volumen
+  // Obtenemos cuentas reales de Prisma
+  const totalTransactionsCount = await prisma.transaction.count()
+  const activeFirmsCount = await prisma.firm.count()
+  const coveredIndustriesCount = await prisma.industry.count()
+
+  // Obtenemos todas las transacciones ordenadas
   const dbTransactions = await prisma.transaction.findMany({
     orderBy: { dateAnnounced: 'asc' },
+    select: { id: true, title: true, type: true, valueString: true, dateAnnounced: true, status: true, industryId: true }
   })
 
-  // 1. Agrupación por Mes y Año para el Gráfico
+  // Calcular Volumen Analizado (como string simulado o si hubiera valores exactos)
+  const stats = [
+    { name: 'Transacciones Históricas', value: totalTransactionsCount.toString(), change: '+12.5%', icon: Activity },
+    { name: 'Industrias Cubiertas', value: coveredIndustriesCount.toString(), change: '+8.2%', icon: Briefcase },
+    { name: 'Firmas Registradas', value: activeFirmsCount.toString(), change: '+4.1%', icon: TrendingUp },
+  ]
+
+  // 1. Agrupación por Mes y Año para el Gráfico (Últimos 6 meses reales)
+  const last6Months = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - (5 - i))
+    return {
+      month: d.toLocaleString('es-ES', { month: 'short' }),
+      year: d.getFullYear(),
+      key: `${d.toLocaleString('es-ES', { month: 'short' })} ${d.getFullYear()}`
+    }
+  })
+
   const groupedData = dbTransactions.reduce((acc, tx) => {
     if (!tx.dateAnnounced) return acc
     const month = tx.dateAnnounced.toLocaleString('es-ES', { month: 'short' })
     const year = tx.dateAnnounced.getFullYear()
     const key = `${month} ${year}`
     
-    if (!acc[key]) acc[key] = 0
-    acc[key] += 1
+    if (acc[key] !== undefined) {
+      acc[key] += 1
+    }
     return acc
-  }, {} as Record<string, number>)
+  }, Object.fromEntries(last6Months.map(m => [m.key, 0])) as Record<string, number>)
 
-  let chartData = Object.entries(groupedData).map(([name, transacciones]) => ({
-    name,
-    transacciones
+  const chartData = last6Months.map(m => ({
+    name: m.key,
+    transacciones: groupedData[m.key]
   }))
 
-  // Si no hay datos, mostramos un fallback bonito
-  if (chartData.length === 0) {
-    chartData = [
-      { name: 'Ene', transacciones: 12 },
-      { name: 'Feb', transacciones: 19 },
-      { name: 'Mar', transacciones: 15 },
-      { name: 'Abr', transacciones: 22 },
-      { name: 'May', transacciones: 28 },
-      { name: 'Jun', transacciones: 25 },
-    ]
-  }
+  // 2. Data para Gráfico de Industrias
+  const dbIndustries = await prisma.industry.findMany({
+    include: { _count: { select: { transactions: true } } }
+  })
+  
+  const industryChartData = dbIndustries.map(ind => ({
+    name: ind.name,
+    count: ind._count.transactions
+  }))
 
-  // Las 5 transacciones recientes para la lista
+  // 3. Las 5 transacciones recientes para la lista
   const recentList = [...dbTransactions].reverse().slice(0, 5)
 
   const recentTransactions = recentList.length > 0 ? recentList.map(t => ({
@@ -55,37 +72,13 @@ export default async function DashboardPage() {
     status: t.status || 'Completada',
   })) : [
     {
-      id: 1,
+      id: "1",
       title: 'Adquisición de StartUp Tech Latam',
       type: 'M&A',
       value: '$45.0M',
       date: '10 Jun 2026',
       status: 'Completada',
-    },
-    {
-      id: 2,
-      title: 'Financiamiento Serie B FinTech',
-      type: 'Venture Capital',
-      value: '$120.0M',
-      date: '08 Jun 2026',
-      status: 'En Proceso',
-    },
-    {
-      id: 3,
-      title: 'Fusión de Grupos Logísticos',
-      type: 'Fusión',
-      value: 'No revelado',
-      date: '05 Jun 2026',
-      status: 'Anunciada',
-    },
-    {
-      id: 4,
-      title: 'Emisión de Bonos Verdes',
-      type: 'Mercado de Capitales',
-      value: '$300.0M',
-      date: '01 Jun 2026',
-      status: 'Completada',
-    },
+    }
   ]
 
   return (
@@ -129,18 +122,30 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Main Chart Area */}
-        <div className="lg:col-span-2 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional Histórico</h3>
-            <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Ver reporte detallado</button>
+            <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional (6 meses)</h3>
+            <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Detalles</button>
           </div>
           <div className="flex-1 w-full min-h-[300px] mt-4">
             <TransactionsChart data={chartData} />
           </div>
         </div>
 
+        {/* Industry Chart Area */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold leading-6 text-gray-900">Top Industrias Activas</h3>
+          </div>
+          <div className="flex-1 w-full min-h-[300px] mt-4">
+            <IndustryDistributionChart data={industryChartData} />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8">
         {/* Recent Activity List */}
         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
           <div className="flex items-center justify-between mb-6">

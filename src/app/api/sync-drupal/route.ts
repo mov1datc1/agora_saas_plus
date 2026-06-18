@@ -16,9 +16,19 @@ export async function POST(request: Request) {
 
     // 2. Fetch data from Drupal (node--post = Transactions)
     // We request the included relationships to get Firm, Lawyer, Company, and Industry details in one go.
-    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados&page[limit]=50`
+    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados&page[limit]=50&sort=-created`
     
-    const response = await fetch(url)
+    const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
+    const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
+    const authString = Buffer.from(`${drupalUser}:${drupalPass}`).toString('base64')
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Basic ${authString}`,
+        'Accept': 'application/vnd.api+json'
+      }
+    })
+
     if (!response.ok) {
       throw new Error(`Drupal API responded with ${response.status}: ${response.statusText}`)
     }
