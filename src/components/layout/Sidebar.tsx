@@ -28,7 +28,7 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   const filteredNavigation = navigation.filter(item => {
-    if (item.name === 'Configuración' && !isAdmin) return false;
+    // if (item.name === 'Configuración' && !isAdmin) return false;
     return true;
   });
 
