@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Target } from 'lucide-react'
+import { Target, X, Briefcase } from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -18,6 +18,7 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedIndustry = searchParams.get('industry') || 'Todas'
+  const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
 
   const handleSelect = (val: string) => {
     if (val === 'Todas') {
@@ -72,7 +73,17 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
 
         {/* Industrias Más Activas */}
         <div className="lg:col-span-1 bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col space-y-6">
-          <h3 className="text-lg font-semibold text-foreground">Industrias Más Activas</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-foreground">Industrias Más Activas</h3>
+            {topIndustries.length > 0 && (
+              <button 
+                onClick={() => setIsRankingModalOpen(true)}
+                className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-2 py-1 rounded"
+              >
+                Ver todas
+              </button>
+            )}
+          </div>
           <div className="space-y-4">
             {topIndustries.map((ind, i) => (
               <div key={i} className="flex items-center justify-between p-3 bg-muted rounded-xl">
@@ -138,6 +149,41 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
         </div>
         
       </div>
+
+      {isRankingModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsRankingModalOpen(false)}>
+          <div className="w-full max-w-md bg-surface h-full shadow-2xl p-6 flex flex-col animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-6 w-6 text-[#E05C50]" />
+                <h3 className="text-xl font-bold text-foreground">Ranking Completo de Industrias</h3>
+              </div>
+              <button onClick={() => setIsRankingModalOpen(false)} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {topIndustries.map((ind, i) => (
+                <div key={i} className="flex justify-between items-center bg-muted p-4 rounded-xl border border-border/50 hover:border-[#E05C50]/30 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center justify-center h-8 w-8 rounded-full bg-background text-sm font-bold text-foreground ring-1 ring-border shadow-sm">
+                      {i + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">{ind.name}</span>
+                  </div>
+                  <span className="text-xs font-bold bg-[#E05C50]/10 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
+                    {ind.deals} ops
+                  </span>
+                </div>
+              ))}
+              {topIndustries.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2 text-center">No hay datos de industrias disponibles.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
