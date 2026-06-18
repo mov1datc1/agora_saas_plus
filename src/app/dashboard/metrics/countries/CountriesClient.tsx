@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Building2, Briefcase } from 'lucide-react'
 
@@ -8,10 +9,21 @@ interface CountriesClientProps {
   crossBorderData: { year: string, count: number }[]
   topFirms: { name: string, deals: number }[]
   topIndustries: { name: string, deals: number }[]
+  availableCountries: string[]
 }
 
-export default function CountriesClient({ crossBorderData, topFirms, topIndustries }: CountriesClientProps) {
-  const [selectedCountry, setSelectedCountry] = useState('LatAm')
+export default function CountriesClient({ crossBorderData, topFirms, topIndustries, availableCountries }: CountriesClientProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const selectedCountry = searchParams.get('country') || 'Todos'
+
+  const handleSelect = (val: string) => {
+    if (val === 'Todos') {
+      router.push('/dashboard/metrics/countries')
+    } else {
+      router.push(`/dashboard/metrics/countries?country=${encodeURIComponent(val)}`)
+    }
+  }
 
   return (
     <>
@@ -23,9 +35,12 @@ export default function CountriesClient({ crossBorderData, topFirms, topIndustri
         <select 
           className="rounded-lg border-border bg-surface text-sm p-2 outline-none focus:ring-1 focus:ring-brand font-medium"
           value={selectedCountry}
-          onChange={(e) => setSelectedCountry(e.target.value)}
+          onChange={(e) => handleSelect(e.target.value)}
         >
-          <option value="LatAm">Global (Todos los Países)</option>
+          <option value="Todos">Global (Todos los Países)</option>
+          {availableCountries.map(country => (
+            <option key={country} value={country}>{country}</option>
+          ))}
         </select>
       </div>
 

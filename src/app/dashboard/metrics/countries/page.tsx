@@ -3,13 +3,37 @@ import CountriesClient from './CountriesClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MetricsCountriesPage() {
-  // 1. Obtener todas las transacciones
+export default async function MetricsCountriesPage({
+  searchParams
+}: {
+  searchParams: { country?: string }
+}) {
+  const selectedCountry = searchParams.country
+
+  const whereClause = selectedCountry && selectedCountry !== 'Todos'
+    ? { country: { contains: selectedCountry } }
+    : {}
+
+  // 1. Obtener transacciones filtradas para los gráficos
   const transactions = await prisma.transaction.findMany({
+    where: whereClause,
     include: {
       industry: true
     }
   })
+
+  // Obtener TODAS las transacciones para extraer la lista de países para el dropdown
+  const allTransactions = await prisma.transaction.findMany({
+    select: { country: true }
+  })
+
+  const uniqueCountriesSet = new Set<string>()
+  allTransactions.forEach(tx => {
+    if (tx.country) {
+      tx.country.split(',').map(c => c.trim()).filter(Boolean).forEach(c => uniqueCountriesSet.add(c))
+    }
+  })
+  const availableCountries = Array.from(uniqueCountriesSet).sort()
 
   // 2. Agrupar por año (Últimos 10 años continuos)
   const currentYearNum = new Date().getFullYear()
@@ -70,7 +94,8 @@ export default async function MetricsCountriesPage() {
       <CountriesClient 
         crossBorderData={crossBorderData} 
         topFirms={topFirms} 
-        topIndustries={topIndustries} 
+        topIndustries={topIndustries}
+        availableCountries={availableCountries}
       />
     </div>
   )

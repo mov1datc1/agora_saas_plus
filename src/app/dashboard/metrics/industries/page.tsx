@@ -3,12 +3,29 @@ import IndustriesClient from './IndustriesClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function MetricsIndustriesPage() {
-  // 1. Obtener todas las transacciones
+export default async function MetricsIndustriesPage({
+  searchParams
+}: {
+  searchParams: { industry?: string }
+}) {
+  const selectedIndustry = searchParams.industry
+
+  const whereClause = selectedIndustry && selectedIndustry !== 'Todas' 
+    ? { industry: { name: selectedIndustry } } 
+    : {}
+
+  // 1. Obtener todas las transacciones (filtradas)
   const transactions = await prisma.transaction.findMany({
+    where: whereClause,
     include: {
       industry: true
     }
+  })
+
+  // 2. Obtener industrias más activas (sin filtrar, para el dropdown y el listado de Top Industrias)
+  // Siempre queremos ver el Top global independientemente del filtro actual
+  const allTransactions = await prisma.transaction.findMany({
+    include: { industry: true }
   })
 
   // 2. Agrupar por "Quarter/Trimestre" para la gráfica lineal (Últimos 4 cuartiles)
@@ -59,7 +76,7 @@ export default async function MetricsIndustriesPage() {
 
   // 3. Obtener industrias más activas
   const industryCounts: Record<string, number> = {}
-  transactions.forEach(tx => {
+  allTransactions.forEach(tx => {
     const indName = tx.industry?.name || 'Otras'
     industryCounts[indName] = (industryCounts[indName] || 0) + 1
   })

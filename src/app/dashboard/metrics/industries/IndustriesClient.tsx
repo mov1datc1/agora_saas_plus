@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Target } from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
@@ -14,7 +15,17 @@ interface IndustriesClientProps {
 }
 
 export default function IndustriesClient({ historyData, topIndustries, topCompany }: IndustriesClientProps) {
-  const [selectedIndustry, setSelectedIndustry] = useState('Todas')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const selectedIndustry = searchParams.get('industry') || 'Todas'
+
+  const handleSelect = (val: string) => {
+    if (val === 'Todas') {
+      router.push('/dashboard/metrics/industries')
+    } else {
+      router.push(`/dashboard/metrics/industries?industry=${encodeURIComponent(val)}`)
+    }
+  }
 
   return (
     <>
@@ -26,7 +37,7 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
         <select 
           className="rounded-lg border-border bg-surface text-sm p-2 outline-none focus:ring-1 focus:ring-brand font-medium"
           value={selectedIndustry}
-          onChange={(e) => setSelectedIndustry(e.target.value)}
+          onChange={(e) => handleSelect(e.target.value)}
         >
           <option value="Todas">Todas las industrias</option>
           {topIndustries.map(ind => (
@@ -108,7 +119,7 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
                         stroke="#FFFFFF"
                         strokeWidth={0.5}
                         style={{
-                          default: { outline: "none" },
+                          default: { fill: isLatAm ? "#E05C50" : "#D6D6DA", outline: "none" },
                           hover: { fill: isLatAm ? "#c94b40" : "#F53", outline: "none" },
                           pressed: { outline: "none" },
                         }}
