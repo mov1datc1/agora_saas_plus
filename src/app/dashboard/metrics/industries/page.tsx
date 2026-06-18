@@ -75,6 +75,16 @@ export default async function MetricsIndustriesPage({
     volume: quarterCounts[quarter]
   }))
 
+  // Extraer países activos para el mapa
+  const activeCountriesSet = new Set<string>()
+  transactions.forEach(tx => {
+    if (tx.country) {
+      const cList = tx.country.split(',').map(c => c.trim())
+      cList.forEach(c => activeCountriesSet.add(c))
+    }
+  })
+  const activeCountries = Array.from(activeCountriesSet)
+
   // 3. Obtener industrias más activas
   const industryCounts: Record<string, number> = {}
   allTransactions.forEach(tx => {
@@ -102,6 +112,7 @@ export default async function MetricsIndustriesPage({
         historyData={historyData} 
         topIndustries={topIndustries}
         topCompany={topCompany}
+        activeCountries={activeCountries}
       />
     </div>
   )

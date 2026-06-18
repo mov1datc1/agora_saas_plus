@@ -12,9 +12,43 @@ interface IndustriesClientProps {
   historyData: { quarter: string, volume: number }[]
   topIndustries: { name: string, deals: number }[]
   topCompany: string
+  activeCountries: string[]
 }
 
-export default function IndustriesClient({ historyData, topIndustries, topCompany }: IndustriesClientProps) {
+const mapGeoToSpanish: Record<string, string[]> = {
+  "Mexico": ["México", "Mexico", "América Latina", "Latinoamérica"],
+  "Brazil": ["Brasil", "Brazil", "América Latina", "Latinoamérica"],
+  "Argentina": ["Argentina", "América Latina", "Latinoamérica"],
+  "Chile": ["Chile", "América Latina", "Latinoamérica"],
+  "Colombia": ["Colombia", "América Latina", "Latinoamérica"],
+  "Peru": ["Perú", "Peru", "América Latina", "Latinoamérica"],
+  "Venezuela": ["Venezuela", "América Latina", "Latinoamérica"],
+  "Ecuador": ["Ecuador", "América Latina", "Latinoamérica"],
+  "Bolivia": ["Bolivia", "América Latina", "Latinoamérica"],
+  "Paraguay": ["Paraguay", "América Latina", "Latinoamérica"],
+  "Uruguay": ["Uruguay", "América Latina", "Latinoamérica"],
+  "El Salvador": ["El Salvador", "Centroamérica", "América Latina"],
+  "Guatemala": ["Guatemala", "Centroamérica", "América Latina"],
+  "Honduras": ["Honduras", "Centroamérica", "América Latina"],
+  "Nicaragua": ["Nicaragua", "Centroamérica", "América Latina"],
+  "Costa Rica": ["Costa Rica", "Centroamérica", "América Latina"],
+  "Panama": ["Panamá", "Panama", "Centroamérica", "América Latina"],
+  "Dominican Rep.": ["República Dominicana", "América Latina", "Caribe"],
+  "Puerto Rico": ["Puerto Rico", "América Latina", "Caribe"],
+  "Cuba": ["Cuba", "América Latina", "Caribe"],
+  "Spain": ["España"],
+  "United States of America": ["Estados Unidos", "USA", "EE. UU.", "EE.UU."],
+  "United Kingdom": ["Reino Unido", "Inglaterra", "UK"],
+  "Canada": ["Canadá", "Canada"],
+  "China": ["China"],
+  "Japan": ["Japón", "Japan"],
+  "Germany": ["Alemania"],
+  "France": ["Francia"],
+  "Italy": ["Italia"],
+  "Portugal": ["Portugal"]
+}
+
+export default function IndustriesClient({ historyData, topIndustries, topCompany, activeCountries }: IndustriesClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedIndustry = searchParams.get('industry') || 'Todas'
@@ -121,18 +155,28 @@ export default function IndustriesClient({ historyData, topIndustries, topCompan
               <Geographies geography={geoUrl}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const latAmCountries = ["Mexico", "Brazil", "Argentina", "Chile", "Colombia", "Peru", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay"];
-                    const isLatAm = latAmCountries.includes(geo.properties?.name);
+                    const geoName = geo.properties?.name;
+                    const spanishNames = mapGeoToSpanish[geoName] || [geoName];
+                    
+                    // Comprobar si este país tiene actividad en la industria seleccionada
+                    let isActive = spanishNames.some(name => activeCountries.includes(name));
+                    
+                    // Fallback si no hay transacciones para que se vea bien (Latam por defecto)
+                    if (activeCountries.length === 0) {
+                      const latAmCountries = ["Mexico", "Brazil", "Argentina", "Chile", "Colombia", "Peru", "Venezuela", "Ecuador", "Bolivia", "Paraguay", "Uruguay"];
+                      isActive = latAmCountries.includes(geoName);
+                    }
+
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        fill={isLatAm ? "#E05C50" : "#D6D6DA"}
+                        fill={isActive ? "#E05C50" : "#D6D6DA"}
                         stroke="#FFFFFF"
                         strokeWidth={0.5}
                         style={{
-                          default: { fill: isLatAm ? "#E05C50" : "#D6D6DA", outline: "none" },
-                          hover: { fill: isLatAm ? "#c94b40" : "#F53", outline: "none" },
+                          default: { fill: isActive ? "#E05C50" : "#D6D6DA", outline: "none", transition: "all 0.3s" },
+                          hover: { fill: isActive ? "#c94b40" : "#F53", outline: "none", transition: "all 0.3s" },
                           pressed: { outline: "none" },
                         }}
                       />
