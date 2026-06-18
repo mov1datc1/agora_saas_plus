@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Métricas: Firmas', href: '/dashboard/metrics/firms', icon: Building2 },
   { name: 'Métricas: Industrias', href: '/dashboard/metrics/industries', icon: Briefcase },
   { name: 'Métricas: Países', href: '/dashboard/metrics/countries', icon: Users },
+  { name: 'Ágora Copilot', href: '/dashboard/copilot', icon: Sparkles },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
   { name: 'Administración', href: '/dashboard/admin', icon: Settings },
 ]

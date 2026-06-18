@@ -16,6 +16,7 @@ model User {
   subscription     Subscription?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  copilotUsages    CopilotUsage[]
 }
 
 enum Role {
@@ -43,6 +44,20 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   INCOMPLETE
+}
+
+// AI Copilot Usage Tracking
+model CopilotUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     Int      // 1-12
+  year      Int      // 2024, 2025, etc.
+  queries   Int      @default(0) // Count of questions asked in this month
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, month, year])
 }
 
 // SaaS Data Models
