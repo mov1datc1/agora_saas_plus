@@ -38,7 +38,10 @@ export function AuthListener() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
         router.refresh()
-        router.push('/dashboard')
+        // Only redirect if they are on login or root to avoid pulling them out of deep pages
+        if (window.location.pathname === '/login' || window.location.pathname === '/') {
+          router.push('/dashboard')
+        }
       } else if (event === 'INITIAL_SESSION' && session && window.location.hash.includes('access_token')) {
         router.refresh()
         router.push('/dashboard')

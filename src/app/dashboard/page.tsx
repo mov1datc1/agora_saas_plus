@@ -1,4 +1,5 @@
 import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText, Briefcase } from 'lucide-react'
+import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import { TransactionsChart } from '@/components/charts/TransactionsChart'
 import { IndustryDistributionChart } from '@/components/charts/IndustryDistributionChart'
@@ -151,7 +152,7 @@ export default async function DashboardPage() {
         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional (6 meses)</h3>
-            <button className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Detalles</button>
+            <Link href="/dashboard/operations" className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Detalles</Link>
           </div>
           <div className="flex-1 w-full min-h-[300px] mt-4">
             <TransactionsChart data={chartData} />
@@ -207,12 +208,12 @@ export default async function DashboardPage() {
             </ul>
           </div>
           <div className="mt-6">
-            <a
-              href="#"
+            <Link
+              href="/dashboard/operations"
               className="flex w-full items-center justify-center rounded-xl bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-200 hover:bg-gray-100"
             >
               Ver todas las transacciones
-            </a>
+            </Link>
           </div>
         </div>
       </div>
