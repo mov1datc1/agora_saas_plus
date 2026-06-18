@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     // 2. Fetch data from Drupal (node--post = Transactions)
     // We request the included relationships to get Firm, Lawyer, Company, Industry, and Financial data.
-    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=50&sort=-created`
+    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=150&sort=-created`
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
@@ -56,10 +56,15 @@ export async function POST(request: Request) {
       if (t.includes('telecomunicacion') || t.includes('telefon') || t.includes('internet') || t.includes('fibra óptica')) return 'Telecomunicaciones'
       if (t.includes('salud') || t.includes('hospital') || t.includes('clínica') || t.includes('farmacéutic') || t.includes('medicamento')) return 'Salud'
       if (t.includes('transporte') || t.includes('logística') || t.includes('aerolínea') || t.includes('aviación') || t.includes('marítim') || t.includes('autopista')) return 'Transporte y logística'
-      if (t.includes('alimento') || t.includes('bebida') || t.includes('agrícola') || t.includes('agro') || t.includes('pesca')) return 'Agrícola'
-      if (t.includes('educación') || t.includes('universidad') || t.includes('colegio')) return 'Educación'
-      if (t.includes('seguro') || t.includes('reaseguro')) return 'Seguros y reaseguros'
-      if (t.includes('construcción') || t.includes('infraestructura')) return 'Infraestructura'
+      if (t.includes('alimento') || t.includes('bebida') || t.includes('agrícola') || t.includes('agro') || t.includes('pesca') || t.includes('nutrición')) return 'Agrícola'
+      if (t.includes('educación') || t.includes('universidad') || t.includes('colegio') || t.includes('escuela')) return 'Educación'
+      if (t.includes('seguro') || t.includes('reaseguro') || t.includes('asegurador')) return 'Seguros y reaseguros'
+      if (t.includes('construcción') || t.includes('infraestructura') || t.includes('cemento') || t.includes('obras')) return 'Infraestructura'
+      if (t.includes('abogado') || t.includes('firma') || t.includes('lexincorp') || t.includes('baker') || t.includes('mckenzie') || t.includes('ontier') || t.includes('greenberg') || t.includes('legal') || t.includes('derecho') || t.includes('cuatrecasas') || t.includes('garrigues') || t.includes('uria') || t.includes('bufete') || t.includes('socio')) return 'Derecho'
+      if (t.includes('consultor') || t.includes('asesor') || t.includes('zelca')) return 'Consultoría'
+      if (t.includes('entretenimiento') || t.includes('televisión') || t.includes('cine') || t.includes('música') || t.includes('deporte')) return 'Entretenimiento'
+      if (t.includes('capital') || t.includes('fondo') || t.includes('inversión') || t.includes('acciones') || t.includes('adquiere') || t.includes('compra') || t.includes('fusión') || t.includes('fusiona')) return 'Banca'
+      
       return null
     }
 
