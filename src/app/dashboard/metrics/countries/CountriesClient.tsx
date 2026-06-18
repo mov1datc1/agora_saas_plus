@@ -3,16 +3,17 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Building2, Briefcase } from 'lucide-react'
+import { Building2, Briefcase, MapPin } from 'lucide-react'
 
 interface CountriesClientProps {
   crossBorderData: { year: string, count: number }[]
   topFirms: { name: string, deals: number }[]
   topIndustries: { name: string, deals: number }[]
+  topCountries: { name: string, deals: number }[]
   availableCountries: string[]
 }
 
-export default function CountriesClient({ crossBorderData, topFirms, topIndustries, availableCountries }: CountriesClientProps) {
+export default function CountriesClient({ crossBorderData, topFirms, topIndustries, topCountries, availableCountries }: CountriesClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedCountry = searchParams.get('country') || 'Todos'
@@ -93,8 +94,8 @@ export default function CountriesClient({ crossBorderData, topFirms, topIndustri
         </div>
 
         {/* Listados Top */}
-        <div className="grid grid-rows-2 gap-6">
-          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border transition-all duration-500 relative">
+        <div className="flex flex-col space-y-6">
+          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border transition-all duration-500 relative flex-1">
             {selectedYear && (
               <div className="absolute top-4 right-4 bg-[#E05C50]/10 text-[#E05C50] text-xs font-bold px-2 py-1 rounded-md animate-in fade-in">
                 Filtro: {selectedYear}
@@ -116,7 +117,7 @@ export default function CountriesClient({ crossBorderData, topFirms, topIndustri
             </ul>
           </div>
 
-          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border transition-all duration-500 relative">
+          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border transition-all duration-500 relative flex-1">
             {selectedYear && (
               <div className="absolute top-4 right-4 bg-[#E05C50]/10 text-[#E05C50] text-xs font-bold px-2 py-1 rounded-md animate-in fade-in">
                 Filtro: {selectedYear}
@@ -132,6 +133,28 @@ export default function CountriesClient({ crossBorderData, topFirms, topIndustri
                   <span className="text-xs text-brand font-bold bg-brand/10 px-2 py-1 rounded">{ind.deals} Operaciones</span>
                 </li>
               ))}
+            </ul>
+          </div>
+
+          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border transition-all duration-500 relative flex-1">
+            {selectedYear && (
+              <div className="absolute top-4 right-4 bg-[#E05C50]/10 text-[#E05C50] text-xs font-bold px-2 py-1 rounded-md animate-in fade-in">
+                Filtro: {selectedYear}
+              </div>
+            )}
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-brand" /> Países Más Activos
+            </h3>
+            <ul className="space-y-3">
+              {topCountries.map((country, i) => (
+                <li key={i} className="flex justify-between items-center bg-muted p-3 rounded-xl">
+                  <span className="text-sm font-semibold">{country.name}</span>
+                  <span className="text-xs text-brand font-bold bg-brand/10 px-2 py-1 rounded">{country.deals} Operaciones</span>
+                </li>
+              ))}
+              {topCountries.length === 0 && (
+                <p className="text-xs text-muted-foreground">Datos de países no disponibles.</p>
+              )}
             </ul>
           </div>
         </div>

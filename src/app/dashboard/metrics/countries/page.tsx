@@ -95,12 +95,29 @@ export default async function MetricsCountriesPage({
     .sort((a, b) => b.deals - a.deals)
     .slice(0, 5)
 
+  // 5. Top Países (Basado en el año/país filtrado)
+  const countryCounts: Record<string, number> = {}
+  filteredTransactions.forEach(tx => {
+    if (tx.country) {
+      const cList = tx.country.split(',').map(c => c.trim()).filter(Boolean)
+      cList.forEach(c => {
+        countryCounts[c] = (countryCounts[c] || 0) + 1
+      })
+    }
+  })
+
+  const topCountries = Object.entries(countryCounts)
+    .map(([name, deals]) => ({ name, deals }))
+    .sort((a, b) => b.deals - a.deals)
+    .slice(0, 5)
+
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <CountriesClient 
         crossBorderData={crossBorderData} 
         topFirms={topFirms} 
         topIndustries={topIndustries}
+        topCountries={topCountries}
         availableCountries={availableCountries}
       />
     </div>
