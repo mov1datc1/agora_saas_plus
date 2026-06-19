@@ -1,6 +1,6 @@
 'use client'
 
-import { useChat } from 'ai/react'
+import { useChat } from '@ai-sdk/react'
 import { Sparkles, Send, Download, AlertCircle, Bot, User, FileText } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
