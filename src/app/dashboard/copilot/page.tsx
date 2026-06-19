@@ -2,17 +2,31 @@
 
 import { useChat } from '@ai-sdk/react'
 import { Sparkles, Send, Download, AlertCircle, Bot, User, FileText } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 export default function CopilotPage() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error, append } = useChat({
+  const [input, setInput] = useState('')
+  const { messages, sendMessage, status, error } = useChat({
     api: '/api/chat',
     onError: (err) => {
       console.error(err)
     }
   })
+
+  const isLoading = status === 'streaming' || status === 'submitted'
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value)
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+    sendMessage({ role: 'user', parts: [{ type: 'text', text: input }] })
+    setInput('')
+  }
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -68,7 +82,7 @@ export default function CopilotPage() {
                 {suggestions.map((suggestion, idx) => (
                   <button
                     key={idx}
-                    onClick={() => append({ role: 'user', content: suggestion })}
+                    onClick={() => sendMessage({ role: 'user', parts: [{ type: 'text', text: suggestion }] })}
                     className="p-3 text-sm rounded-xl border border-border bg-background hover:border-brand/50 hover:bg-brand/5 transition-colors flex items-start gap-3"
                   >
                     <FileText className="h-5 w-5 text-brand shrink-0" />
@@ -79,7 +93,12 @@ export default function CopilotPage() {
             </div>
           </div>
         ) : (
-          messages.map(m => (
+          messages.map(m => {
+            const textParts = m.parts?.filter((p): p is { type: 'text', text: string } => p.type === 'text') || []
+            const textContent = textParts.map(p => p.text).join('\n')
+            const hasTools = m.parts?.some(p => p.type.startsWith('tool-'))
+
+            return (
             <div key={m.id} className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role !== 'user' && (
                 <div className="h-8 w-8 rounded-full bg-brand/10 flex items-center justify-center shrink-0">
@@ -92,7 +111,7 @@ export default function CopilotPage() {
                   ? 'bg-brand text-white shadow-md' 
                   : 'bg-muted/50 border border-border text-foreground'
               }`}>
-                {m.role !== 'user' && m.toolInvocations ? (
+                {m.role !== 'user' && hasTools ? (
                   <div className="text-xs text-muted-foreground italic mb-2 animate-pulse">
                     Analizando datos de Ágora Plus...
                   </div>
@@ -100,13 +119,13 @@ export default function CopilotPage() {
 
                 <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-background/50 prose-pre:border prose-pre:border-border prose-th:text-brand prose-a:text-brand">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {m.content}
+                    {textContent}
                   </ReactMarkdown>
                 </div>
 
-                {m.role !== 'user' && m.content.length > 50 && !isLoading && (
+                {m.role !== 'user' && textContent.length > 50 && !isLoading && (
                   <button
-                    onClick={() => handleDownload(m.content)}
+                    onClick={() => handleDownload(textContent)}
                     className="absolute -bottom-4 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border rounded-full p-2 shadow-sm text-muted-foreground hover:text-brand"
                     title="Descargar Reporte"
                   >
@@ -121,7 +140,7 @@ export default function CopilotPage() {
                 </div>
               )}
             </div>
-          ))
+          )})
         )}
 
         {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (

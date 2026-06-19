@@ -54,7 +54,7 @@ export async function POST(req: Request) {
             limit: z.number().optional().describe('Cantidad de firmas a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
-          execute: async ({ limit = 5, year }) => {
+          execute: async ({ limit = 5, year }: { limit?: number, year?: number }) => {
             const dateFilter = year ? {
               transaction: {
                 dateAnnounced: {
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
             limit: z.number().optional().describe('Cantidad de industrias a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
-          execute: async ({ limit = 5, year }) => {
+          execute: async ({ limit = 5, year }: { limit?: number, year?: number }) => {
             const dateFilter = year ? {
               dateAnnounced: {
                 gte: new Date(`${year}-01-01`),
@@ -110,7 +110,7 @@ export async function POST(req: Request) {
             limit: z.number().optional().describe('Cantidad de países a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
-          execute: async ({ limit = 5, year }) => {
+          execute: async ({ limit = 5, year }: { limit?: number, year?: number }) => {
             const dateFilter = year ? {
               dateAnnounced: {
                 gte: new Date(`${year}-01-01`),
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
       },
     })
 
-    return result.toDataStreamResponse()
+    return result.toTextStreamResponse()
 
   } catch (error) {
     console.error('Chat API Error:', error)
