@@ -4,6 +4,11 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import prisma from '@/lib/prisma'
 import { SubscriptionStatus } from '@prisma/client'
+import { Resend } from 'resend'
+import WelcomeEmail from '@/emails/WelcomeEmail'
+import DunningEmail from '@/emails/DunningEmail'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
   const body = await req.text()
@@ -89,6 +94,18 @@ export async function POST(req: Request) {
                 cancelAtPeriodEnd: Boolean((stripeSubscription as any).cancel_at_period_end),
               }
             })
+            
+            // Send Welcome Email for new subscriptions
+            try {
+              await resend.emails.send({
+                from: 'Ágora Plus <soporte@agora-plus.com>',
+                to: [dbUser.email],
+                subject: '¡Bienvenido a Ágora Plus PRO!',
+                react: WelcomeEmail({ userFirstname: dbUser.name || 'Usuario' }),
+              })
+            } catch (emailErr) {
+              console.error('[RESEND_ERROR] Failed to send welcome email', emailErr)
+            }
           }
         }
         break
@@ -116,6 +133,20 @@ export async function POST(req: Request) {
               cancelAtPeriodEnd: Boolean((subscription as any).cancel_at_period_end),
             }
           })
+
+          // Send Dunning Email if past_due
+          if (newStatus === SubscriptionStatus.PAST_DUE) {
+            try {
+              await resend.emails.send({
+                from: 'Ágora Plus Pagos <soporte@agora-plus.com>',
+                to: [dbSubUser.email],
+                subject: 'Acción Requerida: Actualiza tu método de pago',
+                react: DunningEmail({ userFirstname: dbSubUser.name || 'Usuario' }),
+              })
+            } catch (emailErr) {
+              console.error('[RESEND_ERROR] Failed to send dunning email', emailErr)
+            }
+          }
         }
         break
 
