@@ -133,13 +133,13 @@ export default function SMTPSettingsPage() {
           <div className="flex bg-muted/50 p-1 rounded-xl w-fit">
             <button
               onClick={() => handleTabChange('WELCOME')}
-              className={\`px-4 py-2 text-sm font-medium rounded-lg transition-all \${activeTab === 'WELCOME' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}\`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'WELCOME' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
             >
               Bienvenida
             </button>
             <button
               onClick={() => handleTabChange('DUNNING')}
-              className={\`px-4 py-2 text-sm font-medium rounded-lg transition-all \${activeTab === 'DUNNING' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}\`}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'DUNNING' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
             >
               Recuperación
             </button>
@@ -194,7 +194,7 @@ export default function SMTPSettingsPage() {
             <div className="flex items-center justify-between pt-4 border-t border-border">
               <div className="flex-1">
                 {message && (
-                  <div className={\`flex items-center gap-2 text-sm \${message.type === 'success' ? 'text-emerald-500' : 'text-red-500'}\`}>
+                  <div className={`flex items-center gap-2 text-sm ${message.type === 'success' ? 'text-emerald-500' : 'text-red-500'}`}>
                     {message.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                     {message.text}
                   </div>
