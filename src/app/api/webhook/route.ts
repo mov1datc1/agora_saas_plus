@@ -97,11 +97,20 @@ export async function POST(req: Request) {
             
             // Send Welcome Email for new subscriptions
             try {
+              const template = await prisma.emailTemplate.findUnique({ where: { type: 'WELCOME' }})
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+              
+              const subject = template?.subject || '¡Bienvenido a Ágora Plus PRO!'
+              let html = template?.htmlBody || `<h1>¡Bienvenido a Ágora Plus!</h1><p>Hola {{userFirstname}},</p><p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p><p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
+              
+              html = html.replace(/{{userFirstname}}/g, dbUser.name || 'Usuario')
+                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
               await resend.emails.send({
                 from: 'Ágora Plus <soporte@agora-plus.com>',
                 to: [dbUser.email],
-                subject: '¡Bienvenido a Ágora Plus PRO!',
-                react: WelcomeEmail({ userFirstname: dbUser.name || 'Usuario' }),
+                subject: subject,
+                html: html,
               })
             } catch (emailErr) {
               console.error('[RESEND_ERROR] Failed to send welcome email', emailErr)
@@ -137,11 +146,20 @@ export async function POST(req: Request) {
           // Send Dunning Email if past_due
           if (newStatus === SubscriptionStatus.PAST_DUE) {
             try {
+              const template = await prisma.emailTemplate.findUnique({ where: { type: 'DUNNING' }})
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+              
+              const subject = template?.subject || 'Acción Requerida: Actualiza tu método de pago'
+              let html = template?.htmlBody || `<h1>Hubo un problema con tu pago</h1><p>Hola {{userFirstname}},</p><p>No pudimos procesar el último cargo de tu suscripción a <strong>Ágora Plus</strong>. Para evitar interrupciones, por favor actualiza tu tarjeta.</p><p><a href="{{dashboardUrl}}/billing">Actualizar Método de Pago</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
+              
+              html = html.replace(/{{userFirstname}}/g, dbSubUser.name || 'Usuario')
+                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
               await resend.emails.send({
                 from: 'Ágora Plus Pagos <soporte@agora-plus.com>',
                 to: [dbSubUser.email],
-                subject: 'Acción Requerida: Actualiza tu método de pago',
-                react: DunningEmail({ userFirstname: dbSubUser.name || 'Usuario' }),
+                subject: subject,
+                html: html,
               })
             } catch (emailErr) {
               console.error('[RESEND_ERROR] Failed to send dunning email', emailErr)

@@ -60,6 +60,16 @@ model CopilotUsage {
   @@unique([userId, month, year])
 }
 
+// Dynamic Email Templates for Resend
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  type      String   @unique // 'WELCOME', 'DUNNING'
+  subject   String
+  htmlBody  String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // SaaS Data Models
 model Transaction {
   id            String   @id @default(uuid())
