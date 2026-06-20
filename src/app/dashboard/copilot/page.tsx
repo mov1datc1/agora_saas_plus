@@ -9,7 +9,6 @@ import remarkGfm from 'remark-gfm'
 export default function CopilotPage() {
   const [input, setInput] = useState('')
   const { messages, sendMessage, status, error } = useChat({
-    api: '/api/chat',
     onError: (err) => {
       console.error(err)
     }

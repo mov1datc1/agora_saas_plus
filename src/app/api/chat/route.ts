@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       tools: {
         getTopFirms: tool({
           description: 'Obtiene las firmas legales (despachos) con más operaciones registradas.',
-          parameters: z.object({
+          inputSchema: z.object({
             limit: z.number().optional().describe('Cantidad de firmas a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         }),
         getTopIndustries: tool({
           description: 'Obtiene las industrias con más operaciones transaccionales.',
-          parameters: z.object({
+          inputSchema: z.object({
             limit: z.number().optional().describe('Cantidad de industrias a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
         }),
         getTopCountries: tool({
           description: 'Obtiene los países con más operaciones transaccionales.',
-          parameters: z.object({
+          inputSchema: z.object({
             limit: z.number().optional().describe('Cantidad de países a retornar, por defecto 5'),
             year: z.number().optional().describe('Filtra por año específico'),
           }),
