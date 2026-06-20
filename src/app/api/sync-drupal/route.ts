@@ -84,7 +84,17 @@ export async function POST(request: Request) {
       const status = attributes.field_estado_caso || 'Completada'
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
-      const type = attributes.field_operacion_principal || 'M&A'
+      let type = attributes.field_operacion_principal
+      if (!type) {
+        const textToAnalyze = `${title} ${attributes.body?.value || ''}`.toLowerCase()
+        if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
+          type = 'Emisiones'
+        } else if (textToAnalyze.includes('financiamiento') || textToAnalyze.includes('préstamo') || textToAnalyze.includes('crédito') || textToAnalyze.includes('financia')) {
+          type = 'Financiamientos'
+        } else {
+          type = 'M&A'
+        }
+      }
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
 
       // Process Relationships (Industries)

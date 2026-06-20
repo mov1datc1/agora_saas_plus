@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight, Sparkles, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
@@ -15,6 +15,7 @@ const navigation = [
   { name: 'Ágora Copilot', href: '/dashboard/copilot', icon: Sparkles },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
   { name: 'Administración', href: '/dashboard/admin', icon: Settings },
+  { name: 'Configuración SMTP', href: '/dashboard/admin/smtp', icon: Mail },
 ]
 
 export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
