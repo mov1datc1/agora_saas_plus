@@ -28,41 +28,6 @@ export default async function MetricsFirmsPage() {
       deals: f._count.transactions
     }))
 
-    // 3. Obtener Data detallada para la tabla Power BI (TransactionAdvisor -> Firm + Transaction)
-    const rawAdvisors = await prisma.transactionAdvisor.findMany({
-      include: {
-        firm: true,
-        transaction: {
-          include: {
-            industry: true,
-            companies: { include: { company: true } },
-            lawyers: { include: { lawyer: true } },
-          }
-        }
-      },
-      orderBy: {
-        transaction: { dateAnnounced: 'desc' }
-      }
-    })
-
-    // Mapear al formato plano para la tabla
-    const tableData = rawAdvisors.map(adv => {
-      const tx = adv.transaction
-      return {
-        id: adv.id,
-        firma: adv.firm.name,
-        monto: tx.valueString || 'No revelado',
-        volumen: tx.value ? Number(tx.value) : null,
-        tipoOperacion: tx.type || 'M&A',
-        pais: tx.country || 'N/D',
-        abogados: tx.lawyers.map(l => l.lawyer.name).join(', ') || 'N/D',
-        industria: tx.industry?.name || 'Varios / Sin Clasificar',
-        empresa: tx.companies.map(c => c.company.name).join(', ') || 'N/D',
-        fecha: tx.dateAnnounced ? tx.dateAnnounced.toISOString() : (tx.dateClosed ? tx.dateClosed.toISOString() : null),
-        transactionId: tx.id
-      }
-    })
-
     return (
       <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -76,7 +41,6 @@ export default async function MetricsFirmsPage() {
           totalTransactions={totalTransactions} 
           totalFirms={totalFirms}
           topFirmsList={topFirmsList}
-          tableData={tableData}
         />
       </div>
     )

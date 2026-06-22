@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, ArrowUpDown } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
 
 interface TableRow {
   id: string
@@ -22,10 +22,11 @@ interface FirmsClientProps {
   totalTransactions: number
   totalFirms: number
   topFirmsList: { name: string, deals: number }[]
-  tableData: TableRow[]
 }
 
-export default function FirmsClient({ totalTransactions, totalFirms, topFirmsList, tableData }: FirmsClientProps) {
+export default function FirmsClient({ totalTransactions, totalFirms, topFirmsList }: FirmsClientProps) {
+  const [tableData, setTableData] = useState<TableRow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
@@ -37,6 +38,20 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
+
+  // Fetch initial data
+  useEffect(() => {
+    fetch('/api/metrics/firms')
+      .then(res => res.json())
+      .then(data => {
+        setTableData(data)
+        setIsLoading(false)
+      })
+      .catch(err => {
+        console.error('Error fetching table data:', err)
+        setIsLoading(false)
+      })
+  }, [])
 
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
@@ -81,7 +96,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   }
 
   // Resetear la paginación cuando cambia algún filtro o búsqueda
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1)
   }, [filterType, searchQuery, sortConfig])
 
@@ -94,7 +109,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
 
   // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
-  useMemo(() => {
+  useEffect(() => {
     if (paginatedData.length > 0 && (!selectedRow || !paginatedData.find(r => r.id === selectedRow.id))) {
       setSelectedRow(paginatedData[0])
     } else if (paginatedData.length === 0) {
@@ -219,64 +234,68 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
           {/* Table */}
           <div className="flex-1 overflow-auto">
             <table className="w-full text-left border-collapse min-w-[500px]">
-              <thead className="sticky top-0 bg-surface z-10 shadow-sm">
+              <thead className="bg-muted">
                 <tr>
                   <th 
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
+                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
                     onClick={() => handleSort('firma')}
                   >
-                    <div className="flex items-center gap-2">
-                      Firma
-                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'firma' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
-                    </div>
+                    Firma {sortConfig?.key === 'firma' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th 
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
+                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
                     onClick={() => handleSort('monto')}
                   >
-                    <div className="flex items-center gap-2">
-                      Monto
-                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'monto' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
-                    </div>
+                    Monto {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th 
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 text-right cursor-pointer hover:bg-muted transition-colors group"
+                    className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
                     onClick={() => handleSort('volumen')}
                   >
-                    <div className="flex items-center justify-end gap-2">
-                      Volumen Consolidado
-                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'volumen' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
-                    </div>
+                    Volumen Consolidado {sortConfig?.key === 'volumen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {paginatedData.map(row => (
-                  <tr 
-                    key={row.id} 
-                    onClick={() => setSelectedRow(row)}
-                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedRow?.id === row.id ? 'bg-[#E05C50]/5 border-l-4 border-l-[#E05C50]' : 'border-l-4 border-l-transparent'}`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded flex items-center justify-center shrink-0 ${selectedRow?.id === row.id ? 'bg-[#E05C50] text-white' : 'bg-muted text-muted-foreground'}`}>
-                          <Building2 className="h-4 w-4" />
-                        </div>
-                        <span className={`text-sm font-medium ${selectedRow?.id === row.id ? 'text-[#E05C50]' : 'text-foreground'}`}>
-                          {row.firma}
-                        </span>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#E05C50] mb-2" />
+                        <span className="text-sm font-medium">Cargando datos de operaciones...</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{row.monto}</td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground text-right italic">En desarrollo</td>
                   </tr>
-                ))}
-                {paginatedData.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
-                      No se encontraron resultados para los filtros seleccionados.
-                    </td>
-                  </tr>
+                ) : (
+                  <>
+                    {paginatedData.map(row => (
+                      <tr 
+                        key={row.id} 
+                        onClick={() => setSelectedRow(row)}
+                        className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedRow?.id === row.id ? 'bg-[#E05C50]/5 border-l-4 border-l-[#E05C50]' : 'border-l-4 border-l-transparent'}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded flex items-center justify-center shrink-0 ${selectedRow?.id === row.id ? 'bg-[#E05C50] text-white' : 'bg-muted text-muted-foreground'}`}>
+                              <Building2 className="h-4 w-4" />
+                            </div>
+                            <span className={`text-sm font-medium ${selectedRow?.id === row.id ? 'text-[#E05C50]' : 'text-foreground'}`}>
+                              {row.firma}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-foreground">{row.monto}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground text-right italic">En desarrollo</td>
+                      </tr>
+                    ))}
+                    {paginatedData.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
+                          No se encontraron resultados para los filtros seleccionados.
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
