@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Gavel, Briefcase } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Gavel, Briefcase, ChevronUp, ChevronDown } from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -66,6 +66,7 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
   
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
+  const [isMapExpanded, setIsMapExpanded] = useState(true)
   
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [sortConfig, setSortConfig] = useState<{key: 'pais' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
@@ -222,10 +223,23 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
 
       <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border relative flex flex-col items-center justify-center">
         <div className="w-full flex justify-between items-center mb-2">
-          <h3 className="text-lg font-semibold text-foreground">Mapa Financiero de Mercado Activo</h3>
-          <span className="text-xs text-muted-foreground">Colores resaltan países con volumen financiero</span>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Mapa Financiero de Mercado Activo</h3>
+            <span className="text-xs text-muted-foreground">Colores resaltan países con volumen financiero</span>
+          </div>
+          <button 
+            onClick={() => setIsMapExpanded(!isMapExpanded)}
+            className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors flex items-center gap-1 bg-brand/10 px-3 py-1.5 rounded-lg"
+          >
+            {isMapExpanded ? (
+              <><ChevronUp className="h-4 w-4" /> Ocultar Mapa</>
+            ) : (
+              <><ChevronDown className="h-4 w-4" /> Mostrar Mapa</>
+            )}
+          </button>
         </div>
-        <div className="w-full h-[400px] bg-[#f8f9fa] rounded-xl overflow-hidden relative">
+        {isMapExpanded && (
+        <div className="w-full h-[400px] bg-[#f8f9fa] rounded-xl overflow-hidden relative animate-in slide-in-from-top-2 fade-in duration-300">
           {isMounted && (
             <ComposableMap projection="geoMercator" projectionConfig={{scale: 130}} width={800} height={400} className="w-full h-full">
             <Geographies geography={geoUrl}>
@@ -289,6 +303,7 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[600px]">
