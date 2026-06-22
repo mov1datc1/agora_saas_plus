@@ -135,8 +135,8 @@ model Firm {
 model Lawyer {
   id          String   @id @default(uuid())
   name        String
-  firmId      String
-  firm        Firm     @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  firmId      String?
+  firm        Firm?    @relation(fields: [firmId], references: [id], onDelete: Cascade)
   position    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

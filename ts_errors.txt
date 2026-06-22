@@ -1,0 +1,41 @@
+src/app/api/chat/route.ts(57,11): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ limit, year }: { limit?: number; year?: number; }) => Promise<{ name: string; deals: number; }[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(87,11): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ limit, year }: { limit?: number; year?: number; }) => Promise<{ name: string; deals: number; }[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(113,11): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '({ limit, year }: { limit?: number; year?: number; }) => Promise<{ name: string; deals: number; }[]>' is not assignable to type 'undefined'.
+src/app/api/chat/route.ts(150,19): error TS2551: Property 'toDataStreamResponse' does not exist on type 'StreamTextResult<{ getTopFirms: Tool<{ limit?: number | undefined; year?: number | undefined; }, { name: string; deals: number; }[]>; getTopIndustries: Tool<{ limit?: number | undefined; year?: number | undefined; }, { ...; }[]>; getTopCountries: Tool<...>; }, Output<...>>'. Did you mean 'toTextStreamResponse'?
+src/app/dashboard/copilot/page.tsx(10,21): error TS2339: Property 'input' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(10,28): error TS2339: Property 'handleInputChange' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(10,47): error TS2339: Property 'handleSubmit' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(10,61): error TS2339: Property 'isLoading' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(10,79): error TS2339: Property 'append' does not exist on type 'UseChatHelpers<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(11,5): error TS2353: Object literal may only specify known properties, and 'api' does not exist in type 'UseChatOptions<UIMessage<unknown, UIDataTypes, UITools>>'.
+src/app/dashboard/copilot/page.tsx(95,41): error TS2339: Property 'toolInvocations' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/app/dashboard/copilot/page.tsx(103,24): error TS2339: Property 'content' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/app/dashboard/copilot/page.tsx(107,41): error TS2339: Property 'content' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/app/dashboard/copilot/page.tsx(109,53): error TS2339: Property 'content' does not exist on type 'UIMessage<unknown, UIDataTypes, UITools>'.
+src/components/auth/AuthListener.tsx(19,75): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/components/auth/AuthListener.tsx(29,48): error TS7031: Binding element 'session' implicitly has an 'any' type.
+src/components/auth/AuthListener.tsx(38,42): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/auth/AuthListener.tsx(38,49): error TS7006: Parameter 'session' implicitly has an 'any' type.
+src/utils/supabase/client.ts(1,37): error TS7016: Could not find a declaration file for module '@supabase/ssr'. '/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@supabase/ssr/dist/main/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/supabase__ssr` if it exists or add a new declaration (.d.ts) file containing `declare module '@supabase/ssr';`
+src/utils/supabase/middleware.ts(1,36): error TS7016: Could not find a declaration file for module '@supabase/ssr'. '/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@supabase/ssr/dist/main/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/supabase__ssr` if it exists or add a new declaration (.d.ts) file containing `declare module '@supabase/ssr';`
+src/utils/supabase/middleware.ts(17,16): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(18,35): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(18,41): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(18,48): error TS7031: Binding element 'options' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(22,35): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(22,41): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/utils/supabase/middleware.ts(22,48): error TS7031: Binding element 'options' implicitly has an 'any' type.
+src/utils/supabase/server.ts(1,36): error TS7016: Could not find a declaration file for module '@supabase/ssr'. '/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@supabase/ssr/dist/main/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/supabase__ssr` if it exists or add a new declaration (.d.ts) file containing `declare module '@supabase/ssr';`
+src/utils/supabase/server.ts(15,16): error TS7006: Parameter 'cookiesToSet' implicitly has an 'any' type.
+src/utils/supabase/server.ts(17,37): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/utils/supabase/server.ts(17,43): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/utils/supabase/server.ts(17,50): error TS7031: Binding element 'options' implicitly has an 'any' type.

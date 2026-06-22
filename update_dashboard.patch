@@ -1,0 +1,40 @@
+--- src/app/dashboard/page.tsx
++++ src/app/dashboard/page.tsx
+@@ -4,6 +4,7 @@
+ import { IndustryDistributionChart } from '@/components/charts/IndustryDistributionChart'
++import { createClient } from '@/utils/supabase/server'
+ 
+ export default async function DashboardPage() {
++  const supabase = await createClient()
++  const { data: { user } } = await supabase.auth.getUser()
++  const dbUser = user && user.email ? await prisma.user.findUnique({ where: { email: user.email }, include: { subscription: true } }) : null
++  const subscription = dbUser?.subscription
++
++  let badgeText = "Suscripción Inactiva"
++  let badgeColor = "bg-gray-50 text-gray-700 ring-gray-600/20"
++  
++  if (subscription) {
++     if (subscription.status === 'TRIAL' && subscription.trialEndsAt) {
++        const diffTime = subscription.trialEndsAt.getTime() - new Date().getTime()
++        const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
++        badgeText = `Prueba Activa (${diffDays} días restantes)`
++        badgeColor = "bg-amber-50 text-amber-700 ring-amber-600/20"
++     } else if (subscription.status === 'ACTIVE') {
++        badgeText = "Suscripción Activa"
++        badgeColor = "bg-green-50 text-green-700 ring-green-600/20"
++     } else if (subscription.status === 'CANCELED') {
++        badgeText = "Suscripción Cancelada"
++        badgeColor = "bg-red-50 text-red-700 ring-red-600/20"
++     }
++  }
++
+   // Obtenemos cuentas reales de Prisma
+@@ -91,7 +112,7 @@
+         </div>
+         <div className="flex items-center gap-4">
+-          <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+-            Prueba Activa (14 días restantes)
++          <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${badgeColor}`}>
++            {badgeText}
+           </span>
+         </div>

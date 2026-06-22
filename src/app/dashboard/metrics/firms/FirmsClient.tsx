@@ -1,22 +1,57 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { Building2, Users, FileText, ArrowUpRight, X } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter } from 'lucide-react'
 
-const COLORS = ['#E05C50', '#1C1F33', '#82ca9d', '#ffc658', '#8884d8', '#8dd1e1']
+interface TableRow {
+  id: string
+  firma: string
+  monto: string
+  volumen: number | null
+  tipoOperacion: string
+  pais: string
+  abogados: string
+  industria: string
+  empresa: string
+  fecha: string | null
+  transactionId: string
+}
 
 interface FirmsClientProps {
   totalTransactions: number
   totalFirms: number
-  historyData: { year: string, transacciones: number }[]
-  practiceData: { name: string, value: number }[]
   topFirmsList: { name: string, deals: number }[]
+  tableData: TableRow[]
 }
 
-export default function FirmsClient({ totalTransactions, totalFirms, historyData, practiceData, topFirmsList }: FirmsClientProps) {
+export default function FirmsClient({ totalTransactions, totalFirms, topFirmsList, tableData }: FirmsClientProps) {
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
+  const [filterType, setFilterType] = useState<string>('Todas')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
+
+  // Opciones de filtro
+  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
+
+  // Filtrado de la tabla
+  const filteredData = useMemo(() => {
+    return tableData.filter(row => {
+      const matchesType = filterType === 'Todas' || row.tipoOperacion === filterType
+      const matchesSearch = row.firma.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            row.monto.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesType && matchesSearch
+    })
+  }, [tableData, filterType, searchQuery])
+
+  // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
+  useMemo(() => {
+    if (filteredData.length > 0 && (!selectedRow || !filteredData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(filteredData[0])
+    } else if (filteredData.length === 0) {
+      setSelectedRow(null)
+    }
+  }, [filteredData])
 
   return (
     <>
@@ -67,50 +102,159 @@ export default function FirmsClient({ totalTransactions, totalFirms, historyData
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
-        {/* Histórico */}
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col">
-          <h3 className="text-lg font-semibold text-foreground mb-6">Histórico de Transacciones (Mercado Global)</h3>
-          <div className="flex-1 min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={historyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="year" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: '#f3f4f6'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                <Bar dataKey="transacciones" fill="#1C1F33" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Interactive Power BI Style Section */}
+      <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[600px]">
+        
+        {/* Left: Table Container */}
+        <div className="flex-1 bg-surface rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden">
+          {/* Toolbar */}
+          <div className="p-4 border-b border-border bg-muted/30 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+            
+            <div className="flex flex-wrap gap-2">
+              <div className="flex items-center gap-2 mr-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold text-muted-foreground hidden sm:inline">Filtro:</span>
+              </div>
+              {filterOptions.map(option => (
+                <button
+                  key={option}
+                  onClick={() => setFilterType(option)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
+                    filterType === option 
+                      ? 'bg-[#1C1F33] text-white shadow-md' 
+                      : 'bg-background text-muted-foreground hover:bg-muted border border-border'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full sm:w-64 shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Buscar firma o monto..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E05C50]/20 focus:border-[#E05C50] transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-left border-collapse min-w-[500px]">
+              <thead className="sticky top-0 bg-surface z-10 shadow-sm">
+                <tr>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50">Firma</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50">Monto</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 text-right">Volumen Consolidado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredData.map(row => (
+                  <tr 
+                    key={row.id} 
+                    onClick={() => setSelectedRow(row)}
+                    className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedRow?.id === row.id ? 'bg-[#E05C50]/5 border-l-4 border-l-[#E05C50]' : 'border-l-4 border-l-transparent'}`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded flex items-center justify-center shrink-0 ${selectedRow?.id === row.id ? 'bg-[#E05C50] text-white' : 'bg-muted text-muted-foreground'}`}>
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <span className={`text-sm font-medium ${selectedRow?.id === row.id ? 'text-[#E05C50]' : 'text-foreground'}`}>
+                          {row.firma}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">{row.monto}</td>
+                    <td className="px-6 py-4 text-sm text-muted-foreground text-right italic">En desarrollo</td>
+                  </tr>
+                ))}
+                {filteredData.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
+                      No se encontraron resultados para los filtros seleccionados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Áreas de Práctica / Industrias */}
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col">
-          <h3 className="text-lg font-semibold text-foreground mb-6">Transacciones por Industria</h3>
-          <div className="flex-1 min-h-[300px] flex items-center justify-center">
-            {practiceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={practiceData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({name, percent}) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  >
-                    {practiceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+        {/* Right: Dynamic Details Panel */}
+        <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-4">
+          <div className="bg-[#1C1F33] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden h-full flex flex-col">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
+            
+            {selectedRow ? (
+              <>
+                <div className="mb-6 z-10">
+                  <h3 className="text-xs uppercase tracking-widest text-white/60 font-semibold mb-1">Detalle de Operación</h3>
+                  <p className="text-lg font-bold leading-tight line-clamp-2">{selectedRow.firma}</p>
+                  <span className="inline-block mt-3 px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
+                    {selectedRow.tipoOperacion}
+                  </span>
+                </div>
+
+                <div className="space-y-4 flex-1 overflow-y-auto z-10 custom-scrollbar pr-2">
+                  {/* País */}
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Globe className="h-4 w-4" />
+                      <span className="text-xs font-semibold">País Involucrado</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">{selectedRow.pais}</p>
+                  </div>
+
+                  {/* Abogados */}
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Gavel className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Abogados Involucrados</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">{selectedRow.abogados}</p>
+                  </div>
+
+                  {/* Empresa */}
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Building2 className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Empresa / Cliente</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">{selectedRow.empresa}</p>
+                  </div>
+
+                  {/* Industria */}
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Industria</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">{selectedRow.industria}</p>
+                  </div>
+
+                  {/* Fecha */}
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Calendar className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Fecha de Anuncio</span>
+                    </div>
+                    <p className="text-sm font-medium text-white">
+                      {selectedRow.fecha ? new Date(selectedRow.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada'}
+                    </p>
+                  </div>
+                </div>
+              </>
             ) : (
-              <p className="text-muted-foreground text-sm">No hay suficientes datos de industrias para mostrar.</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-center text-white/40 z-10">
+                <Search className="h-12 w-12 mb-4 opacity-50" />
+                <p className="text-sm">Selecciona una firma en la tabla para ver los detalles de la operación.</p>
+              </div>
             )}
           </div>
         </div>

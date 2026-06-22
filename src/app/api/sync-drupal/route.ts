@@ -159,6 +159,7 @@ export async function POST(request: Request) {
 
       // Process Value String (Monto)
       let transactionValue = 'Por definir'
+      let transactionValueNumeric: number | null = null
       if (relationships?.field_operacion?.data) {
         const opDataArray = Array.isArray(relationships.field_operacion.data) ? relationships.field_operacion.data : [relationships.field_operacion.data]
         for (const opData of opDataArray) {
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
               const rawMonto = moneyNode.attributes.field_monto_transaccion_en_dolar
               const num = parseFloat(rawMonto.toString().replace(/,/g, ''))
               if (!isNaN(num) && num > 0) {
+                transactionValueNumeric = num
                 if (num >= 1000000) {
                   transactionValue = `$${(num / 1000000).toFixed(1)}M`
                 } else {
@@ -198,6 +200,7 @@ export async function POST(request: Request) {
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
+          value: transactionValueNumeric,
           valueString: transactionValue,
         },
         update: {
@@ -209,6 +212,7 @@ export async function POST(request: Request) {
           industryId: prismaIndustryId,
           dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
+          value: transactionValueNumeric,
           valueString: transactionValue,
         }
       })
@@ -267,11 +271,6 @@ export async function POST(request: Request) {
             
             // Create or update Company
             const upsertedCompany = await prisma.company.upsert({
-              // Company name in Prisma schema doesn't have @unique right now, wait... let me check Prisma schema
-              // If it lacks @unique, upsert needs a unique field. Wait, I should just use id.
-              // Actually, wait, let me check Prisma schema for Company.
-              // I will rewrite this replacing chunk carefully after viewing Prisma schema to avoid crashing.
-              // So I am going to cancel this chunk for a moment? No, I am forced to write it. Let's just create the company if it doesn't exist by id.
               where: { id: c.id },
               create: { id: c.id, name: companyName },
               update: { name: companyName }
@@ -291,6 +290,46 @@ export async function POST(request: Request) {
                 transactionId: transactionId,
                 companyId: upsertedCompany.id,
                 role: 'Parte Involucrada'
+              },
+              update: {}
+            })
+          }
+        }
+      }
+
+      // Process Lawyers (Abogados)
+      if (relationships?.field_abogados_involucrados?.data) {
+        const abogadosData = Array.isArray(relationships.field_abogados_involucrados.data)
+          ? relationships.field_abogados_involucrados.data
+          : [relationships.field_abogados_involucrados.data];
+          
+        for (const a of abogadosData) {
+          if (!a) continue;
+          const abogadoNode = getIncludedResource(a.type, a.id)
+          if (abogadoNode && (abogadoNode.attributes.name || abogadoNode.attributes.title)) {
+            const abogadoName = abogadoNode.attributes.name || abogadoNode.attributes.title
+            
+            // Create or update Lawyer
+            const upsertedLawyer = await prisma.lawyer.upsert({
+              where: { id: a.id },
+              create: { id: a.id, name: abogadoName },
+              update: { name: abogadoName }
+            })
+            
+            // Link to Transaction
+            await prisma.transactionLawyer.upsert({
+              where: {
+                transactionId_lawyerId_role: {
+                  transactionId: transactionId,
+                  lawyerId: upsertedLawyer.id,
+                  role: 'Abogado Involucrado'
+                }
+              },
+              create: {
+                id: `${transactionId}-${upsertedLawyer.id}`,
+                transactionId: transactionId,
+                lawyerId: upsertedLawyer.id,
+                role: 'Abogado Involucrado'
               },
               update: {}
             })
