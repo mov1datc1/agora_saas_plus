@@ -398,38 +398,41 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
       </div>
 
       {isRankingModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsRankingModalOpen(false)}>
-          <div className="w-full max-w-md bg-surface h-full shadow-2xl p-6 flex flex-col animate-in slide-in-from-right" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6 shrink-0">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setIsRankingModalOpen(false)}>
+          <div className="w-full max-w-md bg-[#1C1F33] h-full shadow-2xl p-6 flex flex-col animate-in slide-in-from-right relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
+
+            <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
               <div className="flex items-center gap-2">
                 <Users className="h-6 w-6 text-[#E05C50]" />
-                <h3 className="text-xl font-bold text-foreground">Ranking Completo de Firmas</h3>
+                <h3 className="text-xl font-bold text-white">Ranking Global</h3>
               </div>
-              <button onClick={() => setIsRankingModalOpen(false)} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors">
+              <button onClick={() => setIsRankingModalOpen(false)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
               {topFirmsList.map((firm, i) => (
                 <Link 
                   href={`/dashboard/operations?search=${encodeURIComponent(firm.name)}`}
                   key={i} 
-                  className="flex justify-between items-center bg-muted p-4 rounded-xl border border-border/50 hover:border-[#E05C50]/30 hover:bg-muted/80 transition-all cursor-pointer group"
+                  className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-[#E05C50]/50 hover:bg-white/10 transition-all cursor-pointer group"
                 >
-                  <div className="flex items-center gap-4">
-                    <span className="flex items-center justify-center h-8 w-8 rounded-full bg-background text-sm font-bold text-foreground ring-1 ring-border shadow-sm group-hover:bg-[#E05C50] group-hover:text-white transition-colors">
+                  <div className="flex items-center gap-4 overflow-hidden">
+                    <span className={`flex items-center justify-center shrink-0 h-8 w-8 rounded-full text-sm font-bold shadow-sm transition-colors ${i < 3 ? 'bg-[#E05C50] text-white border-none' : 'bg-[#252a42] text-white/70 border border-white/10 group-hover:bg-[#E05C50] group-hover:text-white'}`}>
                       {i + 1}
                     </span>
-                    <span className="text-sm font-semibold text-foreground group-hover:text-[#E05C50] transition-colors">{firm.name}</span>
+                    <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate">{firm.name}</span>
                   </div>
-                  <span className="text-xs font-bold bg-[#E05C50]/10 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
+                  <span className="shrink-0 text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
                     {firm.deals} ops
                   </span>
                 </Link>
               ))}
               {topFirmsList.length === 0 && (
-                <p className="text-sm text-muted-foreground mt-2 text-center">No hay datos de firmas disponibles.</p>
+                <p className="text-sm text-white/40 mt-8 text-center">No hay datos de firmas disponibles.</p>
               )}
             </div>
           </div>

@@ -16,11 +16,10 @@ export default async function MetricsFirmsPage() {
   // Conteo de Firmas reales en la DB
   const totalFirms = await prisma.firm.count()
 
-  // 2. Firmas Top (Mantenemos para la card superior)
+  // 2. Firmas Top (Todas las firmas ordenadas para el panel lateral)
   const firmsData = await prisma.firm.findMany({
     include: { _count: { select: { transactions: true } } },
-    orderBy: { transactions: { _count: 'desc' } },
-    take: 5
+    orderBy: { transactions: { _count: 'desc' } }
   })
   
   const topFirmsList = firmsData.map(f => ({
