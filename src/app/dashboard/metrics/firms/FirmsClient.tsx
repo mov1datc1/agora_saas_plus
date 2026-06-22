@@ -34,6 +34,8 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   // Nuevos estados para UX
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [sortConfig, setSortConfig] = useState<{key: 'firma' | 'monto' | 'volumen', direction: 'asc' | 'desc'} | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 50
 
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
@@ -77,14 +79,27 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
     setSortConfig({ key, direction })
   }
 
+  // Resetear la paginación cuando cambia algún filtro o búsqueda
+  useMemo(() => {
+    setCurrentPage(1)
+  }, [filterType, searchQuery, sortConfig])
+
+  // Paginación
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredData.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredData, currentPage])
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+
   // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
   useMemo(() => {
-    if (filteredData.length > 0 && (!selectedRow || !filteredData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(filteredData[0])
-    } else if (filteredData.length === 0) {
+    if (paginatedData.length > 0 && (!selectedRow || !paginatedData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(paginatedData[0])
+    } else if (paginatedData.length === 0) {
       setSelectedRow(null)
     }
-  }, [filteredData])
+  }, [paginatedData])
 
   return (
     <>
@@ -229,7 +244,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredData.map(row => (
+                {paginatedData.map(row => (
                   <tr 
                     key={row.id} 
                     onClick={() => setSelectedRow(row)}
@@ -249,7 +264,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                     <td className="px-6 py-4 text-sm text-muted-foreground text-right italic">En desarrollo</td>
                   </tr>
                 ))}
-                {filteredData.length === 0 && (
+                {paginatedData.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
                       No se encontraron resultados para los filtros seleccionados.
@@ -259,6 +274,31 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} de {filteredData.length}
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-xs font-semibold"
+                >
+                  Anterior
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 bg-background border border-border text-foreground rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-xs font-semibold"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Dynamic Details Panel */}
