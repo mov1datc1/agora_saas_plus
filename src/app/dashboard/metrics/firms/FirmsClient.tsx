@@ -123,6 +123,13 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
     return topFirmsList.filter(f => f.name.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
   }, [topFirmsList, rankingSearchQuery])
 
+  const formatCurrency = (value: number | null | undefined) => {
+    if (!value) return 'No revelado'
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
+    return `$${value.toLocaleString()}`
+  }
+
   return (
     <>
       {/* Stats row */}
@@ -285,7 +292,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-foreground">{row.monto}</td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground text-right italic">En desarrollo</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-foreground text-right">{formatCurrency(row.volumen)}</td>
                       </tr>
                     ))}
                     {paginatedData.length === 0 && (

@@ -2,124 +2,38 @@ import prisma from '@/lib/prisma'
 import CountriesClient from './CountriesClient'
 
 export const revalidate = 43200 // 12 hours cache
+export const dynamic = 'force-dynamic'
 
-export default async function MetricsCountriesPage({
-  searchParams
-}: {
-  searchParams: Promise<{ country?: string, year?: string }>
-}) {
-  const params = await searchParams
-  const selectedCountry = params.country
-  const selectedYear = params.year
+export default async function MetricsCountriesPage() {
+  try {
+    // 1. Conteo de transacciones reales en la DB
+    const totalTransactions = await prisma.transaction.count()
 
-  const whereClause = selectedCountry && selectedCountry !== 'Todos'
-    ? { country: { contains: selectedCountry } }
-    : {}
+    return (
+      <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">Métricas: Países</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Explora la actividad financiera y legal por región y país.</p>
+          </div>
+        </div>
 
-  // 1. Obtener transacciones filtradas para los gráficos
-  const transactions = await prisma.transaction.findMany({
-    where: whereClause,
-    include: {
-      industry: true,
-      advisors: { include: { firm: true } }
-    }
-  })
-
-  // Obtener TODAS las transacciones para extraer la lista de países para el dropdown
-  const allTransactions = await prisma.transaction.findMany({
-    select: { country: true }
-  })
-
-  const uniqueCountriesSet = new Set<string>()
-  allTransactions.forEach(tx => {
-    if (tx.country) {
-      tx.country.split(',').map(c => c.trim()).filter(Boolean).forEach(c => uniqueCountriesSet.add(c))
-    }
-  })
-  const availableCountries = Array.from(uniqueCountriesSet).sort()
-
-  // 2. Agrupar por año (Últimos 10 años continuos)
-  const currentYearNum = new Date().getFullYear()
-  const yearCounts: Record<string, number> = {}
-  
-  for (let y = currentYearNum - 10; y <= currentYearNum; y++) {
-    yearCounts[y.toString()] = 0
+        <CountriesClient totalTransactions={totalTransactions} />
+      </div>
+    )
+  } catch (error: any) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 bg-white rounded-2xl shadow-sm border border-red-200">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Error interno del servidor</h2>
+        <p className="text-gray-700 mb-2">Ha ocurrido un problema inesperado al procesar los datos de este módulo.</p>
+        <p className="text-gray-600 text-sm mb-6 bg-red-50 p-3 rounded-lg border border-red-100">
+          Por favor, toma una captura de pantalla de este mensaje y envíala a <strong>soporte@lexlatin.com</strong> para que nuestro equipo técnico lo solucione a la brevedad.
+        </p>
+        <div className="bg-gray-50 p-4 rounded-xl text-xs font-mono text-gray-800 w-full max-w-2xl overflow-auto text-left whitespace-pre-wrap border border-gray-200">
+          <span className="font-bold text-red-500 block mb-2">Detalles técnicos del error:</span>
+          {error.message || String(error)}
+        </div>
+      </div>
+    )
   }
-  
-  transactions.forEach(tx => {
-    const dateToUse = tx.dateAnnounced || tx.dateClosed
-    if (dateToUse) {
-      const year = dateToUse.getFullYear().toString()
-      if (yearCounts[year] !== undefined) {
-        yearCounts[year] += 1
-      }
-    }
-  })
-
-  const crossBorderData = Object.entries(yearCounts)
-    .map(([year, count]) => ({ year, count }))
-    .sort((a, b) => a.year.localeCompare(b.year))
-
-  // Filtrar transacciones por año para los Tops
-  const filteredTransactions = transactions.filter(tx => {
-    if (!selectedYear) return true
-    const d = tx.dateAnnounced || tx.dateClosed
-    if (!d) return false
-    return d.getFullYear().toString() === selectedYear
-  })
-
-  // 3. Top Industrias (Basado en el año/país filtrado)
-  const industryCounts: Record<string, number> = {}
-  filteredTransactions.forEach(tx => {
-    const indName = tx.industry?.name || 'Varios'
-    industryCounts[indName] = (industryCounts[indName] || 0) + 1
-  })
-
-  const topIndustries = Object.entries(industryCounts)
-    .map(([name, deals]) => ({ name, deals }))
-    .sort((a, b) => b.deals - a.deals)
-    .slice(0, 2)
-
-  // 4. Top Firmas Reales (Basado en el año/país filtrado)
-  const firmCounts: Record<string, number> = {}
-  filteredTransactions.forEach(tx => {
-    tx.advisors?.forEach(adv => {
-      if (adv.firm?.name) {
-        firmCounts[adv.firm.name] = (firmCounts[adv.firm.name] || 0) + 1
-      }
-    })
-  })
-
-  const topFirms = Object.entries(firmCounts)
-    .map(([name, deals]) => ({ name, deals }))
-    .sort((a, b) => b.deals - a.deals)
-    .slice(0, 5)
-
-  // 5. Top Países (Basado en el año/país filtrado)
-  const countryCounts: Record<string, number> = {}
-  filteredTransactions.forEach(tx => {
-    if (tx.country) {
-      const cList = tx.country.split(',').map(c => c.trim()).filter(Boolean)
-      cList.forEach(c => {
-        countryCounts[c] = (countryCounts[c] || 0) + 1
-      })
-    }
-  })
-
-  const topCountries = Object.entries(countryCounts)
-    .map(([name, deals]) => ({ name, deals }))
-    .sort((a, b) => b.deals - a.deals)
-    .slice(0, 5)
-
-  return (
-    <div className="flex flex-col h-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <CountriesClient 
-        crossBorderData={crossBorderData} 
-        topFirms={topFirms} 
-        topIndustries={topIndustries}
-        topCountries={topCountries}
-        availableCountries={availableCountries}
-      />
-    </div>
-  )
 }
