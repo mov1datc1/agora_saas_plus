@@ -20,6 +20,26 @@ export type UITransaction = {
 
 export default function OperationsClient({ transactions }: { transactions: UITransaction[] }) {
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
+  const [txDetails, setTxDetails] = useState<any>(null)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+
+  const handleSelectTx = async (tx: UITransaction) => {
+    setSelectedTx(tx)
+    setIsLoadingDetails(true)
+    setTxDetails(null)
+    
+    try {
+      const res = await fetch(`/api/transactions/${tx.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setTxDetails(data.transaction)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoadingDetails(false)
+    }
+  }
   
   // Estados para los filtros
   const searchParams = useSearchParams()
@@ -163,7 +183,7 @@ export default function OperationsClient({ transactions }: { transactions: UITra
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {sortedTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setSelectedTx(tx)}>
+                <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleSelectTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[250px] truncate" title={tx.title}>{tx.title}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
@@ -214,9 +234,76 @@ export default function OperationsClient({ transactions }: { transactions: UITra
                   <p className="text-xs font-medium text-muted-foreground mb-1">Estado</p>
                   <p className="text-lg font-bold text-foreground">{selectedTx.status}</p>
                 </div>
+                <div className="bg-muted rounded-xl p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Monto (USD)</p>
+                  <p className="text-lg font-bold text-foreground">{selectedTx.amount}</p>
+                </div>
               </div>
 
-              <div className="border-t border-border pt-6">
+              {isLoadingDetails ? (
+                <div className="space-y-4 animate-pulse pt-4 border-t border-border">
+                  <div className="h-20 bg-muted rounded-xl w-full"></div>
+                  <div className="h-20 bg-muted rounded-xl w-full"></div>
+                  <div className="h-20 bg-muted rounded-xl w-full"></div>
+                </div>
+              ) : txDetails ? (
+                <div className="space-y-6 pt-4 border-t border-border">
+                  {txDetails.excerpt && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-2">Resumen Ejecutivo</p>
+                      <div className="bg-muted/50 rounded-xl p-4 text-sm text-foreground/80 leading-relaxed border border-border shadow-inner">
+                        {txDetails.excerpt}
+                      </div>
+                    </div>
+                  )}
+
+                  {txDetails.companies && txDetails.companies.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Empresas Involucradas</p>
+                      <div className="space-y-2">
+                        {txDetails.companies.map((c: any) => (
+                          <div key={c.id} className="flex justify-between items-center text-sm p-3 rounded-lg border border-border bg-background">
+                            <span className="font-medium text-foreground">{c.company.name}</span>
+                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">{c.role}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {txDetails.advisors && txDetails.advisors.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3 flex items-center gap-2"><Briefcase className="h-4 w-4" /> Asesores Legales</p>
+                      <div className="space-y-2">
+                        {txDetails.advisors.map((a: any) => (
+                          <div key={a.id} className="text-sm p-3 rounded-lg border border-border bg-background">
+                            <p className="font-medium text-foreground mb-1">{a.firm?.name}</p>
+                            <p className="text-xs text-muted-foreground">{a.role}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {txDetails.lawyers && txDetails.lawyers.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3">Abogados Destacados</p>
+                      <div className="space-y-2">
+                        {txDetails.lawyers.map((l: any) => (
+                          <div key={l.id} className="text-sm p-3 rounded-lg border border-border bg-background">
+                            <p className="font-medium text-foreground">{l.lawyer?.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{l.role} &middot; {l.lawyer?.firm?.name}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground pt-4 border-t border-border">No se pudieron cargar los detalles adicionales.</p>
+              )}
+
+              <div className="border-t border-border pt-6 pb-8">
                 <a 
                   href={selectedTx.link} 
                   target="_blank"

@@ -82,6 +82,7 @@ model Transaction {
   dateAnnounced DateTime?
   dateClosed    DateTime?
   link          String?  // Enlace a LexLatin
+  excerpt       String?  @db.Text // Resumen manual de alto valor
   industryId    String?
   industry      Industry? @relation(fields: [industryId], references: [id])
   createdAt     DateTime @default(now())

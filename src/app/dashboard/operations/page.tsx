@@ -8,9 +8,26 @@ export const revalidate = 43200 // 12 hours cache
 export default async function OperationsPage() {
   // Fetch real transactions from Prisma
   const dbTransactions = await prisma.transaction.findMany({
-    include: {
-      industry: true,
-      advisors: { include: { firm: true } }
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      valueString: true,
+      status: true,
+      country: true,
+      dateAnnounced: true,
+      dateClosed: true,
+      link: true,
+      industry: {
+        select: { name: true }
+      },
+      advisors: {
+        select: {
+          firm: {
+            select: { name: true }
+          }
+        }
+      }
     },
     orderBy: {
       dateAnnounced: 'desc',
