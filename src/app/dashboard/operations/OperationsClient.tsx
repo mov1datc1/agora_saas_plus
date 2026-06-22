@@ -220,84 +220,127 @@ export default function OperationsClient({ transactions }: { transactions: UITra
               </button>
             </div>
             
-            <div className="space-y-6">
-              <div>
-                <span className="inline-flex items-center rounded-md bg-brand/10 px-2 py-1 text-xs font-medium text-brand mb-2">
-                  {selectedTx.type}
-                </span>
-                <h4 className="text-xl font-bold text-foreground leading-tight">{selectedTx.title}</h4>
-                <p className="text-sm text-muted-foreground mt-1">{selectedTx.date} &middot; {selectedTx.industry}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted rounded-xl p-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Estado</p>
-                  <p className="text-lg font-bold text-foreground">{selectedTx.status}</p>
-                </div>
-                <div className="bg-muted rounded-xl p-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Monto (USD)</p>
-                  <p className="text-lg font-bold text-foreground">{selectedTx.amount}</p>
-                </div>
+            <div className="space-y-8">
+              <div className="border-b border-border pb-4">
+                <h4 className="text-xl font-bold text-foreground leading-tight mb-4">{selectedTx.title}</h4>
+                <p className="text-sm font-semibold text-foreground/80 mb-2">Operation date</p>
+                <p className="text-sm text-muted-foreground">{selectedTx.date}</p>
               </div>
 
               {isLoadingDetails ? (
-                <div className="space-y-4 animate-pulse pt-4 border-t border-border">
+                <div className="space-y-4 animate-pulse">
                   <div className="h-20 bg-muted rounded-xl w-full"></div>
                   <div className="h-20 bg-muted rounded-xl w-full"></div>
                   <div className="h-20 bg-muted rounded-xl w-full"></div>
                 </div>
               ) : txDetails ? (
-                <div className="space-y-6 pt-4 border-t border-border">
+                <div className="space-y-8">
+                  
+                  {/* Excerpt */}
                   {txDetails.excerpt && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-2">Resumen Ejecutivo</p>
-                      <div className="bg-muted/50 rounded-xl p-4 text-sm text-foreground/80 leading-relaxed border border-border shadow-inner">
-                        {txDetails.excerpt}
-                      </div>
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Excerpt</p>
+                      <div 
+                        className="text-sm text-muted-foreground leading-relaxed space-y-4"
+                        dangerouslySetInnerHTML={{ __html: txDetails.excerpt }}
+                      />
                     </div>
                   )}
 
-                  {txDetails.companies && txDetails.companies.length > 0 && (
+                  {/* Operations & Amount */}
+                  <div className="border-b border-border pb-6 space-y-4">
                     <div>
-                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3 flex items-center gap-2"><Building2 className="h-4 w-4" /> Empresas Involucradas</p>
-                      <div className="space-y-2">
-                        {txDetails.companies.map((c: any) => (
-                          <div key={c.id} className="flex justify-between items-center text-sm p-3 rounded-lg border border-border bg-background">
-                            <span className="font-medium text-foreground">{c.company.name}</span>
-                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">{c.role}</span>
+                      <p className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">Operations <span className="text-xs bg-[#10b981] text-white px-2 py-0.5 rounded">Public</span> <span className="text-xs bg-[#f59e0b] text-white px-2 py-0.5 rounded">{selectedTx.status}</span></p>
+                    </div>
+                    <div>
+                      <span className="inline-block bg-[#10b981] text-white text-sm font-bold px-3 py-1 rounded">
+                        {selectedTx.amount !== 'Por definir' ? `USD ${selectedTx.amount}` : selectedTx.amount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Firms involved */}
+                  {(txDetails.companies?.length > 0 || txDetails.advisors?.length > 0) && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Firms involved</p>
+                      <div className="grid grid-cols-1 gap-3">
+                        {txDetails.companies?.map((c: any) => (
+                          <div key={`c-${c.id}`} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
+                            <div>
+                              <span>{c.company.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">({c.role})</span>
+                            </div>
+                          </div>
+                        ))}
+                        {txDetails.advisors?.map((a: any) => (
+                          <div key={`a-${a.id}`} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
+                            <div>
+                              <span>{a.firm?.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">({a.role})</span>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {txDetails.advisors && txDetails.advisors.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3 flex items-center gap-2"><Briefcase className="h-4 w-4" /> Asesores Legales</p>
-                      <div className="space-y-2">
-                        {txDetails.advisors.map((a: any) => (
-                          <div key={a.id} className="text-sm p-3 rounded-lg border border-border bg-background">
-                            <p className="font-medium text-foreground mb-1">{a.firm?.name}</p>
-                            <p className="text-xs text-muted-foreground">{a.role}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {txDetails.lawyers && txDetails.lawyers.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-3">Abogados Destacados</p>
-                      <div className="space-y-2">
+                  {/* Lawyers involved */}
+                  {txDetails.lawyers?.length > 0 && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Lawyers involved</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {txDetails.lawyers.map((l: any) => (
-                          <div key={l.id} className="text-sm p-3 rounded-lg border border-border bg-background">
-                            <p className="font-medium text-foreground">{l.lawyer?.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{l.role} &middot; {l.lawyer?.firm?.name}</p>
+                          <div key={l.id} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
+                            <div>
+                              <span className="block">{l.lawyer?.name}</span>
+                              <span className="text-xs text-muted-foreground">{l.lawyer?.firm?.name}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {/* Industries */}
+                  {selectedTx.industry && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Industries</p>
+                      <div className="flex items-center gap-2 text-sm text-foreground">
+                        <span className="text-[#E05C50] text-xs">▸</span>
+                        <span>{selectedTx.industry}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Practice Areas */}
+                  {selectedTx.type && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Practice Areas</p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="text-[#E05C50] text-xs">▸</span>
+                        <span>{selectedTx.type}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Countries */}
+                  {selectedTx.country && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Countries</p>
+                      <div className="flex flex-wrap gap-4">
+                        {selectedTx.country.split(',').map((c: string) => (
+                          <div key={c} className="flex items-center gap-2 text-sm text-foreground">
+                            <span className="text-[#E05C50] text-xs">▸</span>
+                            <span>{c.trim()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground pt-4 border-t border-border">No se pudieron cargar los detalles adicionales.</p>

@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       const status = attributes.field_estado_caso || 'Completada'
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
+      const excerpt = attributes.body?.value || null
       let type = attributes.field_operacion_principal
       if (!type) {
         const textToAnalyze = `${title} ${attributes.body?.value || ''}`.toLowerCase()
@@ -202,6 +203,7 @@ export async function POST(request: Request) {
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
           value: transactionValueNumeric,
           valueString: transactionValue,
+          excerpt,
         },
         update: {
           title,
@@ -214,6 +216,7 @@ export async function POST(request: Request) {
           dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
           value: transactionValueNumeric,
           valueString: transactionValue,
+          excerpt,
         }
       })
 
