@@ -276,7 +276,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
           </div>
           
           {/* Pagination Controls */}
-          {totalPages > 1 && (
+          {filteredData.length > 0 && (
             <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} de {filteredData.length}
