@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, ArrowUpDown } from 'lucide-react'
 
 interface TableRow {
   id: string
@@ -30,19 +30,52 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
+  
+  // Nuevos estados para UX
+  const [isPanelExpanded, setIsPanelExpanded] = useState(true)
+  const [sortConfig, setSortConfig] = useState<{key: 'firma' | 'monto' | 'volumen', direction: 'asc' | 'desc'} | null>(null)
 
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 
-  // Filtrado de la tabla
+  // Filtrado y ordenamiento de la tabla
   const filteredData = useMemo(() => {
-    return tableData.filter(row => {
+    let result = tableData.filter(row => {
       const matchesType = filterType === 'Todas' || row.tipoOperacion === filterType
       const matchesSearch = row.firma.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             row.monto.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesType && matchesSearch
     })
-  }, [tableData, filterType, searchQuery])
+
+    if (sortConfig) {
+      result.sort((a, b) => {
+        if (sortConfig.key === 'firma') {
+          return sortConfig.direction === 'asc' 
+            ? a.firma.localeCompare(b.firma) 
+            : b.firma.localeCompare(a.firma)
+        } else if (sortConfig.key === 'monto') {
+          // Extraemos números básicos del monto en texto para ordenar aproximado (ej: $100.0M -> 100)
+          const numA = parseFloat(a.monto.replace(/[^0-9.-]+/g, "")) || 0
+          const numB = parseFloat(b.monto.replace(/[^0-9.-]+/g, "")) || 0
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA
+        } else if (sortConfig.key === 'volumen') {
+          const numA = a.volumen || 0
+          const numB = b.volumen || 0
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA
+        }
+        return 0
+      })
+    }
+    return result
+  }, [tableData, filterType, searchQuery, sortConfig])
+
+  const handleSort = (key: 'firma' | 'monto' | 'volumen') => {
+    let direction: 'asc' | 'desc' = 'asc'
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
 
   // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
   useMemo(() => {
@@ -56,22 +89,32 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   return (
     <>
       {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-          <div className="flex items-center gap-3 text-muted-foreground mb-2">
-            <FileText className="h-5 w-5" />
-            <h3 className="text-sm font-semibold">Total Transacciones Globales</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
+        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 text-muted-foreground mb-2">
+              <FileText className="h-5 w-5" />
+              <h3 className="text-sm font-semibold">Total Transacciones Globales</h3>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{totalTransactions}</p>
+            <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
           </div>
-          <p className="text-3xl font-bold text-foreground">{totalTransactions}</p>
-          <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
+          <button onClick={() => setFilterType('Todas')} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
+            Ver a detalles
+          </button>
         </div>
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-          <div className="flex items-center gap-3 text-muted-foreground mb-2">
-            <Building2 className="h-5 w-5" />
-            <h3 className="text-sm font-semibold">Firmas Registradas</h3>
+        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 text-muted-foreground mb-2">
+              <Building2 className="h-5 w-5" />
+              <h3 className="text-sm font-semibold">Firmas Registradas</h3>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{totalFirms}</p>
+            <p className="text-sm text-muted-foreground mt-2">En el histórico de LexLatin</p>
           </div>
-          <p className="text-3xl font-bold text-foreground">{totalFirms}</p>
-          <p className="text-sm text-muted-foreground mt-2">En el histórico de LexLatin</p>
+          <button onClick={() => setIsRankingModalOpen(true)} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
+            Ver a detalles
+          </button>
         </div>
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
           <div className="flex items-center justify-between mb-2">
@@ -130,15 +173,24 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
               ))}
             </div>
 
-            <div className="relative w-full sm:w-64 shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Buscar firma o monto..." 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E05C50]/20 focus:border-[#E05C50] transition-all"
-              />
+            <div className="relative w-full sm:w-64 shrink-0 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar firma o monto..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E05C50]/20 focus:border-[#E05C50] transition-all"
+                />
+              </div>
+              <button 
+                onClick={() => setIsPanelExpanded(!isPanelExpanded)}
+                className="p-2 border border-border bg-background rounded-xl text-muted-foreground hover:bg-muted transition-colors lg:hidden"
+                title={isPanelExpanded ? "Ocultar panel" : "Mostrar panel"}
+              >
+                {isPanelExpanded ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
@@ -147,9 +199,33 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
             <table className="w-full text-left border-collapse min-w-[500px]">
               <thead className="sticky top-0 bg-surface z-10 shadow-sm">
                 <tr>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50">Firma</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50">Monto</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 text-right">Volumen Consolidado</th>
+                  <th 
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
+                    onClick={() => handleSort('firma')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Firma
+                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'firma' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 cursor-pointer hover:bg-muted transition-colors group"
+                    onClick={() => handleSort('monto')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Monto
+                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'monto' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/50 text-right cursor-pointer hover:bg-muted transition-colors group"
+                    onClick={() => handleSort('volumen')}
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Volumen Consolidado
+                      <ArrowUpDown className={`h-3 w-3 ${sortConfig?.key === 'volumen' ? 'text-[#E05C50]' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`} />
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -186,10 +262,20 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
         </div>
 
         {/* Right: Dynamic Details Panel */}
-        <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-4">
-          <div className="bg-[#1C1F33] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden h-full flex flex-col">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
+        {isPanelExpanded ? (
+          <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-4 relative animate-in slide-in-from-right-4 duration-300">
+            <div className="bg-[#1C1F33] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden h-full flex flex-col">
+              {/* Toggle Button Inside Panel (Desktop) */}
+              <button 
+                onClick={() => setIsPanelExpanded(false)}
+                className="hidden lg:flex absolute top-4 right-4 z-20 h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
+                title="Ocultar detalles"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
             
             {selectedRow ? (
               <>
@@ -256,8 +342,19 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                 <p className="text-sm">Selecciona una firma en la tabla para ver los detalles de la operación.</p>
               </div>
             )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="hidden lg:flex w-12 shrink-0 flex-col gap-4 items-center animate-in slide-in-from-right-2">
+            <button 
+              onClick={() => setIsPanelExpanded(true)}
+              className="bg-[#1C1F33] text-white rounded-xl p-3 shadow-lg hover:bg-[#252a42] transition-colors h-full flex items-center justify-center"
+              title="Mostrar detalles"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {isRankingModalOpen && (
