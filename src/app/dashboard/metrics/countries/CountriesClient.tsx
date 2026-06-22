@@ -64,6 +64,9 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
   
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
+  
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [sortConfig, setSortConfig] = useState<{key: 'pais' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -223,7 +226,8 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
           <span className="text-xs text-muted-foreground">Colores resaltan países con volumen financiero</span>
         </div>
         <div className="w-full h-[400px] bg-[#f8f9fa] rounded-xl overflow-hidden relative">
-          <ComposableMap projection="geoMercator" projectionConfig={{scale: 130}} width={800} height={400} className="w-full h-full">
+          {isMounted && (
+            <ComposableMap projection="geoMercator" projectionConfig={{scale: 130}} width={800} height={400} className="w-full h-full">
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
@@ -270,6 +274,7 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
               }
             </Geographies>
           </ComposableMap>
+          )}
 
           {tooltipContent && (
             <div 

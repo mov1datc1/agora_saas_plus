@@ -2,7 +2,6 @@ import prisma from '@/lib/prisma'
 import CountriesClient from './CountriesClient'
 
 export const revalidate = 43200 // 12 hours cache
-export const dynamic = 'force-dynamic'
 
 export default async function MetricsCountriesPage() {
   try {
