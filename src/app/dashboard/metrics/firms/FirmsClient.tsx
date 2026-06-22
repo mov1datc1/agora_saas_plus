@@ -35,6 +35,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [sortConfig, setSortConfig] = useState<{key: 'firma' | 'monto' | 'volumen', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
 
   // Opciones de filtro
@@ -100,6 +101,12 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
       setSelectedRow(null)
     }
   }, [paginatedData])
+
+  // Filtro para el Ranking Modal
+  const filteredRankingList = useMemo(() => {
+    if (!rankingSearchQuery) return topFirmsList
+    return topFirmsList.filter(f => f.name.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
+  }, [topFirmsList, rankingSearchQuery])
 
   return (
     <>
@@ -412,27 +419,44 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Buscador del Ranking */}
+            <div className="mb-4 relative z-10 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Buscar firma..."
+                  value={rankingSearchQuery}
+                  onChange={e => setRankingSearchQuery(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#E05C50]/50 focus:border-transparent transition-all"
+                />
+              </div>
+            </div>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
-              {topFirmsList.map((firm, i) => (
-                <Link 
-                  href={`/dashboard/operations?search=${encodeURIComponent(firm.name)}`}
-                  key={i} 
-                  className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-[#E05C50]/50 hover:bg-white/10 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-4 overflow-hidden">
-                    <span className={`flex items-center justify-center shrink-0 h-8 w-8 rounded-full text-sm font-bold shadow-sm transition-colors ${i < 3 ? 'bg-[#E05C50] text-white border-none' : 'bg-[#252a42] text-white/70 border border-white/10 group-hover:bg-[#E05C50] group-hover:text-white'}`}>
-                      {i + 1}
+              {filteredRankingList.map((firm) => {
+                const i = topFirmsList.findIndex(f => f.name === firm.name)
+                return (
+                  <Link 
+                    href={`/dashboard/operations?search=${encodeURIComponent(firm.name)}`}
+                    key={firm.name} 
+                    className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-[#E05C50]/50 hover:bg-white/10 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-4 overflow-hidden">
+                      <span className={`flex items-center justify-center shrink-0 h-8 w-8 rounded-full text-sm font-bold shadow-sm transition-colors ${i < 3 ? 'bg-[#E05C50] text-white border-none' : 'bg-[#252a42] text-white/70 border border-white/10 group-hover:bg-[#E05C50] group-hover:text-white'}`}>
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate">{firm.name}</span>
+                    </div>
+                    <span className="shrink-0 text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
+                      {firm.deals} ops
                     </span>
-                    <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate">{firm.name}</span>
-                  </div>
-                  <span className="shrink-0 text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
-                    {firm.deals} ops
-                  </span>
-                </Link>
-              ))}
-              {topFirmsList.length === 0 && (
-                <p className="text-sm text-white/40 mt-8 text-center">No hay datos de firmas disponibles.</p>
+                  </Link>
+                )
+              })}
+              {filteredRankingList.length === 0 && (
+                <p className="text-sm text-white/40 mt-8 text-center">No se encontraron firmas con ese nombre.</p>
               )}
             </div>
           </div>
