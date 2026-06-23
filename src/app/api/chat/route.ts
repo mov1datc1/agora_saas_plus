@@ -22,8 +22,8 @@ export async function POST(req: Request) {
       include: { subscription: true }
     })
 
-    if (!dbUser || (dbUser.subscription?.status !== 'ACTIVE' && dbUser.role !== 'ADMIN')) {
-      return new NextResponse('Solo los usuarios PRO pueden usar Ágora Copilot.', { status: 403 })
+    if (!dbUser || (dbUser.subscription?.status !== 'ACTIVE' && dbUser.subscription?.status !== 'TRIAL' && dbUser.role !== 'ADMIN')) {
+      return new NextResponse('Debes tener una suscripción activa o de prueba para usar Ágora Copilot.', { status: 403 })
     }
 
     const now = new Date()
@@ -37,7 +37,9 @@ export async function POST(req: Request) {
       update: { queries: { increment: 1 } }
     })
 
-    if (usage.queries > 5 && dbUser.role !== 'ADMIN') {
+    const isTrial = !dbUser.subscription || dbUser.subscription.status === 'TRIAL'
+
+    if (isTrial && usage.queries > 5 && dbUser.role !== 'ADMIN') {
       return new NextResponse('Has alcanzado el límite de 5 consultas mensuales.', { status: 429 })
     }
 

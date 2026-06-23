@@ -64,7 +64,14 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                   )}
                   aria-hidden="true"
                 />
-                {item.name}
+                <span className="flex items-center gap-2">
+                  {item.name}
+                  {item.name === 'Ágora Copilot' && (
+                    <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                      Beta
+                    </span>
+                  )}
+                </span>
               </Link>
             )
           })}
