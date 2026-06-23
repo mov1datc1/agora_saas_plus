@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Database, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { runSyncChunk } from './sync-actions'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) {
   const [isSyncing, setIsSyncing] = useState(false)
@@ -11,9 +12,14 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   const [isFinished, setIsFinished] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+
+  const handleConfirmSync = () => {
+    setIsConfirmOpen(false)
+    startMassiveSync()
+  }
+
   const startMassiveSync = async () => {
-    if (!confirm('Esta acción iniciará una descarga masiva e iterativa del historial de Drupal. Puede tardar varios minutos. ¿Deseas continuar?')) return
-    
     setIsSyncing(true)
     setIsFinished(false)
     setError(null)
@@ -89,7 +95,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
         </div>
 
         <button
-          onClick={startMassiveSync}
+          onClick={() => setIsConfirmOpen(true)}
           disabled={isSyncing}
           className="flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-sm hover:bg-foreground/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50 transition-colors"
         >
@@ -103,6 +109,16 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           )}
         </button>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleConfirmSync}
+        title="Iniciar Descarga Masiva"
+        message="Esta acción iniciará una descarga iterativa de todo el historial de LexLatin (cientos de transacciones). Puede tardar varios minutos en completarse y consumirá recursos del sistema. ¿Estás seguro de que deseas continuar?"
+        confirmText="Sí, descargar ahora"
+        cancelText="Cancelar"
+      />
     </div>
   )
 }
