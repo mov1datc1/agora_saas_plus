@@ -2,6 +2,7 @@ import { Save, Server, CreditCard, ShieldAlert, ShieldCheck } from 'lucide-react
 import { getSystemConfig } from './actions'
 import SettingsClient from './SettingsClient'
 import MassiveSyncClient from './MassiveSyncClient'
+import ClearCacheClient from './ClearCacheClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,25 @@ export default async function SettingsPage() {
   const config = await getSystemConfig()
 
   return (
-    <div className="space-y-10 divide-y divide-border">      <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
+    <div className="space-y-10 divide-y divide-border">
+      {/* Cache Clearing Section */}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-6 md:grid-cols-3">
+        <div className="px-4 sm:px-0">
+          <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
+            Mantenimiento del Sistema
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-foreground/60">
+            Libera la caché de Next.js si notas que los tableros no muestran la información más reciente después de una sincronización masiva.
+          </p>
+        </div>
+        <div className="bg-surface shadow-sm ring-1 ring-border sm:rounded-xl md:col-span-2">
+          <div className="px-4 py-6 sm:p-8 flex items-center h-full">
+            <ClearCacheClient />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
         <div className="px-4 sm:px-0">
           <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
             <Server className="h-5 w-5 text-brand" />
