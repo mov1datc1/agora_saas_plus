@@ -6,7 +6,7 @@ export async function runSyncChunk(offset: number) {
     const res = await fetch(`${baseUrl}/api/sync-drupal?offset=${offset}`, {
       method: 'POST',
       headers: {
-        'authorization': `Bearer ${process.env.CRON_SECRET || ''}`
+        'authorization': `Bearer ${process.env.CRON_SECRET || 'agora-secret-token'}`
       },
       // Avoid caching the sync request
       cache: 'no-store'
