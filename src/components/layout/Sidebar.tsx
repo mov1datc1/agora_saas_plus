@@ -30,7 +30,8 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   const filteredNavigation = navigation.filter(item => {
-    // if (item.name === 'Administración' && !isAdmin) return false;
+    const adminOnlyModules = ['Administración', 'Configuración SMTP', 'Suscripción y Pago']
+    if (adminOnlyModules.includes(item.name) && !isAdmin) return false;
     return true;
   });
 
