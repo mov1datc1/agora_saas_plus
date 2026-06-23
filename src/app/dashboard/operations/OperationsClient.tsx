@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock } from 'lucide-react'
+import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2 } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
