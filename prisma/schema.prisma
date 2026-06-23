@@ -3,32 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
-// User model for Supabase Auth integration and Stripe Billing
 model User {
   id               String         @id @default(uuid())
   email            String         @unique
   name             String?
   stripeCustomerId String?        @unique
   role             Role           @default(USER)
-  subscription     Subscription?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   copilotUsages    CopilotUsage[]
   dailyUsages      DailyUsage[]
-}
-
-enum Role {
-  USER
-  ADMIN
+  subscription     Subscription?
 }
 
 model Subscription {
   id                   String             @id @default(uuid())
   userId               String             @unique
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   stripeSubscriptionId String?            @unique
   status               SubscriptionStatus @default(TRIAL)
   priceId              String?
@@ -37,112 +30,95 @@ model Subscription {
   cancelAtPeriodEnd    Boolean            @default(false)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum SubscriptionStatus {
-  TRIAL
-  ACTIVE
-  PAST_DUE
-  CANCELED
-  INCOMPLETE
-}
-
-// AI Copilot Usage Tracking
 model CopilotUsage {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  month     Int      // 1-12
-  year      Int      // 2024, 2025, etc.
-  queries   Int      @default(0) // Count of questions asked in this month
+  month     Int
+  year      Int
+  queries   Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month, year])
 }
 
-// Dynamic Email Templates for Resend
 model EmailTemplate {
   id        String   @id @default(uuid())
-  type      String   @unique // 'WELCOME', 'DUNNING'
+  type      String   @unique
   subject   String
-  htmlBody  String   @db.Text
+  htmlBody  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// SaaS Data Models
 model Transaction {
-  id            String   @id @default(uuid())
+  id            String               @id @default(uuid())
   title         String
-  type          String   // M&A, Fusión, Venture Capital, etc.
-  value         Decimal? @db.Decimal(15, 2)
-  valueString   String?  // Ej. "No revelado", "$45.0M"
-  status        String   // Anunciada, En Proceso, Completada
+  type          String
+  value         Decimal?             @db.Decimal(15, 2)
+  valueString   String?
+  status        String
   country       String?
   dateAnnounced DateTime?
   dateClosed    DateTime?
-  link          String?  // Enlace a LexLatin
-  excerpt       String?  @db.Text // Resumen manual de alto valor
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   industryId    String?
-  industry      Industry? @relation(fields: [industryId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relations
+  link          String?
+  excerpt       String?
+  industry      Industry?            @relation(fields: [industryId], references: [id])
   advisors      TransactionAdvisor[]
-  lawyers       TransactionLawyer[]
   companies     TransactionCompany[]
+  lawyers       TransactionLawyer[]
 }
 
 model Industry {
-  id            String   @id @default(uuid())
-  name          String   @unique
-  transactions  Transaction[]
+  id           String        @id @default(uuid())
+  name         String        @unique
+  transactions Transaction[]
 }
 
 model Company {
-  id            String   @id @default(uuid())
-  name          String
-  country       String?
-  transactions  TransactionCompany[]
+  id           String               @id @default(uuid())
+  name         String
+  country      String?
+  transactions TransactionCompany[]
 }
 
 model TransactionCompany {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   transactionId String
   companyId     String
-  role          String   // e.g. "Comprador", "Vendedor", "Target", "Emisor"
-
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  role          String
   company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([transactionId, companyId, role])
 }
 
-
 model Firm {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  country     String?
-  website     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  lawyers     Lawyer[]
+  id           String               @id @default(uuid())
+  name         String               @unique
+  country      String?
+  website      String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  lawyers      Lawyer[]
   transactions TransactionAdvisor[]
 }
 
 model Lawyer {
-  id          String   @id @default(uuid())
-  name        String
-  firmId      String?
-  firm        Firm?    @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  position    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id           String              @id @default(uuid())
+  name         String
+  firmId       String?
+  position     String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  firm         Firm?               @relation(fields: [firmId], references: [id], onDelete: Cascade)
   transactions TransactionLawyer[]
 }
 
@@ -150,10 +126,9 @@ model TransactionAdvisor {
   id            String      @id @default(uuid())
   transactionId String
   firmId        String
-  role          String      // e.g. "Legal Advisor to Buyer"
-  
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  role          String
   firm          Firm        @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([transactionId, firmId, role])
 }
@@ -162,30 +137,40 @@ model TransactionLawyer {
   id            String      @id @default(uuid())
   transactionId String
   lawyerId      String
-  role          String      // e.g. "Lead Counsel"
-  
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  role          String
   lawyer        Lawyer      @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([transactionId, lawyerId, role])
 }
 
-// Global System Configuration
 model SystemConfig {
-  id                        String   @id @default("global")
-  trialRestrictionsEnabled  Boolean  @default(false)
-  updatedAt                 DateTime @updatedAt
+  id                       String   @id @default("global")
+  trialRestrictionsEnabled Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
 }
 
-// Daily Usage Tracking for anti-scraping
 model DailyUsage {
   id        String   @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      DateTime @db.Date // Store the specific day
-  queries   Int      @default(0) // Count of table queries
+  date      DateTime @db.Date
+  queries   Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
 }

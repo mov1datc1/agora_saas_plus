@@ -567,7 +567,7 @@ export default function FirmsClient() {
                       <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate">{firm.name}</span>
                     </div>
                     <span className="shrink-0 text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1.5 rounded-md border border-[#E05C50]/20">
-                      {firm.deals} ops
+                      {formatCurrency(firm.deals)}
                     </span>
                   </Link>
                 )

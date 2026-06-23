@@ -43,9 +43,9 @@ export default async function DashboardPage() {
 
     // Calcular Volumen Analizado (como string simulado o si hubiera valores exactos)
     const stats = [
-      { name: 'Transacciones Históricas', value: totalTransactionsCount.toString(), change: '+12.5%', icon: Activity },
-      { name: 'Industrias Cubiertas', value: coveredIndustriesCount.toString(), change: '+8.2%', icon: Briefcase },
-      { name: 'Firmas Registradas', value: activeFirmsCount.toString(), change: '+4.1%', icon: TrendingUp },
+      { name: 'Transacciones Históricas', value: totalTransactionsCount.toLocaleString(), change: '+12.5%', icon: Activity },
+      { name: 'Industrias Cubiertas', value: coveredIndustriesCount.toLocaleString(), change: '+8.2%', icon: Briefcase },
+      { name: 'Firmas Registradas', value: activeFirmsCount.toLocaleString(), change: '+4.1%', icon: TrendingUp },
     ]
 
     // 1. Agrupación por Mes y Año para el Gráfico (Últimos 6 meses reales)
