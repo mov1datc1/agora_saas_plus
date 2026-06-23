@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx'
-import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
 export function exportToExcel(data: any[], filename: string) {
@@ -35,6 +34,7 @@ export async function exportToPDF(elementId: string, filename: string) {
 
   try {
     // 4. Capture the clone using html-to-image (supports modern CSS like oklab)
+    const { toPng } = await import('html-to-image')
     const imgData = await toPng(clone, {
       pixelRatio: 2,
       backgroundColor: '#ffffff'
