@@ -3,6 +3,7 @@ import Header from "@/components/layout/Header";
 import { createClient } from "@/utils/supabase/server";
 import prisma from "@/lib/prisma";
 import DunningBanner from "./DunningBanner";
+import { redirect } from 'next/navigation';
 
 export default async function DashboardLayout({
   children,
@@ -20,6 +21,9 @@ export default async function DashboardLayout({
       where: { email: user.email },
       include: { subscription: true }
     });
+    if (dbUser?.isActive === false) {
+      redirect('/deactivated')
+    }
     if (dbUser?.role === 'ADMIN') {
       isAdmin = true;
     }

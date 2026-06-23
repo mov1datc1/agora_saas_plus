@@ -10,6 +10,7 @@ type UIUser = {
   email: string
   role: string
   status: string
+  isActive: boolean
   createdAt: string
 }
 
@@ -115,6 +116,7 @@ export default function UsersClient({ initialUsers }: { initialUsers: UIUser[] }
                   {user.status === 'CANCELED' && <span className="inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-500/20">Cancelada</span>}
                   {user.status === 'INCOMPLETE' && <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-500/10 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/20">Incompleta</span>}
                   {user.status === 'PAST_DUE' && <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-500/10 px-2 py-1 text-xs font-medium text-orange-600 ring-1 ring-inset ring-orange-500/20">Atrasada</span>}
+                  {!user.isActive && <span className="ml-2 inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-500/20">Desactivado Manual</span>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString('es-ES')}
