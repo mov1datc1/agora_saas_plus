@@ -6,13 +6,20 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const rawAdvisors = await prisma.transactionAdvisor.findMany({
-      include: {
-        firm: true,
+      select: {
+        firm: { select: { name: true } },
         transaction: {
-          include: {
-            industry: true,
-            companies: { include: { company: true } },
-            lawyers: { include: { lawyer: true } },
+          select: {
+            id: true,
+            title: true,
+            dateClosed: true,
+            dateAnnounced: true,
+            value: true,
+            type: true,
+            country: true,
+            industry: { select: { name: true } },
+            companies: { select: { company: { select: { name: true } } } },
+            lawyers: { select: { lawyer: { select: { name: true } } } }
           }
         }
       },

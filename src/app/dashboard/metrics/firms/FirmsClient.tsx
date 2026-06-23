@@ -7,6 +7,9 @@ import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 interface TableRow {
   id: string
@@ -22,13 +25,7 @@ interface TableRow {
   transactionId: string
 }
 
-interface FirmsClientProps {
-  totalTransactions: number
-  totalFirms: number
-  topFirmsList: { name: string, deals: number }[]
-}
-
-export default function FirmsClient({ totalTransactions, totalFirms, topFirmsList }: FirmsClientProps) {
+export default function FirmsClient() {
   const [tableData, setTableData] = useState<TableRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
@@ -49,32 +46,28 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const [paywallMessage, setPaywallMessage] = useState('')
   const [isDataAllowed, setIsDataAllowed] = useState(true)
 
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/firms', fetcher)
+
   // Fetch initial data & Check Limits
   useEffect(() => {
-    const fetchAndCheck = async () => {
+    const checkLimits = async () => {
       const usageCheck = await checkTrialRestrictions()
       if (!usageCheck.allowed) {
         setIsDataAllowed(false)
         setPaywallTitle('Límite Diario Alcanzado')
         setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
         setShowPaywall(true)
-        setIsLoading(false)
-        return
       }
-
-      fetch('/api/metrics/firms')
-        .then(res => res.json())
-        .then(data => {
-          setTableData(data)
-          setIsLoading(false)
-        })
-        .catch(err => {
-          console.error('Error fetching table data:', err)
-          setIsLoading(false)
-        })
     }
-    fetchAndCheck()
+    checkLimits()
   }, [])
+
+  useEffect(() => {
+    if (apiData) {
+      setTableData(apiData)
+      setIsLoading(false)
+    }
+  }, [apiData])
 
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()
@@ -149,12 +142,20 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
 
   // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
   useEffect(() => {
-    if (paginatedData.length > 0 && (!selectedRow || !paginatedData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(paginatedData[0])
-    } else if (paginatedData.length === 0) {
+    if (filteredData.length > 0 && (!selectedRow || !filteredData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(filteredData[0])
+    } else if (filteredData.length === 0) {
       setSelectedRow(null)
     }
-  }, [paginatedData])
+  }, [filteredData])
+
+  const totalFirms = tableData.length
+  const totalTransactions = tableData.reduce((acc, row) => acc + (row.volumen || 0), 0)
+  const topFirmsList = useMemo(() => {
+    return [...tableData]
+      .sort((a, b) => (b.volumen || 0) - (a.volumen || 0))
+      .map(f => ({ name: f.firma, deals: f.volumen }))
+  }, [tableData])
 
   // Filtro para el Ranking Modal
   const filteredRankingList = useMemo(() => {

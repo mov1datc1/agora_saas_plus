@@ -8,6 +8,9 @@ import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
@@ -56,11 +59,7 @@ interface TableRow {
   tiposOperacion: string[]
 }
 
-interface CountriesClientProps {
-  totalTransactions: number
-}
-
-export default function CountriesClient({ totalTransactions }: CountriesClientProps) {
+export default function CountriesClient() {
   const [tableData, setTableData] = useState<TableRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
@@ -71,6 +70,7 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
   const [isMapExpanded, setIsMapExpanded] = useState(true)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [sortConfig, setSortConfig] = useState<{key: 'pais' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
@@ -114,18 +114,13 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
     })), 'paises_agora_plus')
   }
 
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/countries', fetcher)
+
   useEffect(() => {
-    fetch('/api/metrics/countries')
-      .then(res => res.json())
-      .then(data => {
-        setTableData(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error('Error fetching table data:', err)
-        setIsLoading(false)
-      })
-  }, [])
+    if (apiData) {
+      setTableData(apiData)
+    }
+  }, [apiData])
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 

@@ -14,6 +14,7 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@react-email/components": "^1.0.12",
+    "@reduxjs/toolkit": "^2.12.0",
     "@stripe/stripe-js": "^9.8.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.1",
@@ -23,6 +24,7 @@
     "dotenv": "^17.4.2",
     "framer-motion": "^12.40.0",
     "html2canvas": "^1.4.1",
+    "immer": "^11.1.8",
     "jspdf": "^2.5.2",
     "lucide-react": "^1.17.0",
     "next": "16.2.9",
@@ -35,6 +37,7 @@
     "remark-gfm": "^4.0.1",
     "resend": "^6.14.0",
     "stripe": "^22.2.0",
+    "swr": "^2.4.2",
     "tailwind-merge": "^3.6.0",
     "xlsx": "^0.18.5"
   },

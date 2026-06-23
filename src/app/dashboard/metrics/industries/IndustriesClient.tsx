@@ -8,6 +8,9 @@ import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
@@ -55,12 +58,7 @@ interface TableRow {
   tiposOperacion: string[]
 }
 
-interface IndustriesClientProps {
-  totalTransactions: number
-  totalIndustries: number
-}
-
-export default function IndustriesClient({ totalTransactions, totalIndustries }: IndustriesClientProps) {
+export default function IndustriesClient() {
   const [tableData, setTableData] = useState<TableRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
@@ -115,18 +113,17 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
     })), 'industrias_agora_plus')
   }
 
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/industries', fetcher)
+
   useEffect(() => {
-    fetch('/api/metrics/industries')
-      .then(res => res.json())
-      .then(data => {
-        setTableData(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error('Error fetching table data:', err)
-        setIsLoading(false)
-      })
-  }, [])
+    if (apiData) {
+      setTableData(apiData)
+      setIsLoading(false)
+    }
+  }, [apiData])
+
+  const totalIndustries = tableData.length
+  const totalTransactions = tableData.reduce((acc, row) => acc + row.operaciones, 0)
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 

@@ -8,6 +8,8 @@ import PaywallModal from '@/components/ui/PaywallModal'
 import AlertModal from '@/components/ui/AlertModal'
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 
+import useSWR from 'swr'
+
 export type UITransaction = {
   id: string
   date: string
@@ -22,7 +24,11 @@ export type UITransaction = {
   link: string
 }
 
-export default function OperationsClient({ transactions }: { transactions: UITransaction[] }) {
+const fetcher = (url: string) => fetch(url).then(res => res.json())
+
+export default function OperationsClient() {
+  const { data: apiResponse, error, isLoading: isSwrLoading } = useSWR('/api/operations?limit=500', fetcher)
+  const transactions: UITransaction[] = apiResponse?.data || []
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [txDetails, setTxDetails] = useState<any>(null)
@@ -273,7 +279,29 @@ export default function OperationsClient({ transactions }: { transactions: UITra
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
-              {isDataAllowed ? sortedTransactions.map((tx) => (
+              {isSwrLoading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-brand mb-4" />
+                      <span className="text-sm font-medium">Sincronizando operaciones desde el servidor...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-red-500">
+                    <span className="text-sm font-medium">Error al cargar las operaciones. Por favor intenta de nuevo.</span>
+                  </td>
+                </tr>
+              ) : !isDataAllowed ? (
+                <tr><td colSpan={4} className="text-center p-12 text-muted-foreground bg-muted/20">
+                  <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="font-semibold text-lg text-foreground mb-2">Datos Bloqueados</p>
+                  <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
+                </td></tr>
+              ) : (
+                sortedTransactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleSelectTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[250px] truncate" title={tx.title}>{tx.title}</td>
@@ -284,14 +312,8 @@ export default function OperationsClient({ transactions }: { transactions: UITra
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80 font-medium" title="Dólares Estadounidenses (USD)">{tx.amount === 'Por definir' ? <span className="text-muted-foreground font-normal">Por definir</span> : tx.amount}</td>
                 </tr>
-              )) : (
-                <tr><td colSpan={4} className="text-center p-12 text-muted-foreground bg-muted/20">
-                  <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="font-semibold text-lg text-foreground mb-2">Datos Bloqueados</p>
-                  <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
-                </td></tr>
-              )}
-              {isDataAllowed && sortedTransactions.length === 0 && (
+              )))}
+              {isDataAllowed && sortedTransactions.length === 0 && !isSwrLoading && (
                 <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
