@@ -2,9 +2,11 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock, ExternalLink } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
+import AlertModal from '@/components/ui/AlertModal'
+import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
 
 interface TableRow {
@@ -37,6 +39,7 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   
   // Nuevos estados para UX
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [sortConfig, setSortConfig] = useState<{key: 'firma' | 'monto' | 'volumen', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
@@ -175,6 +178,32 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
         title={paywallTitle} 
         message={paywallMessage} 
       />
+      <AlertModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        message={alertConfig.message}
+      />
+      {selectedRow && (
+        <EntityDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          title={selectedRow.firma}
+          subtitle={`Operación de ${selectedRow.tipoOperacion}`}
+          amount={selectedRow.monto !== 'No revelado' ? selectedRow.monto : undefined}
+          iconType="firm"
+          sections={[
+            { label: 'País Involucrado', value: selectedRow.pais },
+            { label: 'Industria', value: selectedRow.industria },
+            { label: 'Empresa / Cliente', value: selectedRow.empresa },
+            { label: 'Abogados Involucrados', value: selectedRow.abogados },
+            { 
+              label: 'Fecha de Anuncio', 
+              value: selectedRow.fecha ? new Date(selectedRow.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada' 
+            }
+          ]}
+        />
+      )}
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
@@ -415,9 +444,17 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                 <div className="mb-6 z-10">
                   <h3 className="text-xs uppercase tracking-widest text-white/60 font-semibold mb-1">Detalle de Operación</h3>
                   <p className="text-lg font-bold leading-tight line-clamp-2">{selectedRow.firma}</p>
-                  <span className="inline-block mt-3 px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
-                    {selectedRow.tipoOperacion}
-                  </span>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="inline-block px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
+                      {selectedRow.tipoOperacion}
+                    </span>
+                    <button 
+                      onClick={() => setIsDetailModalOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Visualizar
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4 flex-1 overflow-y-auto z-10 custom-scrollbar pr-2">

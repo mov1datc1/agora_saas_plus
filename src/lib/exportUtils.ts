@@ -10,25 +10,40 @@ export function exportToExcel(data: any[], filename: string) {
 }
 
 export async function exportToPDF(elementId: string, filename: string) {
-  const element = document.getElementById(elementId)
-  if (!element) return
+  const originalElement = document.getElementById(elementId)
+  if (!originalElement) return
 
-  // Store original styles that might affect rendering
-  const originalMaxHeight = element.style.maxHeight
-  const originalOverflow = element.style.overflow
+  // 1. Create an invisible container at the bottom of the body
+  const container = document.createElement('div')
+  container.style.position = 'absolute'
+  container.style.left = '-9999px'
+  container.style.top = '0'
+  container.style.width = `${originalElement.scrollWidth}px`
+  container.style.backgroundColor = '#ffffff'
+  document.body.appendChild(container)
 
-  // Temporarily adjust for capturing full content
-  element.style.maxHeight = 'none'
-  element.style.overflow = 'visible'
+  // 2. Clone the node deeply
+  const clone = originalElement.cloneNode(true) as HTMLElement
+  
+  // 3. Force the clone to show all contents without scroll
+  clone.style.maxHeight = 'none'
+  clone.style.height = 'auto'
+  clone.style.overflow = 'visible'
+  clone.style.transform = 'none'
+  
+  container.appendChild(clone)
 
   try {
-    const canvas = await html2canvas(element, {
+    // 4. Capture the clone
+    const canvas = await html2canvas(clone, {
       scale: 2, // Higher resolution
       useCORS: true,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      scrollY: -window.scrollY // Fix potential offset bugs
     })
 
     const imgData = canvas.toDataURL('image/png')
+    
     // Some versions of jsPDF export differently
     const PDFDocument = jsPDF || (window as any).jspdf?.jsPDF
     if (!PDFDocument) {
@@ -42,8 +57,7 @@ export async function exportToPDF(elementId: string, filename: string) {
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
     pdf.save(`${filename}.pdf`)
   } finally {
-    // Restore original styles
-    element.style.maxHeight = originalMaxHeight
-    element.style.overflow = originalOverflow
+    // 5. Cleanup the invisible container
+    document.body.removeChild(container)
   }
 }

@@ -2,10 +2,12 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Briefcase, ChevronUp, ChevronDown, Download, Lock } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Briefcase, ChevronUp, ChevronDown, Download, Lock, ExternalLink } from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
+import AlertModal from '@/components/ui/AlertModal'
+import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
@@ -72,6 +74,7 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
   const [isMapExpanded, setIsMapExpanded] = useState(true)
   
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [sortConfig, setSortConfig] = useState<{key: 'industria' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
@@ -210,7 +213,39 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
         onClose={() => setShowPaywall(false)} 
         title={paywallTitle} 
         message={paywallMessage} 
+      <AlertModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        message={alertConfig.message}
       />
+      {selectedRow && (
+        <EntityDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          title={selectedRow.industria}
+          subtitle="Análisis Sectorial"
+          amount={formatCurrency(selectedRow.monto)}
+          iconType="industry"
+          sections={[
+            {
+              label: 'Países Involucrados',
+              count: selectedRow.paises.length,
+              value: selectedRow.paises.length > 0 ? selectedRow.paises.join(', ') : 'No especificados'
+            },
+            {
+              label: 'Empresas / Clientes',
+              count: selectedRow.empresas.length,
+              value: selectedRow.empresas.length > 0 ? selectedRow.empresas.join(', ') : 'No especificadas'
+            },
+            {
+              label: 'Firmas Asesoras',
+              count: selectedRow.firmas.length,
+              value: selectedRow.firmas.length > 0 ? selectedRow.firmas.join(', ') : 'No especificadas'
+            }
+          ]}
+        />
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
           <div>
@@ -530,9 +565,17 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
                 <div className="mb-6 z-10">
                   <h3 className="text-xs uppercase tracking-widest text-white/60 font-semibold mb-1">Detalle del Sector</h3>
                   <p className="text-lg font-bold leading-tight line-clamp-2">{selectedRow.industria}</p>
-                  <span className="inline-block mt-3 px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
-                    {selectedRow.operaciones} Operaciones
-                  </span>
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="inline-block px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
+                      {selectedRow.operaciones} Operaciones
+                    </span>
+                    <button 
+                      onClick={() => setIsDetailModalOpen(true)}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Visualizar
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4 flex-1 overflow-y-auto z-10 custom-scrollbar pr-2">
