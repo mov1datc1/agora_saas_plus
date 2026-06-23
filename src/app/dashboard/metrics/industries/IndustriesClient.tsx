@@ -6,7 +6,6 @@ import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, Che
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
-import AlertModal from '@/components/ui/AlertModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
 
@@ -213,12 +212,6 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
         onClose={() => setShowPaywall(false)} 
         title={paywallTitle} 
         message={paywallMessage} 
-      />
-      <AlertModal
-        isOpen={alertConfig.isOpen}
-        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
-        title={alertConfig.title}
-        message={alertConfig.message}
       />
       {selectedRow && (
         <EntityDetailModal
