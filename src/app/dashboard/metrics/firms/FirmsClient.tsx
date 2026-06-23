@@ -206,7 +206,7 @@ export default function FirmsClient() {
               <FileText className="h-5 w-5" />
               <h3 className="text-sm font-semibold">Total Transacciones Globales</h3>
             </div>
-            <p className="text-3xl font-bold text-foreground">{totalTransactions}</p>
+            <p className="text-3xl font-bold text-foreground">{formatCurrency(totalTransactions)}</p>
             <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
           </div>
           <button onClick={() => setFilterType('Todas')} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
@@ -245,7 +245,7 @@ export default function FirmsClient() {
             {topFirmsList.slice(0, 3).map((firm, i) => (
               <div key={i} className="flex justify-between items-center bg-muted p-2 rounded-lg">
                 <span className="text-xs font-semibold truncate max-w-[120px]">{firm.name}</span>
-                <span className="text-xs bg-surface px-2 py-1 rounded">{firm.deals} ops</span>
+                <span className="text-xs bg-surface px-2 py-1 rounded">{formatCurrency(firm.deals)}</span>
               </div>
             ))}
             {topFirmsList.length === 0 && (

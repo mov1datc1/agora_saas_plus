@@ -1,0 +1,796 @@
+
+> agora-plus@0.1.0 build
+> prisma generate && next build
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma schema loaded from prisma/schema.prisma.
+
+✔ Generated Prisma Client (v7.8.0) to ./node_modules/@prisma/client in 171ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/jonathanpalacios/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/package-lock.json
+
+▲ Next.js 16.2.9 (Turbopack)
+- Environments: .env.local, .env
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 22 errors:
+./Downloads/Proyecto-Agora-plus/agora-plus/src/app/globals.css
+Error evaluating Node.js code
+Error: Cannot find native binding. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:563:11)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+    [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+    [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+    [at require (node:internal/modules/helpers:182:18)]
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/postcss/dist/index.js:1:1406)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+Caused by: Error: dlopen(/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide-darwin-arm64/tailwindcss-oxide.darwin-arm64.node, 0x0001): tried: '/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide-darwin-arm64/tailwindcss-oxide.darwin-arm64.node' (segment '__TEXT' load command content extends beyond end of file), '/System/Volumes/Preboot/Cryptexes/OS/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide-darwin-arm64/tailwindcss-oxide.darwin-arm64.node' (no such file), '/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide-darwin-arm64/tailwindcss-oxide.darwin-arm64.node' (segment '__TEXT' load command content extends beyond end of file)
+    [at Module._extensions..node (node:internal/modules/cjs/loader:1661:18)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+    [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+    [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+    [at require (node:internal/modules/helpers:182:18)]
+    [at requireNative (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:215:25)]
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:526:17)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+Caused by: Error: Cannot find module './tailwindcss-oxide.darwin-arm64.node'
+Require stack:
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[root-of-the-server]__1h0y92f._.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[turbopack]_runtime.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/144b1b9998a40ba6.js
+    [at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)]
+    [at Module._load (node:internal/modules/cjs/loader:1038:27)]
+    [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+    [at require (node:internal/modules/helpers:182:18)]
+    [at requireNative (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:210:16)]
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:526:17)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+    [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+Caused by: Error: Cannot find module '@tailwindcss/oxide-darwin-universal'
+Require stack:
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[root-of-the-server]__1h0y92f._.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[turbopack]_runtime.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/144b1b9998a40ba6.js
+    [at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)]
+    [at Module._load (node:internal/modules/cjs/loader:1038:27)]
+    [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+    [at require (node:internal/modules/helpers:182:18)]
+    [at requireNative (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:183:23)]
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:526:17)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+    [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+Caused by: Error: Cannot find module './tailwindcss-oxide.darwin-universal.node'
+Require stack:
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[root-of-the-server]__1h0y92f._.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/chunks/[turbopack]_runtime.js
+- /Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/.next/build/144b1b9998a40ba6.js
+    [at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)]
+    [at Module._load (node:internal/modules/cjs/loader:1038:27)]
+    [at Module.require (node:internal/modules/cjs/loader:1289:19)]
+    [at require (node:internal/modules/helpers:182:18)]
+    [at requireNative (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:178:14)]
+    [at Object.<anonymous> (/Users/jonathanpalacios/Downloads/Proyecto-Agora-plus/agora-plus/node_modules/@tailwindcss/oxide/index.js:526:17)]
+    [at Module._compile (node:internal/modules/cjs/loader:1521:14)]
+    [at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)]
+    [at Module.load (node:internal/modules/cjs/loader:1266:32)]
+    [at Module._load (node:internal/modules/cjs/loader:1091:12)]
+
+Import trace:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/globals.css [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/layout.tsx [Server Component]
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/brushSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m /**
+  [90m4 |[0m  * [33mFrom[0m all [33mBrush[0m properties, only height has a [36mdefault[0m value and will ...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/brushSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/brushSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/cartesianAxisSlice.js:6:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+  [90m4 |[0m [36mfunction[0m _toPropertyKey(t) { [36mvar[0m i = _toPrimitive(t, [32m"string"[0m); [36mreturn[0m [32m...[0m
+  [90m5 |[0m [36mfunction[0m _toPrimitive(t, r) { [36mif[0m ([32m"object"[0m != [36mtypeof[0m t || !t) [36mreturn[0m t;.[36m..[0m
+[31m[1m>[0m [90m6 |[0m [36mimport[0m { createSlice, prepareAutoBatched } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m7 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m8 |[0m
+  [90m9 |[0m /**
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/cartesianAxisSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/XAxis.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/cartesianAxisSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/XAxis.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/chartDataSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m
+  [90m4 |[0m /**
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/chartDataSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/synchronisation/useChartSynchronisation.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/component/Tooltip.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/chartDataSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/synchronisation/useChartSynchronisation.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/component/Tooltip.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/errorBarSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m /**
+  [90m4 |[0m  * [33mErrorBars[0m have lot more settings but all the others are scoped to th...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/errorBarSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/context/ErrorBarContext.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Bar.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/errorBarSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/context/ErrorBarContext.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Bar.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/eventSettingsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m [36mexport[0m [36mvar[0m initialEventSettingsState = {
+  [90m4 |[0m   throttleDelay: [32m'raf'[0m,
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/eventSettingsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/eventSettingsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/externalEventsMiddleware.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mort[0m { createAction, createListenerMiddleware } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mort[0m { selectActiveLabel, selectActiveTooltipCoordinate, selectActive...
+  [90m3 |[0m ...[36mort[0m { createEventProxy } [36mfrom[0m [32m'../util/createEventProxy'[0m;
+  [90m4 |[0m ...[36mort[0m [36mvar[0m externalEventAction = createAction([32m'externalEvent'[0m);
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/externalEventsMiddleware.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/externalEventsMiddleware.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/graphicalItemsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mrt[0m { createSlice, current, prepareAutoBatched } [36mfrom[0m [32m'@reduxjs/toolk...[0m
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mrt[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m ...
+  [90m4 |[0m ...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/graphicalItemsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/SetGraphicalItem.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/graphicalItemsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/SetGraphicalItem.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/keyboardEventsMiddleware.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mort[0m { createAction, createListenerMiddleware } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mort[0m { setKeyboardInteraction } [36mfrom[0m [32m'./tooltipSlice'[0m;
+  [90m3 |[0m ...[36mort[0m { selectTooltipAxisDomain, selectTooltipAxisTicks, selectTooltip...
+  [90m4 |[0m ...[36mort[0m { selectCoordinateForDefaultIndex } [36mfrom[0m [32m'./selectors/selectors'[0m;
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/keyboardEventsMiddleware.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/keyboardEventsMiddleware.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/layoutSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mvar[0m initialState = {
+  [90m3 |[0m   layoutType: [32m'horizontal'[0m,
+  [90m4 |[0m   width: [35m0[0m,
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/layoutSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/context/chartLayoutContext.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/layoutSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/context/chartLayoutContext.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/legendSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mrt[0m { createSlice, current, prepareAutoBatched } [36mfrom[0m [32m'@reduxjs/toolk...[0m
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mrt[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m ...
+  [90m4 |[0m ...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/legendSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/SetLegendPayload.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/legendSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/SetLegendPayload.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/mouseEventsMiddleware.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mort[0m { createAction, createListenerMiddleware } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mort[0m { mouseLeaveChart, setMouseClickAxisIndex, setMouseOverAxisIndex...
+  [90m3 |[0m ...[36mort[0m { selectActivePropsFromChartPointer } [36mfrom[0m [32m'./selectors/selectAc...[0m
+  [90m4 |[0m ...[36mort[0m { selectTooltipEventType } [36mfrom[0m [32m'./selectors/selectTooltipEventT...[0m
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/mouseEventsMiddleware.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/mouseEventsMiddleware.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/optionsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mimport[0m { isNan } [36mfrom[0m [32m'../util/DataUtils'[0m;
+  [90m3 |[0m
+  [90m4 |[0m /**
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/optionsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/AreaChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/optionsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/AreaChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarAxisSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m [36mvar[0m initialState = {
+  [90m4 |[0m   radiusAxis: {},
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarAxisSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarAxisSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarOptionsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mvar[0m initialState = [36mnull[0m;
+  [90m3 |[0m [36mvar[0m reducers = {
+  [90m4 |[0m   updatePolarOptions: (state, action) => {
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarOptionsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/polarOptionsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/referenceElementsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice, current } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m [36mvar[0m initialState = {
+  [90m4 |[0m   dots: [],
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/referenceElementsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/referenceElementsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/renderedTicksSlice.js:10:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+  [90m 8 |[0m [90m * This renderedTickSlice stores those actually rendered ticks so that...[0m
+  [90m 9 |[0m [90m */[0m
+[31m[1m>[0m [90m10 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m11 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m12 |[0m [36mvar[0m initialState = {
+  [90m13 |[0m   xAxis: {},
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/renderedTicksSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/CartesianAxis.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/YAxis.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/renderedTicksSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/CartesianAxis.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/YAxis.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/rootPropsSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { createSlice } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m
+  [90m3 |[0m /**
+  [90m4 |[0m  * [33mThese[0m are chart options that users can choose - which means they can...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/rootPropsSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/ReportChartProps.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/rootPropsSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/ReportChartProps.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...autoBatchEnhancer, combineReducers, configureStore } [36mfrom[0m [32m'@reduxjs/...[0m
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...optionsReducer } [36mfrom[0m [32m'./optionsSlice'[0m;
+  [90m3 |[0m ...tooltipReducer } [36mfrom[0m [32m'./tooltipSlice'[0m;
+  [90m4 |[0m ...chartDataReducer } [36mfrom[0m [32m'./chartDataSlice'[0m;
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/store.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/RechartsStoreProvider.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/tooltipSlice.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mrt[0m { createSlice, current, prepareAutoBatched } [36mfrom[0m [32m'@reduxjs/toolk...[0m
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mrt[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m3 |[0m ...
+  [90m4 |[0m ...
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/tooltipSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/component/Tooltip.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/tooltipSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/component/Tooltip.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/touchEventsMiddleware.js:1:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+[31m[1m>[0m [90m1 |[0m ...[36mort[0m { createAction, createListenerMiddleware } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m  |[0m    [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m2 |[0m ...[36mort[0m { setActiveMouseOverItemIndex, setMouseOverAxisIndex } [36mfrom[0m [32m'./t...[0m
+  [90m3 |[0m ...[36mort[0m { selectActivePropsFromChartPointer } [36mfrom[0m [32m'./selectors/selectAc...[0m
+  [90m4 |[0m ...[36mort[0m { getRelativeCoordinate } [36mfrom[0m [32m'../util/getRelativeCoordinate'[0m;
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/touchEventsMiddleware.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/touchEventsMiddleware.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/RechartsWrapper.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CategoricalChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/CartesianChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/chart/BarChart.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/IndustryDistributionChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/zIndexSlice.js:10:1
+Module not found: Can't resolve '@reduxjs/toolkit'
+  [90m 8 |[0m [90m * The state is a map from z-index numbers to element references.[0m
+  [90m 9 |[0m [90m */[0m
+[31m[1m>[0m [90m10 |[0m [36mimport[0m { createSlice, prepareAutoBatched } [36mfrom[0m [32m'@reduxjs/toolkit'[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m11 |[0m [36mimport[0m { castDraft } [36mfrom[0m [32m'immer'[0m;
+  [90m12 |[0m [36mimport[0m { [33mDefaultZIndexes[0m } [36mfrom[0m [32m'../zIndex/DefaultZIndexes'[0m;
+  [90m13 |[0m [36mvar[0m seed = {};
+
+
+
+Import traces:
+  Client Component Browser:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/zIndexSlice.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/zIndex/ZIndexLayer.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component Browser]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/state/zIndexSlice.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/zIndex/ZIndexLayer.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/node_modules/recharts/es6/cartesian/Area.js [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Client Component SSR]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/components/charts/TransactionsChart.tsx [Server Component]
+    ./Downloads/Proyecto-Agora-plus/agora-plus/src/app/dashboard/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
