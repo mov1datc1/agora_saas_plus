@@ -345,7 +345,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synchronized ${processedCount} transactions from Drupal.` 
+      message: `Successfully synchronized ${processedCount} transactions from Drupal.`,
+      processedCount
     })
 
   } catch (error: any) {
