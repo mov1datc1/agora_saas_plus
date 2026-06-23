@@ -180,7 +180,8 @@ export default function OperationsClient() {
         return
       }
       
-      await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
+      const { exportNativePDF } = await import('@/lib/exportUtils')
+      exportNativePDF(selectedTx, txDetails, `transaccion_${selectedTx?.id}`)
     } catch (error: any) {
       console.error('Error exporting to PDF:', error)
       setAlertConfig({

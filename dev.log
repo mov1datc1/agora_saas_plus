@@ -1,0 +1,31 @@
+
+> agora-plus@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by process 27928, using available port 3001 instead.
+▲ Next.js 16.2.9 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.105:3001
+- Environments: .env.local, .env
+✓ Ready in 404ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/jonathanpalacios/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /Users/jError fetching transaction detail: Error [DriverAdapterError]: (EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15
+    at ignore-listed frames {
+  clientVersion: '7.8.0',
+  [cause]: {
+    originalCode: 'XX000',
+    originalMessage: '(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15',
+    kind: 'postgres',
+    code: 'XX000',
+    severity: 'FATAL',
+    message: '(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15',
+    detail: undefined,
+    column: undefined,
+    hint: undefined
+  }
+}
+ GET /api/transactions/1 500 in 2.1s (next.js: 1324ms, proxy.ts: 13ms, application-code: 741ms)

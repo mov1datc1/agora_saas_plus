@@ -28,9 +28,10 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const filteredOptions = options.filter(opt => 
-    opt.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredOptions = options.filter(opt => {
+    if (typeof opt !== 'string') return false;
+    return opt.toLowerCase().includes(searchTerm.toLowerCase())
+  })
 
   const handleSelect = (opt: string) => {
     onChange(opt)
