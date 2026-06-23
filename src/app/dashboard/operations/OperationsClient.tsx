@@ -23,6 +23,7 @@ export type UITransaction = {
 
 export default function OperationsClient({ transactions }: { transactions: UITransaction[] }) {
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
   const [txDetails, setTxDetails] = useState<any>(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
@@ -158,15 +159,24 @@ export default function OperationsClient({ transactions }: { transactions: UITra
   }
 
   const handleDownloadPDF = async () => {
-    const downloadCheck = await checkCanDownload()
-    if (!downloadCheck.allowed) {
-      setPaywallTitle('Descarga Bloqueada')
-      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar documentos con una suscripción activa.')
-      setShowPaywall(true)
-      return
+    try {
+      setIsExporting(true)
+      const downloadCheck = await checkCanDownload()
+      if (!downloadCheck.allowed) {
+        setPaywallTitle('Descarga Bloqueada')
+        setPaywallMessage(downloadCheck.message || 'Solo puedes descargar documentos con una suscripción activa.')
+        setShowPaywall(true)
+        setIsExporting(false)
+        return
+      }
+      
+      await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
+    } catch (error) {
+      console.error('Error exporting to PDF:', error)
+      alert('Hubo un error al generar el PDF. Por favor, intenta de nuevo.')
+    } finally {
+      setIsExporting(false)
     }
-    
-    await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
   }
 
   const handleSort = (key: 'date' | 'amount') => {
@@ -293,8 +303,8 @@ export default function OperationsClient({ transactions }: { transactions: UITra
             <div className="flex justify-between items-center mb-6" data-html2canvas-ignore="true">
               <h3 className="text-xl font-bold text-foreground">Detalle de Transacción</h3>
               <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} className="p-2 text-brand hover:bg-brand/10 rounded-full" title="Exportar a PDF">
-                  <FileText className="h-5 w-5" />
+                <button onClick={handleDownloadPDF} disabled={isExporting} className="p-2 text-brand hover:bg-brand/10 rounded-full disabled:opacity-50" title="Exportar a PDF">
+                  {isExporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
                 </button>
                 <button onClick={() => setSelectedTx(null)} className="p-2 text-muted-foreground hover:bg-muted rounded-full">
                   <X className="h-5 w-5" />
