@@ -208,6 +208,7 @@ export default function CountriesClient({ totalTransactions }: CountriesClientPr
         onClose={() => setShowPaywall(false)} 
         title={paywallTitle} 
         message={paywallMessage} 
+      />
       <AlertModal
         isOpen={alertConfig.isOpen}
         onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}

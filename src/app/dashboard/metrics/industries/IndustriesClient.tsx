@@ -213,6 +213,7 @@ export default function IndustriesClient({ totalTransactions, totalIndustries }:
         onClose={() => setShowPaywall(false)} 
         title={paywallTitle} 
         message={paywallMessage} 
+      />
       <AlertModal
         isOpen={alertConfig.isOpen}
         onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
