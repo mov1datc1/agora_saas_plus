@@ -9,6 +9,7 @@ import AlertModal from '@/components/ui/AlertModal'
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 
 import useSWR from 'swr'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 
 export type UITransaction = {
   id: string
@@ -220,30 +221,20 @@ export default function OperationsClient() {
           <Filter className="h-5 w-5" /> Filtros Avanzados
         </div>
         <div>
-          <label className="block text-xs font-medium text-foreground/70 mb-1">Tipo de Operación</label>
-          <select 
-            className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"
+          <SearchableSelect
+            label="Tipo de Operación"
             value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-          >
-            <option value="Todos">Todos</option>
-            {uniqueTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
+            onChange={setSelectedType}
+            options={['Todos', ...uniqueTypes]}
+          />
         </div>
         <div>
-          <label className="block text-xs font-medium text-foreground/70 mb-1">Industria</label>
-          <select 
-            className="w-full rounded-lg border-border bg-background text-sm p-2 outline-none"
+          <SearchableSelect
+            label="Industria"
             value={selectedIndustry}
-            onChange={(e) => setSelectedIndustry(e.target.value)}
-          >
-            <option value="Todas">Todas</option>
-            {uniqueIndustries.map(ind => (
-              <option key={ind} value={ind}>{ind}</option>
-            ))}
-          </select>
+            onChange={setSelectedIndustry}
+            options={['Todas', ...uniqueIndustries]}
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-foreground/70 mb-1">Buscar</label>
