@@ -104,7 +104,7 @@ export async function GET(request: Request) {
           })
           notificationsSent.push({ email: user.email, type: emailType })
         } catch (error) {
-          console.error(\`Failed to send email to \${user.email}\`, error)
+          console.error(`Failed to send email to ${user.email}`, error)
         }
       }
     }
