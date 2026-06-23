@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 
 export function exportToExcel(data: any[], filename: string) {
   const worksheet = XLSX.utils.json_to_sheet(data)
@@ -29,7 +29,13 @@ export async function exportToPDF(elementId: string, filename: string) {
     })
 
     const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
+    // Some versions of jsPDF export differently
+    const PDFDocument = jsPDF || (window as any).jspdf?.jsPDF
+    if (!PDFDocument) {
+      throw new Error("La librería de PDF no se pudo cargar correctamente.")
+    }
+
+    const pdf = new PDFDocument('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width
 

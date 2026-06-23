@@ -174,12 +174,12 @@ export default function OperationsClient({ transactions }: { transactions: UITra
       }
       
       await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error exporting to PDF:', error)
       setAlertConfig({
         isOpen: true,
         title: 'Error al Exportar',
-        message: 'No pudimos generar el archivo PDF en este momento. Intenta de nuevo o verifica tu conexión.'
+        message: `No pudimos generar el archivo PDF en este momento. Intenta de nuevo. Detalles técnicos: ${error.message || 'Error desconocido'}`
       })
     } finally {
       setIsExporting(false)
