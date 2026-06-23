@@ -37,7 +37,13 @@ export async function exportToPDF(elementId: string, filename: string) {
     const { toPng } = await import('html-to-image')
     const imgData = await toPng(clone, {
       pixelRatio: 2,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      filter: (node) => {
+        if (node instanceof HTMLElement && node.dataset.html2canvasIgnore === "true") {
+          return false;
+        }
+        return true;
+      }
     })
     
     // Some versions of jsPDF export differently

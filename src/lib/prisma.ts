@@ -2,9 +2,20 @@ import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
-const connectionString = `${process.env.DATABASE_URL}`
+let connectionString = `${process.env.DATABASE_URL}`
 
-const pool = new Pool({ connectionString })
+// Forzar el puerto 6543 (Transaction Mode) si se usa el Pooler de Supabase
+if (connectionString.includes('pooler.supabase.com')) {
+  connectionString = connectionString.replace(':5432', ':6543')
+}
+
+// Limitar el pool a 2 conexiones por instancia serverless para evitar saturar PgBouncer
+const pool = new Pool({ 
+  connectionString,
+  max: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+})
 const adapter = new PrismaPg(pool)
 
 const prismaClientSingleton = () => {

@@ -330,9 +330,6 @@ export default function OperationsClient() {
             <div className="flex justify-between items-center mb-6" data-html2canvas-ignore="true">
               <h3 className="text-xl font-bold text-foreground">Detalle de Transacción</h3>
               <div className="flex items-center gap-2">
-                <button onClick={handleDownloadPDF} disabled={isExporting} className="p-2 text-brand hover:bg-brand/10 rounded-full disabled:opacity-50" title="Exportar a PDF">
-                  {isExporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileText className="h-5 w-5" />}
-                </button>
                 <button onClick={() => setSelectedTx(null)} className="p-2 text-muted-foreground hover:bg-muted rounded-full">
                   <X className="h-5 w-5" />
                 </button>
@@ -465,7 +462,7 @@ export default function OperationsClient() {
                 <p className="text-sm text-muted-foreground pt-4 border-t border-border">No se pudieron cargar los detalles adicionales.</p>
               )}
 
-              <div className="border-t border-border pt-6 pb-8">
+              <div className="border-t border-border pt-6 pb-8 space-y-3" data-html2canvas-ignore="true">
                 <a 
                   href={selectedTx.link} 
                   target="_blank"
@@ -474,6 +471,15 @@ export default function OperationsClient() {
                 >
                   Leer reseña completa en LexLatin <ArrowUpRight className="h-4 w-4" />
                 </a>
+                
+                <button 
+                  onClick={handleDownloadPDF} 
+                  disabled={isExporting} 
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface border-2 border-border px-4 py-3 text-sm font-semibold text-foreground shadow-sm hover:bg-muted transition-all disabled:opacity-50"
+                >
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {isExporting ? 'Generando PDF...' : 'Descargar Ficha Técnica PDF'}
+                </button>
               </div>
             </div>
           </div>
