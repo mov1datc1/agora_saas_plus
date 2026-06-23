@@ -7,6 +7,7 @@ export async function GET() {
   try {
     const rawAdvisors = await prisma.transactionAdvisor.findMany({
       select: {
+        id: true,
         firm: { select: { name: true } },
         transaction: {
           select: {
@@ -15,6 +16,7 @@ export async function GET() {
             dateClosed: true,
             dateAnnounced: true,
             value: true,
+            valueString: true,
             type: true,
             country: true,
             industry: { select: { name: true } },

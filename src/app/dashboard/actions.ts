@@ -1,6 +1,7 @@
 'use server'
 
 import prisma from '@/lib/prisma'
+// @ts-ignore
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 

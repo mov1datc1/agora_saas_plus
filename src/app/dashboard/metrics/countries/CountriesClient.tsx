@@ -122,6 +122,8 @@ export default function CountriesClient() {
     }
   }, [apiData])
 
+  const totalTransactions = tableData.reduce((acc, row) => acc + row.operaciones, 0)
+
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 
   const filteredData = useMemo(() => {
