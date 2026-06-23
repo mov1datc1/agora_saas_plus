@@ -23,6 +23,7 @@
     "d3-scale": "^4.0.2",
     "dotenv": "^17.4.2",
     "framer-motion": "^12.40.0",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "immer": "^11.1.8",
     "jspdf": "^2.5.2",

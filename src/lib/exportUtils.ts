@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
 export function exportToExcel(data: any[], filename: string) {
@@ -34,15 +34,11 @@ export async function exportToPDF(elementId: string, filename: string) {
   container.appendChild(clone)
 
   try {
-    // 4. Capture the clone
-    const canvas = await html2canvas(clone, {
-      scale: 2, // Higher resolution
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      scrollY: -window.scrollY // Fix potential offset bugs
+    // 4. Capture the clone using html-to-image (supports modern CSS like oklab)
+    const imgData = await toPng(clone, {
+      pixelRatio: 2,
+      backgroundColor: '#ffffff'
     })
-
-    const imgData = canvas.toDataURL('image/png')
     
     // Some versions of jsPDF export differently
     const PDFDocument = jsPDF || (window as any).jspdf?.jsPDF
@@ -52,7 +48,13 @@ export async function exportToPDF(elementId: string, filename: string) {
 
     const pdf = new PDFDocument('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+    
+    // Obtenemos dimensiones de la imagen
+    const img = new Image()
+    img.src = imgData
+    await new Promise((resolve) => { img.onload = resolve })
+
+    const pdfHeight = (img.height * pdfWidth) / img.width
 
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
     pdf.save(`${filename}.pdf`)
