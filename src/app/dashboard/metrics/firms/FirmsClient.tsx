@@ -150,7 +150,7 @@ export default function FirmsClient() {
   }, [filteredData])
 
   const totalFirms = tableData.length
-  const totalTransactions = tableData.reduce((acc, row) => acc + (row.volumen || 0), 0)
+  const totalVolume = tableData.reduce((acc, row) => acc + (row.volumen || 0), 0)
   const topFirmsList = useMemo(() => {
     return [...tableData]
       .sort((a, b) => (b.volumen || 0) - (a.volumen || 0))
@@ -204,9 +204,9 @@ export default function FirmsClient() {
           <div>
             <div className="flex items-center gap-3 text-muted-foreground mb-2">
               <FileText className="h-5 w-5" />
-              <h3 className="text-sm font-semibold">Total Transacciones Globales</h3>
+              <h3 className="text-sm font-semibold">Volumen Financiero Global</h3>
             </div>
-            <p className="text-3xl font-bold text-foreground">{formatCurrency(totalTransactions)}</p>
+            <p className="text-3xl font-bold text-foreground">{formatCurrency(totalVolume)}</p>
             <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
           </div>
           <button onClick={() => setFilterType('Todas')} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
