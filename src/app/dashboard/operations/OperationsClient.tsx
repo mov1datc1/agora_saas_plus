@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2 } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
+import AlertModal from '@/components/ui/AlertModal'
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 
 export type UITransaction = {
@@ -30,6 +31,8 @@ export default function OperationsClient({ transactions }: { transactions: UITra
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTitle, setPaywallTitle] = useState('')
   const [paywallMessage, setPaywallMessage] = useState('')
+
+  const [alertConfig, setAlertConfig] = useState({ isOpen: false, title: '', message: '' })
   const [isDataAllowed, setIsDataAllowed] = useState(true)
 
   useEffect(() => {
@@ -173,7 +176,11 @@ export default function OperationsClient({ transactions }: { transactions: UITra
       await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
     } catch (error) {
       console.error('Error exporting to PDF:', error)
-      alert('Hubo un error al generar el PDF. Por favor, intenta de nuevo.')
+      setAlertConfig({
+        isOpen: true,
+        title: 'Error al Exportar',
+        message: 'No pudimos generar el archivo PDF en este momento. Intenta de nuevo o verifica tu conexión.'
+      })
     } finally {
       setIsExporting(false)
     }
@@ -193,6 +200,13 @@ export default function OperationsClient({ transactions }: { transactions: UITra
         onClose={() => setShowPaywall(false)} 
         title={paywallTitle} 
         message={paywallMessage} 
+      />
+
+      <AlertModal
+        isOpen={alertConfig.isOpen}
+        onClose={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+        title={alertConfig.title}
+        message={alertConfig.message}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 bg-surface rounded-2xl p-6 shadow-sm border border-border">
