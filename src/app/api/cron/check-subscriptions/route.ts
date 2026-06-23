@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 export const dynamic = 'force-dynamic'
 
@@ -81,7 +81,7 @@ export async function GET(request: Request) {
         message = 'Tu acceso a la plataforma Ágora Plus ha sido suspendido debido a la expiración de tu acuerdo. Si ya has procesado tu pago, por favor notifícalo a tu asesor comercial para reactivar tu cuenta a la brevedad.'
       }
 
-      if (emailType && process.env.RESEND_API_KEY) {
+      if (emailType && resend) {
         // Enviar correo
         try {
           await resend.emails.send({
