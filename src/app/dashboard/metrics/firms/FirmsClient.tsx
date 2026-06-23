@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock } from 'lucide-react'
-import { checkTrialRestrictions, checkCanDownload } from '../actions'
+import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import { exportToExcel } from '@/lib/exportUtils'
 
