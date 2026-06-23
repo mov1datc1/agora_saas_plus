@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock } from 'lucide-react'
+import { checkTrialRestrictions, checkCanDownload } from '../actions'
+import PaywallModal from '@/components/ui/PaywallModal'
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 
 export type UITransaction = {
   id: string
@@ -23,7 +26,30 @@ export default function OperationsClient({ transactions }: { transactions: UITra
   const [txDetails, setTxDetails] = useState<any>(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
 
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [paywallTitle, setPaywallTitle] = useState('')
+  const [paywallMessage, setPaywallMessage] = useState('')
+  const [isDataAllowed, setIsDataAllowed] = useState(true)
+
+  useEffect(() => {
+    const checkLimits = async () => {
+      const usageCheck = await checkTrialRestrictions()
+      if (!usageCheck.allowed) {
+        setIsDataAllowed(false)
+        setPaywallTitle('Límite Diario Alcanzado')
+        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
+        setShowPaywall(true)
+      }
+    }
+    checkLimits()
+  }, [])
+
   const handleSelectTx = async (tx: UITransaction) => {
+    if (!isDataAllowed) {
+      setShowPaywall(true)
+      return
+    }
+
     setSelectedTx(tx)
     setIsLoadingDetails(true)
     setTxDetails(null)
@@ -109,6 +135,40 @@ export default function OperationsClient({ transactions }: { transactions: UITra
     return 0
   })
 
+  const handleDownloadExcel = async () => {
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+
+    exportToExcel(sortedTransactions.map(tx => ({
+      Fecha: tx.date,
+      Título: tx.title,
+      Tipo: tx.type,
+      Monto: tx.amount,
+      Estado: tx.status,
+      Industria: tx.industry,
+      Países: tx.country,
+      Firmas: tx.firm,
+      Abogados: tx.lawyer
+    })), 'operaciones_agora_plus')
+  }
+
+  const handleDownloadPDF = async () => {
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar documentos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+    
+    await exportToPDF('transaction-detail-card', `transaccion_${selectedTx?.id}`)
+  }
+
   const handleSort = (key: 'date' | 'amount') => {
     setSortConfig(current => ({
       key,
@@ -118,6 +178,13 @@ export default function OperationsClient({ transactions }: { transactions: UITra
 
   return (
     <>
+      <PaywallModal 
+        isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)} 
+        title={paywallTitle} 
+        message={paywallMessage} 
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 bg-surface rounded-2xl p-6 shadow-sm border border-border">
         <div className="col-span-full flex items-center gap-2 mb-2 text-foreground font-semibold">
           <Filter className="h-5 w-5" /> Filtros Avanzados
@@ -182,7 +249,7 @@ export default function OperationsClient({ transactions }: { transactions: UITra
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
-              {sortedTransactions.map((tx) => (
+              {isDataAllowed ? sortedTransactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleSelectTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[250px] truncate" title={tx.title}>{tx.title}</td>
@@ -193,8 +260,14 @@ export default function OperationsClient({ transactions }: { transactions: UITra
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80 font-medium" title="Dólares Estadounidenses (USD)">{tx.amount === 'Por definir' ? <span className="text-muted-foreground font-normal">Por definir</span> : tx.amount}</td>
                 </tr>
-              ))}
-              {sortedTransactions.length === 0 && (
+              )) : (
+                <tr><td colSpan={4} className="text-center p-12 text-muted-foreground bg-muted/20">
+                  <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="font-semibold text-lg text-foreground mb-2">Datos Bloqueados</p>
+                  <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
+                </td></tr>
+              )}
+              {isDataAllowed && sortedTransactions.length === 0 && (
                 <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
@@ -212,12 +285,21 @@ export default function OperationsClient({ transactions }: { transactions: UITra
 
       {selectedTx && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedTx(null)}>
-          <div className="w-full max-w-md bg-surface h-full shadow-2xl p-6 animate-in slide-in-from-right overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
+          <div 
+            id="transaction-detail-card"
+            className="w-full max-w-md bg-surface h-full shadow-2xl p-6 animate-in slide-in-from-right overflow-y-auto" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6" data-html2canvas-ignore="true">
               <h3 className="text-xl font-bold text-foreground">Detalle de Transacción</h3>
-              <button onClick={() => setSelectedTx(null)} className="p-2 text-muted-foreground hover:bg-muted rounded-full">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={handleDownloadPDF} className="p-2 text-brand hover:bg-brand/10 rounded-full" title="Exportar a PDF">
+                  <FileText className="h-5 w-5" />
+                </button>
+                <button onClick={() => setSelectedTx(null)} className="p-2 text-muted-foreground hover:bg-muted rounded-full">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             
             <div className="space-y-8">

@@ -2,7 +2,10 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock } from 'lucide-react'
+import { checkTrialRestrictions, checkCanDownload } from '../actions'
+import PaywallModal from '@/components/ui/PaywallModal'
+import { exportToExcel } from '@/lib/exportUtils'
 
 interface TableRow {
   id: string
@@ -39,19 +42,53 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
 
-  // Fetch initial data
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [paywallTitle, setPaywallTitle] = useState('')
+  const [paywallMessage, setPaywallMessage] = useState('')
+  const [isDataAllowed, setIsDataAllowed] = useState(true)
+
+  // Fetch initial data & Check Limits
   useEffect(() => {
-    fetch('/api/metrics/firms')
-      .then(res => res.json())
-      .then(data => {
-        setTableData(data)
+    const fetchAndCheck = async () => {
+      const usageCheck = await checkTrialRestrictions()
+      if (!usageCheck.allowed) {
+        setIsDataAllowed(false)
+        setPaywallTitle('Límite Diario Alcanzado')
+        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
+        setShowPaywall(true)
         setIsLoading(false)
-      })
-      .catch(err => {
-        console.error('Error fetching table data:', err)
-        setIsLoading(false)
-      })
+        return
+      }
+
+      fetch('/api/metrics/firms')
+        .then(res => res.json())
+        .then(data => {
+          setTableData(data)
+          setIsLoading(false)
+        })
+        .catch(err => {
+          console.error('Error fetching table data:', err)
+          setIsLoading(false)
+        })
+    }
+    fetchAndCheck()
   }, [])
+
+  const handleDownloadExcel = async () => {
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+
+    exportToExcel(filteredData.map(row => ({
+      Firma: row.firma,
+      Operaciones: row.volumen,
+      Monto_USD: row.monto
+    })), 'firmas_agora_plus')
+  }
 
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
@@ -132,6 +169,12 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
 
   return (
     <>
+      <PaywallModal 
+        isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)} 
+        title={paywallTitle} 
+        message={paywallMessage} 
+      />
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
         <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
@@ -228,6 +271,13 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                   className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E05C50]/20 focus:border-[#E05C50] transition-all"
                 />
               </div>
+              <button
+                onClick={handleDownloadExcel}
+                title="Exportar a Excel"
+                className="p-2 border border-brand bg-brand/10 text-brand rounded-xl hover:bg-brand hover:text-white transition-colors"
+              >
+                <Download className="w-4 h-4" />
+              </button>
               <button 
                 onClick={() => setIsPanelExpanded(!isPanelExpanded)}
                 className="p-2 border border-border bg-background rounded-xl text-muted-foreground hover:bg-muted transition-colors lg:hidden"
@@ -270,6 +320,16 @@ export default function FirmsClient({ totalTransactions, totalFirms, topFirmsLis
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <Loader2 className="h-8 w-8 animate-spin text-[#E05C50] mb-2" />
                         <span className="text-sm font-medium">Cargando datos de operaciones...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : !isDataAllowed ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-xl p-8 max-w-sm mx-auto">
+                        <Lock className="w-10 h-10 mb-3 text-muted-foreground/50" />
+                        <span className="text-base font-semibold text-foreground mb-1">Datos Bloqueados</span>
+                        <span className="text-sm">Has alcanzado el límite de consultas diarias en tu prueba.</span>
                       </div>
                     </td>
                   </tr>

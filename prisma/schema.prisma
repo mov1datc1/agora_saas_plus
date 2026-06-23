@@ -17,6 +17,7 @@ model User {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   copilotUsages    CopilotUsage[]
+  dailyUsages      DailyUsage[]
 }
 
 enum Role {
@@ -167,4 +168,24 @@ model TransactionLawyer {
   lawyer        Lawyer      @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
 
   @@unique([transactionId, lawyerId, role])
+}
+
+// Global System Configuration
+model SystemConfig {
+  id                        String   @id @default("global")
+  trialRestrictionsEnabled  Boolean  @default(false)
+  updatedAt                 DateTime @updatedAt
+}
+
+// Daily Usage Tracking for anti-scraping
+model DailyUsage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date // Store the specific day
+  queries   Int      @default(0) // Count of table queries
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
 }
