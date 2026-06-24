@@ -12,7 +12,7 @@ export default function LandingPage() {
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">Ágora</span>
               <Image 
-                src="https://agora.lexlatin.com/wp-content/uploads/2023/03/logo_agora.png" 
+                src="/logo.png" 
                 alt="Ágora Logo" 
                 width={160} 
                 height={50} 
@@ -403,7 +403,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between">
           <div className="flex items-center mb-4 md:mb-0">
             <Image 
-              src="https://agora.lexlatin.com/wp-content/uploads/2023/03/logo_agora.png" 
+              src="/logo.png" 
               alt="Ágora Logo" 
               width={120} 
               height={38} 

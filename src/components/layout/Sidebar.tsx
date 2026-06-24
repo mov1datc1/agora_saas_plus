@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutDashboard, Users, Building2, Briefcase, Settings, LogOut, ArrowLeftRight, Sparkles, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -38,9 +39,13 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="flex h-full w-64 flex-col bg-surface border-r border-border shadow-sm">
       <div className="flex h-16 shrink-0 items-center px-6">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Ágora<span className="text-brand">Plus</span>
-        </h1>
+        <Image 
+          src="/logo.png" 
+          alt="Ágora Logo" 
+          width={130} 
+          height={40} 
+          className="object-contain"
+        />
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
         <nav className="flex-1 space-y-1">

@@ -1,4 +1,4 @@
-import Image from 'next/link'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function AuthLayout({
@@ -17,9 +17,13 @@ export default function AuthLayout({
       <div className="w-full max-w-md p-6">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-              Ágora<span className="text-[#E05C50]">Plus</span>
-            </h1>
+              <Image 
+                src="/logo.png" 
+                alt="Ágora Logo" 
+                width={160} 
+                height={50} 
+                className="object-contain"
+              />
           </Link>
         </div>
         <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 p-8 ring-1 ring-gray-100">
