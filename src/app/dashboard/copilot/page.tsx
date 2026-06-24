@@ -95,7 +95,7 @@ export default function CopilotPage() {
           messages.map(m => {
             const textParts = m.parts?.filter((p): p is { type: 'text', text: string } => p.type === 'text') || []
             const textContent = textParts.map(p => p.text).join('\n')
-            const hasTools = m.toolInvocations && m.toolInvocations.length > 0;
+            const hasTools = m.parts?.some(p => p.type.startsWith('tool-') || p.type === 'dynamic-tool') || false;
 
             return (
             <div key={m.id} className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
