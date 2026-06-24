@@ -303,19 +303,13 @@ export default function OperationsClient() {
           <Filter className="h-5 w-5" /> Filtros Avanzados
         </div>
         
-        {/* Fila 1: Filtros Principales y Búsqueda */}
+        {/* Fila 1: Países, Fecha, Valor, Firma */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <SearchableSelect
-            label="Tipo de Operación"
-            value={selectedType}
-            onChange={setSelectedType}
-            options={['Todos', ...uniqueTypes]}
-          />
-          <SearchableSelect
-            label="Valor Económico (USD)"
-            value={selectedValueRange}
-            onChange={setSelectedValueRange}
-            options={valueRangeOptions}
+            label="Países"
+            value={selectedCountry}
+            onChange={setSelectedCountry}
+            options={['Todos', ...uniqueCountries]}
           />
           <div className="flex flex-col lg:col-span-2">
             <label className="block text-xs font-medium text-foreground/70 mb-1">Rango de Fecha</label>
@@ -337,6 +331,40 @@ export default function OperationsClient() {
               />
             </div>
           </div>
+          <SearchableSelect
+            label="Valor Económico (USD)"
+            value={selectedValueRange}
+            onChange={setSelectedValueRange}
+            options={valueRangeOptions}
+          />
+          <SearchableSelect
+            label="Firma de Abogados"
+            value={selectedFirm}
+            onChange={setSelectedFirm}
+            options={['Todas', ...uniqueFirms]}
+          />
+        </div>
+
+        {/* Fila 2: Industria, Abogados, Tipo, Buscar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2 pt-4 border-t border-border/50">
+          <SearchableSelect
+            label="Industria"
+            value={selectedIndustry}
+            onChange={setSelectedIndustry}
+            options={['Todas', ...uniqueIndustries]}
+          />
+          <SearchableSelect
+            label="Abogados"
+            value={selectedLawyer}
+            onChange={setSelectedLawyer}
+            options={['Todos', ...uniqueLawyers]}
+          />
+          <SearchableSelect
+            label="Tipo de Operación"
+            value={selectedType}
+            onChange={setSelectedType}
+            options={['Todos', ...uniqueTypes]}
+          />
           <div className="flex flex-col">
             <label className="block text-xs font-medium text-foreground/70 mb-1">Buscar Término</label>
             <input 
@@ -347,34 +375,6 @@ export default function OperationsClient() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
-
-        {/* Fila 2: Filtros de Entidades */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2 pt-4 border-t border-border/50">
-          <SearchableSelect
-            label="Firma de Abogados"
-            value={selectedFirm}
-            onChange={setSelectedFirm}
-            options={['Todas', ...uniqueFirms]}
-          />
-          <SearchableSelect
-            label="Abogados"
-            value={selectedLawyer}
-            onChange={setSelectedLawyer}
-            options={['Todos', ...uniqueLawyers]}
-          />
-          <SearchableSelect
-            label="Países"
-            value={selectedCountry}
-            onChange={setSelectedCountry}
-            options={['Todos', ...uniqueCountries]}
-          />
-          <SearchableSelect
-            label="Industria"
-            value={selectedIndustry}
-            onChange={setSelectedIndustry}
-            options={['Todas', ...uniqueIndustries]}
-          />
         </div>
       </div>
 
