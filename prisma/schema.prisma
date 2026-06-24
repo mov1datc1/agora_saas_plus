@@ -148,6 +148,7 @@ model TransactionLawyer {
 model SystemConfig {
   id                       String   @id @default("global")
   trialRestrictionsEnabled Boolean  @default(false)
+  gaMeasurementId          String?
   updatedAt                DateTime @updatedAt
 }
 

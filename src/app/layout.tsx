@@ -18,18 +18,23 @@ export const metadata: Metadata = {
 };
 
 import { AuthListener } from "@/components/auth/AuthListener";
+import { GoogleAnalytics } from '@next/third-parties/google'
+import prisma from '@/lib/prisma'
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } })
+
   return (
     <html lang="es" className="h-full bg-background antialiased">
       <body className={`${geistSans.variable} ${geistMono.variable} h-full`}>
         <AuthListener />
         {children}
       </body>
+      {config?.gaMeasurementId && <GoogleAnalytics gaId={config.gaMeasurementId} />}
     </html>
   );
 }

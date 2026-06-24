@@ -1,6 +1,10 @@
-import { Server, Target, LineChart, Activity } from 'lucide-react'
+import { Server, Target, LineChart, Activity, Save } from 'lucide-react'
+import prisma from '@/lib/prisma'
+import { saveGAConfig } from './actions'
 
-export default function MarketingSettingsPage() {
+export default async function MarketingSettingsPage() {
+  const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } })
+
   return (
     <div className="space-y-10 divide-y divide-border">
       <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-6 md:grid-cols-3">
@@ -15,16 +19,16 @@ export default function MarketingSettingsPage() {
           <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 ring-1 ring-blue-400/30">
             <div className="flex">
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-500">Integración Serverless</h3>
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-500">Integración con Base de Datos</h3>
                 <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
-                  <p>Configura esta variable en Vercel como <code>NEXT_PUBLIC_GA_MEASUREMENT_ID</code> para inyectar el script automáticamente en el Head.</p>
+                  <p>Guarda el Measurement ID aquí para inyectar automáticamente el script en toda la plataforma.</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <form className="bg-surface shadow-sm ring-1 ring-border sm:rounded-xl md:col-span-2">
+        <form action={saveGAConfig} className="bg-surface shadow-sm ring-1 ring-border sm:rounded-xl md:col-span-2">
           <div className="px-4 py-6 sm:p-8">
             <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
               <div className="sm:col-span-4">
@@ -36,24 +40,22 @@ export default function MarketingSettingsPage() {
                     type="text"
                     name="ga-id"
                     id="ga-id"
-                    defaultValue={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ""}
-                    disabled
+                    defaultValue={config?.gaMeasurementId || ""}
                     placeholder="G-"
-                    className="block w-full rounded-md border-0 bg-muted py-1.5 text-foreground shadow-sm ring-1 ring-inset ring-border placeholder:text-foreground/40 sm:text-sm sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 text-foreground shadow-sm ring-1 ring-inset ring-border focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6"
                   />
                 </div>
               </div>
             </div>
           </div>
           <div className="flex items-center justify-end gap-x-6 border-t border-border px-4 py-4 sm:px-8">
-            <a
-              href="https://vercel.com"
-              target="_blank"
+            <button
+              type="submit"
               className="flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
-              <Server className="h-4 w-4" />
-              Actualizar en Vercel
-            </a>
+              <Save className="h-4 w-4" />
+              Guardar Configuración
+            </button>
           </div>
         </form>
       </div>
