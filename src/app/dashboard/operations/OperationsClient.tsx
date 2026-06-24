@@ -92,6 +92,9 @@ export default function OperationsClient() {
   const [selectedFirm, setSelectedFirm] = useState('Todas')
   const [selectedCountry, setSelectedCountry] = useState('Todos')
   const [selectedLawyer, setSelectedLawyer] = useState('Todos')
+  
+  // Sidebar expandible
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
   // Actualizar search query si cambia la URL (para volver atrás, etc.)
   useEffect(() => {
@@ -377,9 +380,28 @@ export default function OperationsClient() {
           </div>
         </div>
       </div>
+      
+      <div className="flex justify-end mb-4">
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface border border-border rounded-lg shadow-sm hover:bg-muted transition-colors"
+        >
+          {isSidebarOpen ? (
+            <>
+              <span className="hidden sm:inline">Ocultar Resumen</span>
+              <span className="text-[#E05C50]">→|</span>
+            </>
+          ) : (
+            <>
+              <span className="text-[#E05C50]">|←</span>
+              <span className="hidden sm:inline">Mostrar Resumen</span>
+            </>
+          )}
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
-        <div className="lg:col-span-3 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden flex flex-col h-[600px]">
+        <div className={`${isSidebarOpen ? 'lg:col-span-3' : 'lg:col-span-4'} bg-surface rounded-2xl shadow-sm border border-border overflow-hidden flex flex-col h-[600px] transition-all duration-300`}>
           <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
             <table className="min-w-full divide-y divide-border">
               <thead className="bg-muted sticky top-0 z-10">
@@ -449,13 +471,15 @@ export default function OperationsClient() {
           </div>
         </div>
 
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
-            <p className="text-2xl font-bold text-foreground">{filteredTransactions.length}</p>
-            <p className="text-xs text-muted-foreground">Operaciones coinciden con los filtros aplicados.</p>
+        {isSidebarOpen && (
+          <div className="lg:col-span-1 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border sticky top-0">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
+              <p className="text-4xl font-bold text-foreground tracking-tight mb-2">{filteredTransactions.length}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">Operaciones coinciden con los filtros aplicados.</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {selectedTx && (
