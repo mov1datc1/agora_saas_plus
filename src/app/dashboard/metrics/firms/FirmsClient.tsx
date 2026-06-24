@@ -31,6 +31,8 @@ export default function FirmsClient() {
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCountry, setSelectedCountry] = useState('Todos')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
   
   // Nuevos estados para UX
@@ -88,13 +90,44 @@ export default function FirmsClient() {
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 
-  // Filtrado y ordenamiento de la tabla
-  const filteredData = useMemo(() => {
-    let result = tableData.filter(row => {
+  const uniqueCountries = useMemo(() => {
+    const countries = new Set<string>()
+    tableData.forEach(row => {
+      if (row.pais && row.pais !== 'N/D') {
+        row.pais.split(',').forEach(c => countries.add(c.trim()))
+      }
+    })
+    return Array.from(countries).sort()
+  }, [tableData])
+
+  // Filtrado base (Tipo, País, Fecha) para calcular las estadísticas globales y el ranking
+  const baseFilteredData = useMemo(() => {
+    return tableData.filter(row => {
       const matchesType = filterType === 'Todas' || row.tipoOperacion === filterType
+      const matchesCountry = selectedCountry === 'Todos' || (row.pais || '').includes(selectedCountry)
+      
+      let matchesDate = true
+      if (dateRange.start || dateRange.end) {
+        if (row.fecha) {
+          const txDate = new Date(row.fecha).getTime()
+          const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : 0
+          const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').getTime() + 86399999 : Infinity
+          matchesDate = txDate >= startDate && txDate <= endDate
+        } else {
+          matchesDate = false
+        }
+      }
+      
+      return matchesType && matchesCountry && matchesDate
+    })
+  }, [tableData, filterType, selectedCountry, dateRange])
+
+  // Filtrado final para la tabla (agrega búsqueda en texto)
+  const filteredData = useMemo(() => {
+    let result = baseFilteredData.filter(row => {
       const matchesSearch = row.firma.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             row.monto.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesType && matchesSearch
+      return matchesSearch
     })
 
     if (sortConfig) {
@@ -104,7 +137,6 @@ export default function FirmsClient() {
             ? a.firma.localeCompare(b.firma) 
             : b.firma.localeCompare(a.firma)
         } else if (sortConfig.key === 'monto') {
-          // Extraemos números básicos del monto en texto para ordenar aproximado (ej: $100.0M -> 100)
           const numA = parseFloat(a.monto.replace(/[^0-9.-]+/g, "")) || 0
           const numB = parseFloat(b.monto.replace(/[^0-9.-]+/g, "")) || 0
           return sortConfig.direction === 'asc' ? numA - numB : numB - numA
@@ -117,7 +149,7 @@ export default function FirmsClient() {
       })
     }
     return result
-  }, [tableData, filterType, searchQuery, sortConfig])
+  }, [baseFilteredData, searchQuery, sortConfig])
 
   const handleSort = (key: 'firma' | 'monto' | 'volumen') => {
     let direction: 'asc' | 'desc' = 'asc'
@@ -149,17 +181,17 @@ export default function FirmsClient() {
     }
   }, [filteredData])
 
-  const totalFirms = tableData.length
-  const totalVolume = tableData.reduce((acc, row) => acc + (row.volumen || 0), 0)
+  const totalFirms = baseFilteredData.length
+  const totalVolume = baseFilteredData.reduce((acc, row) => acc + (row.volumen || 0), 0)
   const topFirmsList = useMemo(() => {
     const firmCounts: Record<string, number> = {}
-    tableData.forEach(row => {
+    baseFilteredData.forEach(row => {
       firmCounts[row.firma] = (firmCounts[row.firma] || 0) + 1
     })
     return Object.entries(firmCounts)
       .map(([name, count]) => ({ name, deals: count }))
       .sort((a, b) => b.deals - a.deals)
-  }, [tableData])
+  }, [baseFilteredData])
 
   // Filtro para el Ranking Modal
   const filteredRankingList = useMemo(() => {
@@ -285,6 +317,37 @@ export default function FirmsClient() {
                   {option}
                 </button>
               ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <select 
+                  className="bg-background border border-border rounded-lg text-sm px-2 py-1.5 outline-none focus:border-[#E05C50]"
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                >
+                  <option value="Todos">Todos los países</option>
+                  {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 border border-border rounded-lg bg-background px-2 py-1">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <input 
+                  type="date" 
+                  className="bg-transparent text-sm outline-none w-[110px]"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                />
+                <span className="text-muted-foreground">-</span>
+                <input 
+                  type="date" 
+                  className="bg-transparent text-sm outline-none w-[110px]"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="relative w-full sm:w-64 shrink-0 flex items-center gap-2">
