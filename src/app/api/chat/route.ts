@@ -149,7 +149,7 @@ export async function POST(req: Request) {
       },
     })
 
-    return result.toTextStreamResponse()
+    return result.toDataStreamResponse()
 
   } catch (error) {
     console.error('Chat API Error:', error)

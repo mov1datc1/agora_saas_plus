@@ -23,7 +23,7 @@ export default function CopilotPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
-    sendMessage({ role: 'user', parts: [{ type: 'text', text: input }] })
+    sendMessage({ role: 'user', content: input })
     setInput('')
   }
 
@@ -81,7 +81,7 @@ export default function CopilotPage() {
                 {suggestions.map((suggestion, idx) => (
                   <button
                     key={idx}
-                    onClick={() => sendMessage({ role: 'user', parts: [{ type: 'text', text: suggestion }] })}
+                    onClick={() => sendMessage({ role: 'user', content: suggestion })}
                     className="p-3 text-sm rounded-xl border border-border bg-background hover:border-brand/50 hover:bg-brand/5 transition-colors flex items-start gap-3"
                   >
                     <FileText className="h-5 w-5 text-brand shrink-0" />
@@ -93,9 +93,8 @@ export default function CopilotPage() {
           </div>
         ) : (
           messages.map(m => {
-            const textParts = m.parts?.filter((p): p is { type: 'text', text: string } => p.type === 'text') || []
-            const textContent = textParts.map(p => p.text).join('\n')
-            const hasTools = m.parts?.some(p => p.type.startsWith('tool-'))
+            const textContent = m.content || ''
+            const hasTools = m.toolInvocations && m.toolInvocations.length > 0;
 
             return (
             <div key={m.id} className={`flex gap-4 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
