@@ -131,7 +131,7 @@ export default function OperationsClient() {
     const matchType = selectedType === 'Todos' || (tx.type || '').trim() === selectedType.trim()
     const matchIndustry = selectedIndustry === 'Todas' || (tx.industry || '').includes(selectedIndustry)
     const matchFirm = selectedFirm === 'Todas' || (tx.firm || '').includes(selectedFirm)
-    const matchCountry = selectedCountry === 'Todas' || (tx.country || '').includes(selectedCountry)
+    const matchCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
     const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer)
     
     // Filtrado por Búsqueda de Texto
