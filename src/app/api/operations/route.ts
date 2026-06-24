@@ -37,6 +37,13 @@ export async function GET(request: Request) {
               select: { name: true }
             }
           }
+        },
+        lawyers: {
+          select: {
+            lawyer: {
+              select: { name: true }
+            }
+          }
         }
       },
       orderBy: {
@@ -58,7 +65,7 @@ export async function GET(request: Request) {
       industry: tx.industry?.name || 'Varios',
       country: tx.country || 'Latinoamérica',
       firm: tx.advisors?.map(a => a.firm?.name).filter(Boolean).join(', ') || 'Sin firmas listadas', 
-      lawyer: 'Varios',
+      lawyer: tx.lawyers?.map(l => l.lawyer?.name).filter(Boolean).join(', ') || 'Sin abogados listados',
       link: tx.link || '#'
     }))
 
