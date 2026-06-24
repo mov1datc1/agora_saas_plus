@@ -23,7 +23,7 @@ export default function CopilotPage() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
-    sendMessage({ role: 'user', content: input })
+    sendMessage({ role: 'user', parts: [{ type: 'text', text: input }] })
     setInput('')
   }
 
@@ -81,7 +81,7 @@ export default function CopilotPage() {
                 {suggestions.map((suggestion, idx) => (
                   <button
                     key={idx}
-                    onClick={() => sendMessage({ role: 'user', content: suggestion })}
+                    onClick={() => sendMessage({ role: 'user', parts: [{ type: 'text', text: suggestion }] })}
                     className="p-3 text-sm rounded-xl border border-border bg-background hover:border-brand/50 hover:bg-brand/5 transition-colors flex items-start gap-3"
                   >
                     <FileText className="h-5 w-5 text-brand shrink-0" />
