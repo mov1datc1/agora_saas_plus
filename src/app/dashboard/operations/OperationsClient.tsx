@@ -158,6 +158,11 @@ export default function OperationsClient() {
       if (tx.amount.includes('B')) num *= 1000
       else if (tx.amount === 'Por definir' || isNaN(num)) num = -1
 
+      // Si el número es gigante (mayor a 100,000), asumimos que está expresado en unidades enteras y lo pasamos a millones.
+      if (num > 100000) {
+        num = num / 1000000
+      }
+
       if (num === -1) {
         matchValue = false
       } else if (selectedValueRange === 'Menos de $10M') {
