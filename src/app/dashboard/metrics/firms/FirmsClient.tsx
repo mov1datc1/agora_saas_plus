@@ -152,9 +152,13 @@ export default function FirmsClient() {
   const totalFirms = tableData.length
   const totalVolume = tableData.reduce((acc, row) => acc + (row.volumen || 0), 0)
   const topFirmsList = useMemo(() => {
-    return [...tableData]
-      .sort((a, b) => (b.volumen || 0) - (a.volumen || 0))
-      .map(f => ({ name: f.firma, deals: f.volumen }))
+    const firmCounts: Record<string, number> = {}
+    tableData.forEach(row => {
+      firmCounts[row.firma] = (firmCounts[row.firma] || 0) + 1
+    })
+    return Object.entries(firmCounts)
+      .map(([name, count]) => ({ name, deals: count }))
+      .sort((a, b) => b.deals - a.deals)
   }, [tableData])
 
   // Filtro para el Ranking Modal
