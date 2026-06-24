@@ -289,7 +289,7 @@ export default function OperationsClient() {
         </div>
         
         {/* Fila 1: Filtros Principales y Búsqueda */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <SearchableSelect
             label="Tipo de Operación"
             value={selectedType}
@@ -302,7 +302,7 @@ export default function OperationsClient() {
             onChange={setSelectedValueRange}
             options={valueRangeOptions}
           />
-          <div className="flex flex-col">
+          <div className="flex flex-col lg:col-span-2">
             <label className="block text-xs font-medium text-foreground/70 mb-1">Rango de Fecha</label>
             <div className="flex items-center gap-2">
               <input 
