@@ -125,26 +125,36 @@ export default function OperationsClient() {
 
   // Lógica de filtrado
   const filteredTransactions = transactions.filter(tx => {
-    const matchType = selectedType === 'Todos' || tx.type === selectedType
-    const matchIndustry = selectedIndustry === 'Todas' || tx.industry.includes(selectedIndustry)
-    const matchFirm = selectedFirm === 'Todas' || tx.firm.includes(selectedFirm)
-    const matchCountry = selectedCountry === 'Todas' || tx.country.includes(selectedCountry)
-    const matchLawyer = selectedLawyer === 'Todos' || tx.lawyer.includes(selectedLawyer)
+    const matchType = selectedType === 'Todos' || (tx.type || '').trim() === selectedType.trim()
+    const matchIndustry = selectedIndustry === 'Todas' || (tx.industry || '').includes(selectedIndustry)
+    const matchFirm = selectedFirm === 'Todas' || (tx.firm || '').includes(selectedFirm)
+    const matchCountry = selectedCountry === 'Todas' || (tx.country || '').includes(selectedCountry)
+    const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer)
     
     // Filtrado por Búsqueda de Texto
-    const matchSearch = tx.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        tx.firm.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        tx.lawyer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        tx.industry.toLowerCase().includes(searchQuery.toLowerCase())
+    const searchLower = searchQuery.toLowerCase().trim()
+    const matchSearch = searchLower === '' || 
+                        (tx.title || '').toLowerCase().includes(searchLower) || 
+                        (tx.firm || '').toLowerCase().includes(searchLower) ||
+                        (tx.lawyer || '').toLowerCase().includes(searchLower) ||
+                        (tx.industry || '').toLowerCase().includes(searchLower)
 
     // Filtrado por Rango de Fecha
     let matchDate = true
     if (dateRange.start || dateRange.end) {
       const parts = tx.date.split('/')
       if (parts.length === 3) {
-        const txDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime()
-        const startDate = dateRange.start ? new Date(dateRange.start).getTime() : 0
-        const endDate = dateRange.end ? new Date(dateRange.end).getTime() + 86400000 : Infinity // Añadir 1 día al final
+        const txDateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
+        const txDate = txDateObj.getTime()
+        
+        // Al usar inputs type="date", el valor viene como "YYYY-MM-DD". 
+        // Agregamos "T00:00:00" para evitar el desfase de zona horaria (UTC vs Local)
+        const startDateObj = dateRange.start ? new Date(dateRange.start + 'T00:00:00') : new Date(0)
+        const startDate = startDateObj.getTime()
+        
+        const endDateObj = dateRange.end ? new Date(dateRange.end + 'T00:00:00') : new Date(8640000000000000)
+        const endDate = endDateObj.getTime() + 86399999 // Incluir hasta el final del día
+
         matchDate = txDate >= startDate && txDate <= endDate
       } else {
         matchDate = false
@@ -369,9 +379,10 @@ export default function OperationsClient() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
-        <div className="lg:col-span-3 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden flex flex-col h-[600px] overflow-y-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-muted sticky top-0">
+        <div className="lg:col-span-3 bg-surface rounded-2xl shadow-sm border border-border overflow-hidden flex flex-col h-[600px]">
+          <div className="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider cursor-pointer hover:bg-muted-foreground/10 transition-colors" onClick={() => handleSort('date')}>
                   <div className="flex items-center gap-1">
@@ -395,7 +406,7 @@ export default function OperationsClient() {
             <tbody className="divide-y divide-border bg-surface">
               {isSwrLoading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-brand mb-4" />
                       <span className="text-sm font-medium">Sincronizando operaciones desde el servidor...</span>
@@ -404,12 +415,12 @@ export default function OperationsClient() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-red-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-red-500">
                     <span className="text-sm font-medium">Error al cargar las operaciones. Por favor intenta de nuevo.</span>
                   </td>
                 </tr>
               ) : !isDataAllowed ? (
-                <tr><td colSpan={4} className="text-center p-12 text-muted-foreground bg-muted/20">
+                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground bg-muted/20">
                   <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p className="font-semibold text-lg text-foreground mb-2">Datos Bloqueados</p>
                   <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
@@ -431,7 +442,7 @@ export default function OperationsClient() {
                 </tr>
               )))}
               {isDataAllowed && sortedTransactions.length === 0 && !isSwrLoading && (
-                <tr><td colSpan={4} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
+                <tr><td colSpan={8} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
           </table>
