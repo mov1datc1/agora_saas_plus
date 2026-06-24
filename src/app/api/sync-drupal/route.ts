@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const offset = searchParams.get('offset') || '0'
     
     // We request the included relationships to get Firm, Lawyer, Company, Industry, and Financial data.
-    const url = `${DRUPAL_API_BASE}/node/post?include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=150&page[offset]=${offset}&sort=-created`
+    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=150&page[offset]=${offset}&sort=-created`
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
