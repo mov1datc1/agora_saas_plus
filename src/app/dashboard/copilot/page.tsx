@@ -93,7 +93,8 @@ export default function CopilotPage() {
           </div>
         ) : (
           messages.map(m => {
-            const textContent = m.content || ''
+            const textParts = m.parts?.filter((p): p is { type: 'text', text: string } => p.type === 'text') || []
+            const textContent = textParts.map(p => p.text).join('\n')
             const hasTools = m.toolInvocations && m.toolInvocations.length > 0;
 
             return (
