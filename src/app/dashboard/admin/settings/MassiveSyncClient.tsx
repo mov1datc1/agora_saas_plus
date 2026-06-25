@@ -30,6 +30,8 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
     let totalProcessed = 0
     let keepSyncing = true
 
+    let skippedBlocks = 0
+
     while (keepSyncing) {
       let retries = 0
       let success = false
@@ -55,7 +57,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           // Si procesó menos de 5, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
           if (count < 5) {
             keepSyncing = false
-            setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones en total.`)
+            setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones. (Bloques saltados: ${skippedBlocks})`)
             setIsFinished(true)
           } else {
             currentOffset += 5
@@ -72,12 +74,17 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           retries++
           console.error(`Error en offset ${currentOffset}, intento ${retries}:`, err)
           if (retries >= 3) {
-            keepSyncing = false
-            setError(`Falló la sincronización en la posición ${currentOffset} tras 3 intentos: ${err.message}`)
-            break
+            // PRO LEVEL: En lugar de abortar, saltamos este bloque corrupto y continuamos
+            setStatusText(`Bloque corrupto en posición ${currentOffset}. Saltando para no perder avance...`)
+            skippedBlocks++
+            currentOffset += 5
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            break // Rompe el loop de reintentos, el while principal (keepSyncing) sigue
           } else {
-            setStatusText(`Error de red. Esperando 3 segundos para reintentar...`)
-            await new Promise(resolve => setTimeout(resolve, 3000))
+            // Exponential backoff: 3s -> 6s -> 9s
+            const waitTime = retries * 3000
+            setStatusText(`Servidor no responde. Esperando ${waitTime/1000}s para reintentar...`)
+            await new Promise(resolve => setTimeout(resolve, waitTime))
           }
         }
       }
