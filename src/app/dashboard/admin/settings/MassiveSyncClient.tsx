@@ -1,48 +1,133 @@
 'use client'
 
-import { useState } from 'react'
-import { Database, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal } from 'lucide-react'
 import { runSyncChunk } from './sync-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) {
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [statusText, setStatusText] = useState('')
-  const [isFinished, setIsFinished] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
+  // Job State
+  const [activeJob, setActiveJob] = useState<any>(null)
+  const [jobHistory, setJobHistory] = useState<any[]>([])
+  
+  // Local UI State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true)
+  
+  // This ref acts as our "worker thread" memory so we can cancel loops
+  const keepSyncingRef = useRef(false)
 
-  const handleConfirmSync = () => {
-    setIsConfirmOpen(false)
-    startMassiveSync()
+  const fetchJobs = async () => {
+    try {
+      const res = await fetch('/api/sync-jobs')
+      const data = await res.json()
+      if (data.success) {
+        setJobHistory(data.data)
+        const running = data.data.find((j: any) => j.status === 'RUNNING' || j.status === 'PAUSED')
+        setActiveJob(running || null)
+        
+        if (running?.status === 'RUNNING' && !keepSyncingRef.current) {
+          // Si al cargar vemos que hay uno corriendo y nuestro ref está en false,
+          // significa que la pestaña se había cerrado y la acabamos de abrir.
+          // Retomamos el proceso automáticamente.
+          keepSyncingRef.current = true
+          startWorkerLoop(running)
+        }
+      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsLoadingJobs(false)
+    }
   }
 
-  const startMassiveSync = async () => {
-    setIsSyncing(true)
-    setIsFinished(false)
-    setError(null)
-    setProgress(0)
-    setStatusText('Iniciando sincronización histórica...')
+  useEffect(() => {
+    fetchJobs()
+  }, [])
 
-    let currentOffset = 0
-    let totalProcessed = 0
-    let keepSyncing = true
+  const handleConfirmStart = async () => {
+    setIsConfirmOpen(false)
+    try {
+      const res = await fetch('/api/sync-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUrl: drupalUrl })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setActiveJob(data.data)
+        keepSyncingRef.current = true
+        startWorkerLoop(data.data)
+        fetchJobs()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
-    let skippedBlocks = 0
+  const handlePause = async () => {
+    keepSyncingRef.current = false
+    if (activeJob) {
+      await patchJob(activeJob.id, { status: 'PAUSED', log: 'Trabajo pausado manualmente.' })
+      fetchJobs()
+    }
+  }
 
-    while (keepSyncing) {
+  const handleResume = async () => {
+    if (activeJob) {
+      const res = await patchJob(activeJob.id, { status: 'RUNNING', log: 'Trabajo reanudado manualmente.' })
+      if (res?.success) {
+        setActiveJob(res.data)
+        keepSyncingRef.current = true
+        startWorkerLoop(res.data)
+      }
+    }
+  }
+
+  const handleCancel = async () => {
+    keepSyncingRef.current = false
+    if (activeJob) {
+      await patchJob(activeJob.id, { status: 'CANCELLED', log: 'Trabajo cancelado por el administrador.' })
+      setActiveJob(null)
+      fetchJobs()
+    }
+  }
+
+  const patchJob = async (id: string, payload: any) => {
+    try {
+      const res = await fetch('/api/sync-jobs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...payload })
+      })
+      return await res.json()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const startWorkerLoop = async (job: any) => {
+    let currentOffset = job.currentOffset
+    let totalProcessed = job.totalProcessed
+    let skippedBlocks = job.skippedBlocks
+
+    while (keepSyncingRef.current) {
       let retries = 0
       let success = false
       
-      while (retries < 3 && !success) {
+      while (retries < 3 && !success && keepSyncingRef.current) {
         try {
-          if (retries > 0) {
-            setStatusText(`Reintentando posición ${currentOffset}... (Intento ${retries + 1}/3)`)
-          } else {
-            setStatusText(`Descargando bloque a partir de la posición ${currentOffset}...`)
-          }
+          const logMsg = retries > 0 
+            ? `Reintentando offset ${currentOffset}... (Intento ${retries + 1}/3)` 
+            : `Descargando bloque en offset ${currentOffset}...`
+          
+          setActiveJob((prev: any) => ({
+            ...prev,
+            currentOffset,
+            totalProcessed,
+            skippedBlocks,
+            logs: JSON.stringify([...(prev?.logs ? JSON.parse(prev.logs) : []), { time: new Date().toISOString(), message: logMsg }])
+          }))
           
           const result = await runSyncChunk(currentOffset)
 
@@ -52,21 +137,25 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
 
           const count = result.processedCount || 0
           totalProcessed += count
-          setProgress(totalProcessed)
 
-          // Si procesó menos de 5, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
           if (count < 5) {
-            keepSyncing = false
-            setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones. (Bloques saltados: ${skippedBlocks})`)
-            setIsFinished(true)
+            keepSyncingRef.current = false
+            await patchJob(job.id, { 
+              status: 'COMPLETED', 
+              currentOffset, 
+              totalProcessed, 
+              skippedBlocks, 
+              log: `¡Completado! Total descargadas: ${totalProcessed}. Bloques saltados: ${skippedBlocks}.` 
+            })
+            fetchJobs()
           } else {
             currentOffset += 5
+            await patchJob(job.id, { currentOffset, totalProcessed, skippedBlocks })
           }
           
           success = true
           
-          // Agregamos un delay de 500ms entre bloques para no saturar (Rate Limit) el servidor de Cloudways
-          if (keepSyncing) {
+          if (keepSyncingRef.current) {
             await new Promise(resolve => setTimeout(resolve, 500))
           }
           
@@ -74,117 +163,179 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           retries++
           console.error(`Error en offset ${currentOffset}, intento ${retries}:`, err)
           if (retries >= 3) {
-            // PRO LEVEL: En lugar de abortar, saltamos este bloque corrupto y continuamos
-            setStatusText(`Bloque corrupto en posición ${currentOffset}. Saltando para no perder avance...`)
             skippedBlocks++
             currentOffset += 5
+            await patchJob(job.id, { 
+              currentOffset, 
+              skippedBlocks, 
+              log: `Bloque corrupto en offset ${currentOffset-5}. Saltando para no perder avance...` 
+            })
             await new Promise(resolve => setTimeout(resolve, 2000))
-            break // Rompe el loop de reintentos, el while principal (keepSyncing) sigue
+            break
           } else {
-            // Exponential backoff: 3s -> 6s -> 9s
             const waitTime = retries * 3000
-            setStatusText(`Servidor no responde. Esperando ${waitTime/1000}s para reintentar...`)
+            await patchJob(job.id, { log: `Servidor saturado. Esperando ${waitTime/1000}s...` })
             await new Promise(resolve => setTimeout(resolve, waitTime))
           }
         }
       }
     }
-    
-    setIsSyncing(false)
+  }
+
+  const renderTerminal = (logsStr: string) => {
+    let logs = []
+    try {
+      logs = JSON.parse(logsStr || '[]')
+    } catch(e) {}
+
+    return (
+      <div className="bg-black text-green-400 font-mono text-xs p-4 rounded-xl mt-4 h-48 overflow-y-auto shadow-inner flex flex-col-reverse">
+        {logs.slice().reverse().map((l: any, i: number) => (
+          <div key={i} className="mb-1 opacity-90 hover:opacity-100">
+            <span className="text-gray-500">[{new Date(l.time).toLocaleTimeString()}]</span> {l.message}
+          </div>
+        ))}
+        {logs.length === 0 && <span className="text-gray-500 italic">Esperando eventos...</span>}
+      </div>
+    )
+  }
+
+  if (isLoadingJobs) {
+    return <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-brand" /></div>
   }
 
   return (
     <div className="mt-6 border-t border-border pt-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-6">
         <div>
-          <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-            <Database className="w-4 h-4 text-brand" />
-            Sincronización Histórica Masiva
+          <h4 className="text-base font-bold text-foreground flex items-center gap-2 mb-2">
+            <Database className="w-5 h-5 text-brand" />
+            Panel de Trabajos en Segundo Plano (SyncJobs)
           </h4>
-          <p className="mt-1 text-sm text-foreground/60 max-w-md">
-            Descarga todo el historial de LexLatin iterativamente. Actualmente apuntando a: <code className="text-xs bg-muted px-1 py-0.5 rounded text-brand break-all">{drupalUrl}</code>
+          <p className="text-sm text-foreground/60 max-w-2xl leading-relaxed">
+            Gestor robusto para sincronización de +20,000 transacciones. El estado se guarda en la base de datos permitiendo pausar, reanudar y recuperar trabajos ante cierres de sesión. Apuntando a: <code className="text-xs bg-muted px-1 py-0.5 rounded text-brand break-all">{drupalUrl}</code>
           </p>
-          
-          {/* Progress Modal Overlay */}
-          {isSyncing && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-              <div className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-brand/10 rounded-full">
-                    <Database className="w-6 h-6 text-brand" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-foreground">Sincronización Histórica</h3>
-                    <p className="text-sm text-foreground/60">Descargando desde LexLatin...</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-sm text-brand font-medium">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {statusText}
-                  </div>
-                  <span className="text-sm font-bold text-foreground">{progress} op.</span>
-                </div>
-                
-                <div className="w-full bg-border rounded-full h-3 mb-4 overflow-hidden shadow-inner">
-                  <div 
-                    className="bg-brand h-3 rounded-full transition-all duration-500 ease-out relative overflow-hidden" 
-                    style={{ width: `${Math.min(100, Math.max(5, (progress / 25000) * 100))}%` }}
-                  >
-                    <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 animate-pulse"></div>
-                  </div>
-                </div>
-                
-                <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>¡ATENCIÓN! No cierres ni recargues esta pestaña hasta que el proceso termine por completo.</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {!isSyncing && isFinished && !error && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-md ring-1 ring-emerald-500/20">
-              <CheckCircle2 className="w-4 h-4" />
-              {statusText}
-            </div>
-          )}
-
-          {!isSyncing && error && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-md ring-1 ring-red-500/20">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsConfirmOpen(true)}
-          disabled={isSyncing}
-          className="flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-sm hover:bg-foreground/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50 transition-colors"
-        >
-          {isSyncing ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Sincronizando ({progress})...
-            </>
-          ) : (
-            'Descargar Historial'
-          )}
-        </button>
+        {/* Panel Activo */}
+        {activeJob ? (
+          <div className="bg-surface border border-brand/30 rounded-2xl p-6 shadow-sm ring-1 ring-brand/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-brand/10 rounded-full animate-pulse">
+                  <Database className="w-5 h-5 text-brand" />
+                </div>
+                <div>
+                  <h5 className="font-semibold text-foreground flex items-center gap-2">
+                    Trabajo Activo 
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activeJob.status === 'RUNNING' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                      {activeJob.status}
+                    </span>
+                  </h5>
+                  <p className="text-xs text-muted-foreground">Iniciado: {new Date(activeJob.startedAt).toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeJob.status === 'RUNNING' ? (
+                  <button onClick={handlePause} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-sm font-semibold transition-colors">
+                    <Pause className="w-4 h-4" /> Pausar
+                  </button>
+                ) : (
+                  <button onClick={handleResume} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-sm font-semibold transition-colors">
+                    <Play className="w-4 h-4" /> Reanudar
+                  </button>
+                )}
+                <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors">
+                  <Square className="w-4 h-4" /> Cancelar
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="bg-muted/50 p-3 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Offset (Posición)</p>
+                <p className="text-lg font-bold text-foreground">{activeJob.currentOffset}</p>
+              </div>
+              <div className="bg-muted/50 p-3 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Procesadas</p>
+                <p className="text-lg font-bold text-brand">{activeJob.totalProcessed}</p>
+              </div>
+              <div className="bg-muted/50 p-3 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Bloques Saltados</p>
+                <p className="text-lg font-bold text-red-500">{activeJob.skippedBlocks}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar Visual (Based on 25k max expected) */}
+            <div className="w-full bg-border rounded-full h-2 mb-2 overflow-hidden shadow-inner">
+              <div 
+                className={`h-2 rounded-full transition-all duration-500 ${activeJob.status === 'RUNNING' ? 'bg-brand' : 'bg-muted-foreground'}`}
+                style={{ width: `${Math.min(100, Math.max(2, (activeJob.currentOffset / 25000) * 100))}%` }}
+              ></div>
+            </div>
+
+            {renderTerminal(activeJob.logs)}
+          </div>
+        ) : (
+          <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h5 className="font-semibold text-foreground mb-1">Iniciar Nueva Sincronización</h5>
+              <p className="text-sm text-muted-foreground">Genera un nuevo SyncJob que recorrerá toda la base histórica.</p>
+            </div>
+            <button
+              onClick={() => setIsConfirmOpen(true)}
+              className="flex items-center justify-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm hover:bg-foreground/80 transition-colors shrink-0"
+            >
+              <Play className="w-4 h-4" /> Iniciar SyncJob
+            </button>
+          </div>
+        )}
+
+        {/* Historial de Jobs */}
+        {jobHistory.length > 0 && (
+          <div className="mt-4">
+            <h5 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+              <History className="w-4 h-4 text-muted-foreground" /> Historial de Ejecuciones
+            </h5>
+            <div className="bg-surface border border-border rounded-xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Fecha</th>
+                      <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Estado</th>
+                      <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Procesadas</th>
+                      <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Saltados</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {jobHistory.map((job) => (
+                      <tr key={job.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 text-foreground whitespace-nowrap">{new Date(job.startedAt).toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-semibold ${job.status === 'COMPLETED' ? 'text-emerald-500' : job.status === 'FAILED' ? 'text-red-500' : job.status === 'CANCELLED' ? 'text-gray-500' : 'text-brand'}`}>
+                            {job.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">{job.totalProcessed}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">{job.skippedBlocks}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <ConfirmModal
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleConfirmSync}
-        title="Iniciar Descarga Masiva"
-        message="Esta acción iniciará una descarga iterativa de todo el historial de LexLatin (cientos de transacciones). Puede tardar varios minutos en completarse y consumirá recursos del sistema. ¿Estás seguro de que deseas continuar?"
-        confirmText="Sí, descargar ahora"
+        onConfirm={handleConfirmStart}
+        title="Crear Nuevo SyncJob"
+        message="Esta acción creará un nuevo Trabajo en Segundo Plano en la base de datos para extraer progresivamente miles de transacciones de LexLatin. Podrás monitorear su progreso, pausarlo y reanudarlo en cualquier momento."
+        confirmText="Iniciar Ahora"
         cancelText="Cancelar"
       />
     </div>

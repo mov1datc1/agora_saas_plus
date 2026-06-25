@@ -176,3 +176,16 @@ enum SubscriptionStatus {
   CANCELED
   INCOMPLETE
 }
+
+model SyncJob {
+  id              String    @id @default(uuid())
+  status          String    @default("RUNNING") // RUNNING, PAUSED, COMPLETED, CANCELLED, FAILED
+  currentOffset   Int       @default(0)
+  totalProcessed  Int       @default(0)
+  skippedBlocks   Int       @default(0)
+  targetUrl       String
+  logs            String?   @db.Text
+  startedAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  completedAt     DateTime?
+}
