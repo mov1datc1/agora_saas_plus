@@ -28,7 +28,7 @@ export type UITransaction = {
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function OperationsClient() {
-  const { data: apiResponse, error, isLoading: isSwrLoading } = useSWR('/api/operations?limit=500', fetcher)
+  const { data: apiResponse, error, isLoading: isSwrLoading } = useSWR('/api/operations?limit=5000', fetcher)
   const transactions: UITransaction[] = apiResponse?.data || []
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
   const [isExporting, setIsExporting] = useState(false)
