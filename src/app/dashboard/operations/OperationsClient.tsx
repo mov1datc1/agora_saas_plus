@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2 } from 'lucide-react'
+import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2, RotateCcw, Bookmark, Trash2, Plus, Save } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import AlertModal from '@/components/ui/AlertModal'
@@ -95,6 +95,83 @@ export default function OperationsClient() {
   
   // Sidebar expandible
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+  // Favoritas y Reset
+  type SavedSearch = {
+    id: string
+    name: string
+    filters: {
+      selectedType: string
+      selectedIndustry: string
+      searchQuery: string
+      dateRange: { start: string, end: string }
+      selectedValueRange: string
+      selectedFirm: string
+      selectedCountry: string
+      selectedLawyer: string
+    }
+  }
+
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([])
+  const [showSavedDropdown, setShowSavedDropdown] = useState(false)
+  const [newSearchName, setNewSearchName] = useState('')
+  const [isSavingSearch, setIsSavingSearch] = useState(false)
+
+  // Cargar búsquedas guardadas al montar
+  useEffect(() => {
+    const saved = localStorage.getItem('agora_saved_searches')
+    if (saved) {
+      try {
+        setSavedSearches(JSON.parse(saved))
+      } catch(e) {}
+    }
+  }, [])
+
+  const saveCurrentSearch = () => {
+    if (!newSearchName.trim()) return
+    const newSearch: SavedSearch = {
+      id: Date.now().toString(),
+      name: newSearchName.trim(),
+      filters: {
+        selectedType, selectedIndustry, searchQuery, dateRange, selectedValueRange, selectedFirm, selectedCountry, selectedLawyer
+      }
+    }
+    const updated = [...savedSearches, newSearch]
+    setSavedSearches(updated)
+    localStorage.setItem('agora_saved_searches', JSON.stringify(updated))
+    setNewSearchName('')
+    setIsSavingSearch(false)
+  }
+
+  const loadSearch = (search: SavedSearch) => {
+    setSelectedType(search.filters.selectedType)
+    setSelectedIndustry(search.filters.selectedIndustry)
+    setSearchQuery(search.filters.searchQuery)
+    setDateRange(search.filters.dateRange)
+    setSelectedValueRange(search.filters.selectedValueRange)
+    setSelectedFirm(search.filters.selectedFirm)
+    setSelectedCountry(search.filters.selectedCountry)
+    setSelectedLawyer(search.filters.selectedLawyer)
+    setShowSavedDropdown(false)
+  }
+
+  const deleteSearch = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const updated = savedSearches.filter(s => s.id !== id)
+    setSavedSearches(updated)
+    localStorage.setItem('agora_saved_searches', JSON.stringify(updated))
+  }
+
+  const resetFilters = () => {
+    setSelectedType('Todos')
+    setSelectedIndustry('Todas')
+    setSearchQuery('')
+    setDateRange({ start: '', end: '' })
+    setSelectedValueRange('Todos')
+    setSelectedFirm('Todas')
+    setSelectedCountry('Todos')
+    setSelectedLawyer('Todos')
+  }
 
   // Paginación
   const [page, setPage] = useState(1)
@@ -312,8 +389,90 @@ export default function OperationsClient() {
       />
 
       <div className="flex flex-col gap-4 mb-6 bg-surface rounded-2xl p-6 shadow-sm border border-border">
-        <div className="flex items-center gap-2 mb-2 text-foreground font-semibold">
-          <Filter className="h-5 w-5" /> Filtros Avanzados
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+          <div className="flex items-center gap-2 text-foreground font-semibold">
+            <Filter className="h-5 w-5" /> Filtros Avanzados
+          </div>
+          
+          <div className="flex items-center gap-2 relative">
+            <button 
+              onClick={() => setShowSavedDropdown(!showSavedDropdown)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-brand/5 text-brand border border-brand/20 rounded-lg hover:bg-brand/10 transition-colors"
+            >
+              <Bookmark className="h-4 w-4" /> 
+              Mis Favoritas ({savedSearches.length})
+            </button>
+            <button 
+              onClick={resetFilters}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-muted text-muted-foreground border border-border rounded-lg hover:bg-muted-foreground/10 hover:text-foreground transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Limpiar
+            </button>
+
+            {/* Dropdown Mis Favoritas */}
+            {showSavedDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSavedDropdown(false)}></div>
+                <div className="absolute top-full right-0 mt-2 w-72 bg-surface rounded-xl shadow-xl border border-border overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="max-h-64 overflow-y-auto">
+                    {savedSearches.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-center text-muted-foreground">Aún no tienes búsquedas guardadas.</p>
+                    ) : (
+                      <div className="py-2">
+                        {savedSearches.map(search => (
+                          <div 
+                            key={search.id}
+                            onClick={() => loadSearch(search)}
+                            className="flex items-center justify-between px-4 py-2 hover:bg-muted cursor-pointer transition-colors group"
+                          >
+                            <span className="text-sm font-medium text-foreground truncate">{search.name}</span>
+                            <button 
+                              onClick={(e) => deleteSearch(search.id, e)}
+                              className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all p-1"
+                              title="Eliminar Búsqueda"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="border-t border-border bg-muted/30 p-3">
+                    {!isSavingSearch ? (
+                      <button 
+                        onClick={() => setIsSavingSearch(true)}
+                        className="flex w-full items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-brand bg-brand/10 hover:bg-brand/20 rounded-lg transition-colors"
+                      >
+                        <Plus className="h-4 w-4" /> Guardar Vista Actual
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          autoFocus
+                          placeholder="Nombre (ej: M&A Chile)"
+                          className="flex-1 rounded-md border border-border bg-background text-sm p-2 outline-none focus:border-brand transition-colors"
+                          value={newSearchName}
+                          onChange={e => setNewSearchName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && saveCurrentSearch()}
+                        />
+                        <button 
+                          onClick={saveCurrentSearch}
+                          disabled={!newSearchName.trim()}
+                          className="p-2 bg-brand text-white rounded-md hover:bg-brand/90 disabled:opacity-50 transition-colors"
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Fila 1: Países, Fecha, Valor, Firma */}
