@@ -43,13 +43,13 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
         totalProcessed += count
         setProgress(totalProcessed)
 
-        // Si procesó menos de 150, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
-        if (count < 150) {
+        // Si procesó menos de 5, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
+        if (count < 5) {
           keepSyncing = false
           setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones en total.`)
           setIsFinished(true)
         } else {
-          currentOffset += 150
+          currentOffset += 5
         }
       } catch (err: any) {
         keepSyncing = false
