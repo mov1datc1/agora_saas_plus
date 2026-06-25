@@ -1,12 +1,12 @@
-const transactions = [
-  { id: 1, lawyer: "Adele Irwin", type: "M&A", industry: "Tecnología", firm: "Firma A", country: "México" },
-  { id: 2, lawyer: "Sin abogados listados", type: "M&A", industry: "Tecnología", firm: "Firma A", country: "México" }
-];
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
 
-const selectedLawyer = "Adele Irwin";
-const filtered = transactions.filter(tx => {
-  const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer);
-  return matchLawyer;
-});
-
-console.log("Matched transactions:", filtered.length);
+async function main() {
+  const txs = await prisma.transaction.findMany({
+    orderBy: { dateAnnounced: 'asc' },
+    take: 5,
+    select: { id: true, title: true, dateAnnounced: true, dateClosed: true }
+  })
+  console.log("Oldest transactions:", txs)
+}
+main().catch(console.error).finally(() => prisma.$disconnect())

@@ -73,9 +73,28 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           </p>
           
           {isSyncing && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-brand font-medium">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {statusText}
+            <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm text-brand font-medium">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {statusText}
+                </div>
+                <span className="text-sm font-semibold text-foreground/80">{progress} operaciones</span>
+              </div>
+              
+              <div className="w-full bg-border rounded-full h-2.5 mb-2 overflow-hidden">
+                <div 
+                  className="bg-brand h-2.5 rounded-full transition-all duration-500 ease-out relative overflow-hidden" 
+                  style={{ width: `${Math.min(100, Math.max(5, (progress / 5000) * 100))}%` }}
+                >
+                  <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 animate-pulse"></div>
+                </div>
+              </div>
+              
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                ¡ATENCIÓN! No cierres ni recargues esta página hasta que el proceso alcance el 100%.
+              </p>
             </div>
           )}
           
@@ -95,6 +114,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
         </div>
 
         <button
+          type="button"
           onClick={() => setIsConfirmOpen(true)}
           disabled={isSyncing}
           className="flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-sm hover:bg-foreground/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:opacity-50 transition-colors"
