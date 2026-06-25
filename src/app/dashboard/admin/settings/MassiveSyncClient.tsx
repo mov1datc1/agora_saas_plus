@@ -31,29 +31,55 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
     let keepSyncing = true
 
     while (keepSyncing) {
-      try {
-        setStatusText(`Descargando bloque a partir de la posición ${currentOffset}...`)
-        const result = await runSyncChunk(currentOffset)
+      let retries = 0
+      let success = false
+      
+      while (retries < 3 && !success) {
+        try {
+          if (retries > 0) {
+            setStatusText(`Reintentando posición ${currentOffset}... (Intento ${retries + 1}/3)`)
+          } else {
+            setStatusText(`Descargando bloque a partir de la posición ${currentOffset}...`)
+          }
+          
+          const result = await runSyncChunk(currentOffset)
 
-        if (!result.success) {
-          throw new Error(result.error || 'Error desconocido')
+          if (!result.success) {
+            throw new Error(result.error || 'Error desconocido')
+          }
+
+          const count = result.processedCount || 0
+          totalProcessed += count
+          setProgress(totalProcessed)
+
+          // Si procesó menos de 5, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
+          if (count < 5) {
+            keepSyncing = false
+            setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones en total.`)
+            setIsFinished(true)
+          } else {
+            currentOffset += 5
+          }
+          
+          success = true
+          
+          // Agregamos un delay de 500ms entre bloques para no saturar (Rate Limit) el servidor de Cloudways
+          if (keepSyncing) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+          
+        } catch (err: any) {
+          retries++
+          console.error(`Error en offset ${currentOffset}, intento ${retries}:`, err)
+          if (retries >= 3) {
+            keepSyncing = false
+            setError(`Falló la sincronización en la posición ${currentOffset} tras 3 intentos: ${err.message}`)
+            break
+          } else {
+            setStatusText(`Error de red. Esperando 3 segundos para reintentar...`)
+            await new Promise(resolve => setTimeout(resolve, 3000))
+          }
         }
-
-        const count = result.processedCount || 0
-        totalProcessed += count
-        setProgress(totalProcessed)
-
-        // Si procesó menos de 5, significa que llegamos al final (Drupal ya no tiene más o mandó el último bloque)
-        if (count < 5) {
-          keepSyncing = false
-          setStatusText(`¡Sincronización completada! Se descargaron ${totalProcessed} transacciones en total.`)
-          setIsFinished(true)
-        } else {
-          currentOffset += 5
-        }
-      } catch (err: any) {
-        keepSyncing = false
-        setError(`Falló la sincronización en la posición ${currentOffset}: ${err.message}`)
       }
     }
     
