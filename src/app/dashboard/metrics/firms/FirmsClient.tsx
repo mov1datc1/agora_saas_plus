@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock, ExternalLink } from 'lucide-react'
+import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock, ExternalLink, ChevronDown } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
@@ -214,6 +214,53 @@ export default function FirmsClient() {
         title={paywallTitle} 
         message={paywallMessage} 
       />
+
+      {/* Header PRO con Filtros Globales */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Métricas de Firmas</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Analiza el desempeño y volumen histórico de firmas legales y financieras.</p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* Filtro de País PRO */}
+          <div className="relative group shrink-0">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Globe className="h-4 w-4 text-brand" />
+            </div>
+            <select 
+              className="appearance-none bg-surface border border-border rounded-xl text-sm font-medium text-foreground pl-9 pr-10 py-2.5 shadow-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all cursor-pointer hover:border-brand/50 min-w-[180px]"
+              value={selectedCountry}
+              onChange={(e) => setSelectedCountry(e.target.value)}
+            >
+              <option value="Todos">Todos los países</option>
+              {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+              <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </div>
+          </div>
+
+          {/* Filtro de Fecha PRO */}
+          <div className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3 py-2 shadow-sm focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/20 transition-all hover:border-brand/50 shrink-0">
+            <Calendar className="h-4 w-4 text-brand" />
+            <input 
+              type="date" 
+              className="bg-transparent text-sm font-medium text-foreground outline-none cursor-pointer w-[110px]"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+            />
+            <span className="text-muted-foreground font-medium">-</span>
+            <input 
+              type="date" 
+              className="bg-transparent text-sm font-medium text-foreground outline-none cursor-pointer w-[110px]"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+            />
+          </div>
+        </div>
+      </div>
+
       {selectedRow && (
         <EntityDetailModal
           isOpen={isDetailModalOpen}
@@ -317,37 +364,6 @@ export default function FirmsClient() {
                   {option}
                 </button>
               ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 items-center">
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                <select 
-                  className="bg-background border border-border rounded-lg text-sm px-2 py-1.5 outline-none focus:border-[#E05C50]"
-                  value={selectedCountry}
-                  onChange={(e) => setSelectedCountry(e.target.value)}
-                >
-                  <option value="Todos">Todos los países</option>
-                  {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1 border border-border rounded-lg bg-background px-2 py-1">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <input 
-                  type="date" 
-                  className="bg-transparent text-sm outline-none w-[110px]"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                />
-                <span className="text-muted-foreground">-</span>
-                <input 
-                  type="date" 
-                  className="bg-transparent text-sm outline-none w-[110px]"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                />
-              </div>
             </div>
 
             <div className="relative w-full sm:w-64 shrink-0 flex items-center gap-2">
