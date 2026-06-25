@@ -96,11 +96,21 @@ export default function OperationsClient() {
   // Sidebar expandible
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
 
+  // Paginación
+  const [page, setPage] = useState(1)
+  const ITEMS_PER_PAGE = 50
+
+  // Resetea a la página 1 cuando cambian los filtros
+  useEffect(() => {
+    setPage(1)
+  }, [selectedType, selectedIndustry, searchQuery, dateRange, selectedValueRange, selectedFirm, selectedCountry, selectedLawyer])
+
   // Actualizar search query si cambia la URL (para volver atrás, etc.)
   useEffect(() => {
     const q = searchParams.get('search')
     if (q !== null) {
       setSearchQuery(q)
+      setPage(1)
     }
   }, [searchParams])
   const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'amount' | null, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
@@ -448,7 +458,7 @@ export default function OperationsClient() {
                   <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
                 </td></tr>
               ) : (
-                sortedTransactions.map((tx) => (
+                sortedTransactions.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleSelectTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[200px] truncate" title={tx.title}>{tx.title}</td>
@@ -469,7 +479,36 @@ export default function OperationsClient() {
             </tbody>
           </table>
           </div>
+          
+          {/* Controles de Paginación */}
+          {!isSwrLoading && !error && isDataAllowed && sortedTransactions.length > 0 && (
+            <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface sticky bottom-0">
+              <span className="text-sm text-muted-foreground">
+                Mostrando {(page - 1) * ITEMS_PER_PAGE + 1} a {Math.min(page * ITEMS_PER_PAGE, sortedTransactions.length)} de {sortedTransactions.length} operaciones
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm font-medium border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+                >
+                  Anterior
+                </button>
+                <span className="text-sm font-medium text-foreground px-2">
+                  Página {page} de {Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE)}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE), p + 1))}
+                  disabled={page >= Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE)}
+                  className="px-3 py-1.5 text-sm font-medium border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
 
         {isSidebarOpen && (
           <div className="lg:col-span-1 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">

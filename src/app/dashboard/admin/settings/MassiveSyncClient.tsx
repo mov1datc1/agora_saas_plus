@@ -130,7 +130,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
                 <div className="w-full bg-border rounded-full h-3 mb-4 overflow-hidden shadow-inner">
                   <div 
                     className="bg-brand h-3 rounded-full transition-all duration-500 ease-out relative overflow-hidden" 
-                    style={{ width: `${Math.min(100, Math.max(5, (progress / 5000) * 100))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(5, (progress / 25000) * 100))}%` }}
                   >
                     <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 animate-pulse"></div>
                   </div>
