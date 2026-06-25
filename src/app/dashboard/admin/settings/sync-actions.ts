@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache'
 
 import { POST } from '@/app/api/sync-drupal/route'
+import { NextRequest } from 'next/server'
 
 export async function runSyncChunk(offset: number) {
   try {
     // Evitamos fetch de red usando invocación directa al handler de Next.js
     // Esto previene errores 500, bloqueos de firewall y problemas con process.env.VERCEL_URL
-    const mockRequest = new Request(`http://localhost/api/sync-drupal?offset=${offset}`, {
+    const mockRequest = new NextRequest(`http://localhost/api/sync-drupal?offset=${offset}`, {
       method: 'POST',
       headers: {
         'authorization': `Bearer agora-bypass-token`
@@ -18,7 +19,12 @@ export async function runSyncChunk(offset: number) {
     const res = await POST(mockRequest)
     
     if (!res.ok) {
-      throw new Error(`HTTP Error ${res.status}: ${res.statusText}`)
+      let errorMsg = res.statusText
+      try {
+        const errorData = await res.json()
+        errorMsg = errorData.error || errorData.message || errorMsg
+      } catch (e) {}
+      throw new Error(`HTTP ${res.status}: ${errorMsg}`)
     }
     
     const data = await res.json()

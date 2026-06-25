@@ -72,29 +72,44 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
             Descarga todo el historial de LexLatin iterativamente. Actualmente apuntando a: <code className="text-xs bg-muted px-1 py-0.5 rounded text-brand break-all">{drupalUrl}</code>
           </p>
           
+          {/* Progress Modal Overlay */}
           {isSyncing && (
-            <div className="mt-4 p-4 rounded-xl bg-muted/50 border border-border">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm text-brand font-medium">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {statusText}
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+              <div className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-brand/10 rounded-full">
+                    <Database className="w-6 h-6 text-brand" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Sincronización Histórica</h3>
+                    <p className="text-sm text-foreground/60">Descargando desde LexLatin...</p>
+                  </div>
                 </div>
-                <span className="text-sm font-semibold text-foreground/80">{progress} operaciones</span>
-              </div>
-              
-              <div className="w-full bg-border rounded-full h-2.5 mb-2 overflow-hidden">
-                <div 
-                  className="bg-brand h-2.5 rounded-full transition-all duration-500 ease-out relative overflow-hidden" 
-                  style={{ width: `${Math.min(100, Math.max(5, (progress / 5000) * 100))}%` }}
-                >
-                  <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 animate-pulse"></div>
+
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm text-brand font-medium">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {statusText}
+                  </div>
+                  <span className="text-sm font-bold text-foreground">{progress} op.</span>
+                </div>
+                
+                <div className="w-full bg-border rounded-full h-3 mb-4 overflow-hidden shadow-inner">
+                  <div 
+                    className="bg-brand h-3 rounded-full transition-all duration-500 ease-out relative overflow-hidden" 
+                    style={{ width: `${Math.min(100, Math.max(5, (progress / 5000) * 100))}%` }}
+                  >
+                    <div className="absolute top-0 left-0 bottom-0 right-0 bg-white/20 animate-pulse"></div>
+                  </div>
+                </div>
+                
+                <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>¡ATENCIÓN! No cierres ni recargues esta pestaña hasta que el proceso termine por completo.</span>
+                  </p>
                 </div>
               </div>
-              
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                ¡ATENCIÓN! No cierres ni recargues esta página hasta que el proceso alcance el 100%.
-              </p>
             </div>
           )}
           
