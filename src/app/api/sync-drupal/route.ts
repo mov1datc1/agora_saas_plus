@@ -72,6 +72,22 @@ export async function POST(request: Request) {
       return null
     }
 
+    // 3.6 Helper to parse dirty dates (e.g. year "0026" instead of "2026")
+    const parseSafeDate = (dateString: string | null) => {
+      if (!dateString) return null
+      const d = new Date(dateString)
+      if (isNaN(d.getTime())) return null // Invalid Date
+      
+      let year = d.getFullYear()
+      if (year < 100) {
+        // Fix typos like 0026 -> 2026
+        d.setFullYear(year + 2000)
+      } else if (year < 1900) {
+        return null // Too old to be valid data
+      }
+      return d
+    }
+
     // 4. Process and Upsert each Post (Transaction)
     let processedCount = 0
 
@@ -200,8 +216,8 @@ export async function POST(request: Request) {
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
-          dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
-          dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
+          dateAnnounced: parseSafeDate(dateAnnouncedStr),
+          dateClosed: parseSafeDate(dateClosedStr),
           value: transactionValueNumeric,
           valueString: transactionValue,
           excerpt,
@@ -213,8 +229,8 @@ export async function POST(request: Request) {
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
-          dateAnnounced: dateAnnouncedStr ? new Date(dateAnnouncedStr) : null,
-          dateClosed: dateClosedStr ? new Date(dateClosedStr) : null,
+          dateAnnounced: parseSafeDate(dateAnnouncedStr),
+          dateClosed: parseSafeDate(dateClosedStr),
           value: transactionValueNumeric,
           valueString: transactionValue,
           excerpt,
