@@ -2,20 +2,23 @@
 
 import { revalidatePath } from 'next/cache'
 
+import { POST } from '@/app/api/sync-drupal/route'
+
 export async function runSyncChunk(offset: number) {
   try {
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/sync-drupal?offset=${offset}`, {
+    // Evitamos fetch de red usando invocación directa al handler de Next.js
+    // Esto previene errores 500, bloqueos de firewall y problemas con process.env.VERCEL_URL
+    const mockRequest = new Request(`http://localhost/api/sync-drupal?offset=${offset}`, {
       method: 'POST',
       headers: {
         'authorization': `Bearer agora-bypass-token`
-      },
-      // Avoid caching the sync request
-      cache: 'no-store'
+      }
     })
+
+    const res = await POST(mockRequest)
     
     if (!res.ok) {
-      throw new Error(`Error en el servidor: ${res.statusText}`)
+      throw new Error(`HTTP Error ${res.status}: ${res.statusText}`)
     }
     
     const data = await res.json()
