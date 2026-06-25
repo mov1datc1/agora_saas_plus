@@ -103,6 +103,10 @@ export async function POST(request: Request) {
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
       const excerpt = attributes.body?.value || null
       let type = attributes.field_operacion_principal
+      if (typeof type !== 'string') {
+        type = null // Force heuristic if it's boolean true or an object
+      }
+      
       if (!type) {
         const textToAnalyze = `${title} ${attributes.body?.value || ''}`.toLowerCase()
         if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
