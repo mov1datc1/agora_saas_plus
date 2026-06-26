@@ -9,7 +9,8 @@ import { Shield, Users, Briefcase } from 'lucide-react'
 export default function AdminTabs({ 
   saasUsers, 
   legacyUsers, 
-  adminUsers 
+  adminUsers,
+  currentUserRole
 }: { 
   saasUsers: any[], 
   legacyUsers: any[],
