@@ -48,32 +48,23 @@ export default async function DashboardPage() {
       { name: 'Firmas Registradas', value: activeFirmsCount.toLocaleString(), change: '+4.1%', icon: TrendingUp },
     ]
 
-    // 1. Agrupación por Mes y Año para el Gráfico (Últimos 6 meses reales)
-    const last6Months = Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date()
-      d.setMonth(d.getMonth() - (5 - i))
-      return {
-        month: d.toLocaleString('es-ES', { month: 'short' }),
-        year: d.getFullYear(),
-        key: `${d.toLocaleString('es-ES', { month: 'short' })} ${d.getFullYear()}`
-      }
-    })
-
-    const groupedData = dbTransactions.reduce((acc, tx) => {
-      if (!tx.dateAnnounced) return acc
+    // 1. Agrupación Histórica (Todos los tiempos)
+    const groupedData: Record<string, number> = {}
+    dbTransactions.forEach(tx => {
+      if (!tx.dateAnnounced) return
       const month = tx.dateAnnounced.toLocaleString('es-ES', { month: 'short' })
       const year = tx.dateAnnounced.getFullYear()
       const key = `${month} ${year}`
       
-      if (acc[key] !== undefined) {
-        acc[key] += 1
+      if (!groupedData[key]) {
+        groupedData[key] = 0
       }
-      return acc
-    }, Object.fromEntries(last6Months.map(m => [m.key, 0])) as Record<string, number>)
+      groupedData[key] += 1
+    })
 
-    const chartData = last6Months.map(m => ({
-      name: m.key,
-      transacciones: groupedData[m.key]
+    const chartData = Object.keys(groupedData).map(key => ({
+      name: key,
+      transacciones: groupedData[key]
     }))
 
     // 2. Data para Gráfico de Industrias
@@ -81,10 +72,13 @@ export default async function DashboardPage() {
       include: { _count: { select: { transactions: true } } }
     })
     
-    const industryChartData = dbIndustries.map(ind => ({
-      name: ind.name,
-      count: ind._count.transactions
-    }))
+    const industryChartData = dbIndustries
+      .map(ind => ({
+        name: ind.name,
+        count: ind._count.transactions
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10) // Mostrar Top 10 para evitar saturación del gráfico
 
     // 3. Las 5 transacciones recientes para la lista
     const recentList = [...dbTransactions].reverse().slice(0, 5)
@@ -152,7 +146,7 @@ export default async function DashboardPage() {
           {/* Main Chart Area */}
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 flex flex-col">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional (6 meses)</h3>
+              <h3 className="text-lg font-semibold leading-6 text-gray-900">Volumen Transaccional Histórico</h3>
               <Link href="/dashboard/operations" className="text-sm font-medium text-[#E05C50] hover:text-[#c94b40] transition-colors">Detalles</Link>
             </div>
             <div className="flex-1 w-full min-h-[300px] mt-4">
