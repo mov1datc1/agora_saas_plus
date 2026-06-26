@@ -12,8 +12,8 @@ export async function GET(request: Request) {
     // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // 2. Extraer parámetros de paginación (Preparado para Infinite Scroll en RN)
-    const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '500')
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam === 'all' ? undefined : parseInt(limitParam || '500')
     const offset = parseInt(searchParams.get('offset') || '0')
 
     // 3. Consulta de Base de Datos Eficiente
