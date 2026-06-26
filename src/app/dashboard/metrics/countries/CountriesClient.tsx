@@ -318,8 +318,8 @@ export default function CountriesClient() {
         </div>
         <div className="flex items-center gap-3">
           <ProDateRangePicker 
-            dateRange={dateRange}
-            setDateRange={setDateRange}
+            value={dateRange}
+            onChange={setDateRange}
           />
         </div>
       </div>
