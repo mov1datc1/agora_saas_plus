@@ -27,7 +27,7 @@ export default async function DashboardLayout({
     userRole = dbUser?.role || 'USER';
     
     // Auto-upgrade admins to SUPERADMIN if needed (Migration fallback)
-    if (userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
+    if (dbUser && userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
       await prisma.user.update({ where: { email: dbUser.email }, data: { role: 'SUPERADMIN' } });
       userRole = 'SUPERADMIN';
     }
