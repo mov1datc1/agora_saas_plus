@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     
     // We request the included relationships to get Firm, Lawyer, Company, Industry, and Financial data.
     // Reducido a page[limit]=5 porque el servidor Drupal (Cloudways) arroja Error 500 (timeout de PHP) si pedimos más debido a los complejos JOINs de relaciones
-    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=5&page[offset]=${offset}&sort=-created`
+    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=5&page[offset]=${offset}&sort=-created`
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
@@ -289,34 +289,38 @@ export async function POST(request: Request) {
           
         for (const c of empresasData) {
           if (!c) continue;
-          const companyNode = getIncludedResource(c.type, c.id)
-          if (companyNode && (companyNode.attributes.name || companyNode.attributes.title)) {
-            const companyName = companyNode.attributes.name || companyNode.attributes.title
-            
-            // Create or update Company
-            const upsertedCompany = await prisma.company.upsert({
-              where: { id: c.id },
-              create: { id: c.id, name: companyName },
-              update: { name: companyName }
-            })
-            
-            // Link to Transaction
-            await prisma.transactionCompany.upsert({
-              where: {
-                transactionId_companyId_role: {
+          const paragraphNode = getIncludedResource(c.type, c.id)
+          if (paragraphNode && paragraphNode.relationships?.field_empresa?.data) {
+            const empresaData = paragraphNode.relationships.field_empresa.data
+            const empresaNode = getIncludedResource(empresaData.type, empresaData.id)
+            if (empresaNode && (empresaNode.attributes.name || empresaNode.attributes.title)) {
+              const companyName = empresaNode.attributes.name || empresaNode.attributes.title
+              
+              // Create or update Company
+              const upsertedCompany = await prisma.company.upsert({
+                where: { id: empresaData.id },
+                create: { id: empresaData.id, name: companyName },
+                update: { name: companyName }
+              })
+              
+              // Link to Transaction
+              await prisma.transactionCompany.upsert({
+                where: {
+                  transactionId_companyId_role: {
+                    transactionId: transactionId,
+                    companyId: upsertedCompany.id,
+                    role: 'Parte Involucrada'
+                  }
+                },
+                create: {
+                  id: `${transactionId}-${upsertedCompany.id}`,
                   transactionId: transactionId,
                   companyId: upsertedCompany.id,
                   role: 'Parte Involucrada'
-                }
-              },
-              create: {
-                id: `${transactionId}-${upsertedCompany.id}`,
-                transactionId: transactionId,
-                companyId: upsertedCompany.id,
-                role: 'Parte Involucrada'
-              },
-              update: {}
-            })
+                },
+                update: {}
+              })
+            }
           }
         }
       }
