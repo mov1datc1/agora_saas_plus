@@ -28,6 +28,7 @@ export default async function AdminUsersPage() {
     name: u.name || 'Sin nombre',
     email: u.email,
     role: u.role,
+    accountType: u.accountType,
     status: u.subscription?.status || 'TRIAL',
     isActive: u.isActive,
     currentPeriodEnd: u.subscription?.currentPeriodEnd?.toISOString() || null,

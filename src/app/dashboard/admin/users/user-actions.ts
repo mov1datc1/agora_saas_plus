@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/utils/supabase/admin'
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
-export async function createManualUser(data: { email: string, name: string, password: string, expiryDate: string, role: 'USER' | 'ADMIN' }) {
+export async function createManualUser(data: { email: string, name: string, password: string, expiryDate: string, role: 'USER' | 'ADMIN', accountType?: string }) {
   try {
     const supabase = await createClient()
     const { data: { user: currentUser } } = await supabase.auth.getUser()
@@ -45,6 +45,7 @@ export async function createManualUser(data: { email: string, name: string, pass
         email: data.email,
         name: data.name,
         role: data.role,
+        accountType: (data.accountType as any) || 'INDIVIDUAL',
         isActive: true
       }
     })

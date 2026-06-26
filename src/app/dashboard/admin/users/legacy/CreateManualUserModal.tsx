@@ -18,7 +18,8 @@ export default function CreateManualUserModal({
     name: '',
     email: '',
     password: '',
-    expiryDate: ''
+    expiryDate: '',
+    accountType: 'INDIVIDUAL'
   })
   const [error, setError] = useState('')
 
@@ -44,7 +45,7 @@ export default function CreateManualUserModal({
 
     if (res.success) {
       onClose()
-      setFormData({ name: '', email: '', password: '', expiryDate: '' })
+      setFormData({ name: '', email: '', password: '', expiryDate: '', accountType: 'INDIVIDUAL' })
     } else {
       setError(res.error || 'Error al crear usuario')
     }
@@ -111,7 +112,20 @@ export default function CreateManualUserModal({
           </div>
 
           {role === 'USER' && (
-            <div>
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Tipo de Cuenta Comercial</label>
+                <select 
+                  className="w-full rounded-lg border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-brand outline-none"
+                  value={formData.accountType}
+                  onChange={(e) => setFormData(p => ({...p, accountType: e.target.value}))}
+                >
+                  <option value="INDIVIDUAL">Individual</option>
+                  <option value="CORPORATE">Corporativo (Hasta 5 IPs)</option>
+                </select>
+              </div>
+
+              <div>
               <label className="block text-xs font-semibold text-muted-foreground mb-1">Fecha de Vencimiento del Acuerdo</label>
               <input 
                 type="date" 
@@ -121,6 +135,7 @@ export default function CreateManualUserModal({
                 onChange={(e) => setFormData(p => ({...p, expiryDate: e.target.value}))}
               />
             </div>
+            </>
           )}
 
           <div className="pt-4 flex justify-end gap-3">

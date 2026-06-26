@@ -12,6 +12,7 @@ model User {
   name             String?
   stripeCustomerId String?        @unique
   role             Role           @default(USER)
+  accountType      AccountType    @default(INDIVIDUAL)
   isActive         Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -168,6 +169,11 @@ enum Role {
   USER
   ADMIN
   SUPERADMIN
+}
+
+enum AccountType {
+  INDIVIDUAL
+  CORPORATE
 }
 
 enum SubscriptionStatus {

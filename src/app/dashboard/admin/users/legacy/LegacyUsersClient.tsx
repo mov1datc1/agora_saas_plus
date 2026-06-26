@@ -11,6 +11,7 @@ type UIUser = {
   name: string
   email: string
   role: string
+  accountType?: string
   status: string
   isActive: boolean
   currentPeriodEnd: string | null
@@ -124,6 +125,15 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
                     <div className="ml-4">
                       <div className="font-medium text-foreground flex items-center gap-2">
                         {user.name}
+                        {user.accountType === 'CORPORATE' ? (
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                            Corporativo
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                            Individual
+                          </span>
+                        )}
                         {isExpired && user.isActive && <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Vencido</span>}
                       </div>
                       <div className="text-muted-foreground">{user.email}</div>

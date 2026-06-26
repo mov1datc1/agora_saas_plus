@@ -12,6 +12,7 @@ export default function AdminTabs({
   adminUsers 
 }: { 
   saasUsers: any[], 
+  legacyUsers: any[],
   adminUsers: any[],
   currentUserRole: string
 }) {
