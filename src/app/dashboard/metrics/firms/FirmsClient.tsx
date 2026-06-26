@@ -208,6 +208,31 @@ export default function FirmsClient() {
     return `$${value.toLocaleString()}`
   }
 
+  // Render text tags as PRO chips instead of cluttered strings
+  const renderChips = (text: string | null | undefined, isDark: boolean = false) => {
+    if (!text || text === 'N/D') {
+      return <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-foreground/80'}`}>N/D</p>
+    }
+    const items = text.split(',').map(s => s.trim()).filter(Boolean)
+    
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {items.map((item, i) => (
+          <span 
+            key={i} 
+            className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold leading-none border transition-colors ${
+              isDark 
+                ? 'bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:text-white' 
+                : 'bg-brand/5 border-brand/20 text-brand hover:bg-brand/10'
+            }`}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <>
       <PaywallModal 
@@ -252,10 +277,10 @@ export default function FirmsClient() {
           amount={selectedRow.monto !== 'No revelado' ? selectedRow.monto : undefined}
           iconType="firm"
           sections={[
-            { label: 'País Involucrado', value: selectedRow.pais },
+            { label: 'País Involucrado', value: renderChips(selectedRow.pais, false) },
             { label: 'Industria', value: selectedRow.industria },
             { label: 'Empresa / Cliente', value: selectedRow.empresa },
-            { label: 'Abogados Involucrados', value: selectedRow.abogados },
+            { label: 'Abogados Involucrados', value: renderChips(selectedRow.abogados, false) },
             { 
               label: 'Fecha de Anuncio', 
               value: selectedRow.fecha ? new Date(selectedRow.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada' 
@@ -523,7 +548,7 @@ export default function FirmsClient() {
                       <Globe className="h-4 w-4" />
                       <span className="text-xs font-semibold">País Involucrado</span>
                     </div>
-                    <p className="text-sm font-medium text-white">{selectedRow.pais}</p>
+                    {renderChips(selectedRow.pais, true)}
                   </div>
 
                   {/* Abogados */}
@@ -532,7 +557,7 @@ export default function FirmsClient() {
                       <Gavel className="h-4 w-4" />
                       <span className="text-xs font-semibold">Abogados Involucrados</span>
                     </div>
-                    <p className="text-sm font-medium text-white">{selectedRow.abogados}</p>
+                    {renderChips(selectedRow.abogados, true)}
                   </div>
 
                   {/* Empresa */}
