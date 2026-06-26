@@ -302,7 +302,7 @@ export default function CountriesClient() {
   }, [topCountriesList, rankingSearchQuery])
 
   const getCountryStats = (spanishNames: string[]) => {
-    const active = filteredData.find(ind => spanishNames.includes(ind.pais))
+    const active = aggregatedCountries.find(ind => spanishNames.includes(ind.pais))
     return active || null
   }
 
