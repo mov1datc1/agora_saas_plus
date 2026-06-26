@@ -3,49 +3,15 @@
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Briefcase, ChevronUp, ChevronDown, Download, Lock, ExternalLink } from 'lucide-react'
-import { ComposableMap, Geographies, Geography } from "react-simple-maps"
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
+import SearchableSelect from '@/components/ui/SearchableSelect'
+import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
 import { exportToExcel } from '@/lib/exportUtils'
 import useSWR from 'swr'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
-
-const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
-
-const mapGeoToSpanish: Record<string, string[]> = {
-  "Mexico": ["México", "Mexico", "América Latina", "Latinoamérica"],
-  "Brazil": ["Brasil", "Brazil", "América Latina", "Latinoamérica"],
-  "Argentina": ["Argentina", "América Latina", "Latinoamérica"],
-  "Chile": ["Chile", "América Latina", "Latinoamérica"],
-  "Colombia": ["Colombia", "América Latina", "Latinoamérica"],
-  "Peru": ["Perú", "Peru", "América Latina", "Latinoamérica"],
-  "Venezuela": ["Venezuela", "América Latina", "Latinoamérica"],
-  "Ecuador": ["Ecuador", "América Latina", "Latinoamérica"],
-  "Bolivia": ["Bolivia", "América Latina", "Latinoamérica"],
-  "Paraguay": ["Paraguay", "América Latina", "Latinoamérica"],
-  "Uruguay": ["Uruguay", "América Latina", "Latinoamérica"],
-  "El Salvador": ["El Salvador", "Centroamérica", "América Latina"],
-  "Guatemala": ["Guatemala", "Centroamérica", "América Latina"],
-  "Honduras": ["Honduras", "Centroamérica", "América Latina"],
-  "Nicaragua": ["Nicaragua", "Centroamérica", "América Latina"],
-  "Costa Rica": ["Costa Rica", "Centroamérica", "América Latina"],
-  "Panama": ["Panamá", "Panama", "Centroamérica", "América Latina"],
-  "Dominican Rep.": ["República Dominicana", "América Latina", "Caribe"],
-  "Puerto Rico": ["Puerto Rico", "América Latina", "Caribe"],
-  "Cuba": ["Cuba", "América Latina", "Caribe"],
-  "Spain": ["España"],
-  "United States of America": ["Estados Unidos", "USA", "EE. UU.", "EE.UU."],
-  "United Kingdom": ["Reino Unido", "Inglaterra", "UK"],
-  "Canada": ["Canadá", "Canada"],
-  "China": ["China"],
-  "Japan": ["Japón", "Japan"],
-  "Germany": ["Alemania"],
-  "France": ["Francia"],
-  "Italy": ["Italia"],
-  "Portugal": ["Portugal"]
-}
 
 interface TableRow {
   id: string
@@ -66,9 +32,8 @@ export default function IndustriesClient() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
   
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => setIsMounted(true), [])
-  const [isMapExpanded, setIsMapExpanded] = useState(true)
+  const [selectedCountry, setSelectedCountry] = useState('Todos')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
   
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -127,11 +92,20 @@ export default function IndustriesClient() {
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 
+  const uniqueCountries = useMemo(() => {
+    const countries = new Set<string>()
+    tableData.forEach(row => {
+      row.paises.forEach(p => countries.add(p.trim()))
+    })
+    return Array.from(countries).sort()
+  }, [tableData])
+
   const filteredData = useMemo(() => {
     let result = tableData.filter(row => {
       const matchesType = filterType === 'Todas' || row.tiposOperacion.includes(filterType)
       const matchesSearch = row.industria.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesType && matchesSearch
+      const matchesCountry = selectedCountry === 'Todos' || row.paises.some(p => p.includes(selectedCountry))
+      return matchesType && matchesSearch && matchesCountry
     })
 
     if (sortConfig) {
@@ -194,12 +168,28 @@ export default function IndustriesClient() {
     return topIndustriesList.filter(i => i.industria.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
   }, [topIndustriesList, rankingSearchQuery])
 
-  // Data map computations
-  const getActiveIndustriesForCountry = (spanishNames: string[]) => {
-    const active = filteredData.filter(ind => 
-      ind.paises.some(p => spanishNames.includes(p))
-    ).map(i => i.industria)
-    return active
+  // Render array tags as PRO chips instead of cluttered strings
+  const renderChipsArray = (items: string[], isDark: boolean = false) => {
+    if (!items || items.length === 0) {
+      return <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-foreground/80'}`}>No especificadas</p>
+    }
+    
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {items.map((item, i) => (
+          <span 
+            key={i} 
+            className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold leading-none border transition-colors ${
+              isDark 
+                ? 'bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:text-white' 
+                : 'bg-brand/5 border-brand/20 text-brand hover:bg-brand/10'
+            }`}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -210,6 +200,32 @@ export default function IndustriesClient() {
         title={paywallTitle} 
         message={paywallMessage} 
       />
+      {/* Header PRO con Filtros Globales */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-2">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Métricas: Industrias</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Analiza el desempeño y distribución global por sector.</p>
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* Filtro de País PRO */}
+          <div className="w-[220px]">
+            <SearchableSelect 
+              value={selectedCountry}
+              onChange={setSelectedCountry}
+              options={['Todos', ...uniqueCountries]}
+              placeholder="Seleccionar País..."
+            />
+          </div>
+
+          {/* Filtro de Fecha PRO */}
+          <ProDateRangePicker 
+            value={dateRange}
+            onChange={setDateRange}
+          />
+        </div>
+      </div>
+
       {selectedRow && (
         <EntityDetailModal
           isOpen={isDetailModalOpen}
@@ -222,17 +238,17 @@ export default function IndustriesClient() {
             {
               label: 'Países Involucrados',
               count: selectedRow.paises.length,
-              value: selectedRow.paises.length > 0 ? selectedRow.paises.join(', ') : 'No especificados'
+              value: renderChipsArray(selectedRow.paises, false)
             },
             {
               label: 'Empresas / Clientes',
               count: selectedRow.empresas.length,
-              value: selectedRow.empresas.length > 0 ? selectedRow.empresas.join(', ') : 'No especificadas'
+              value: renderChipsArray(selectedRow.empresas, false)
             },
             {
               label: 'Firmas Asesoras',
               count: selectedRow.firmas.length,
-              value: selectedRow.firmas.length > 0 ? selectedRow.firmas.join(', ') : 'No especificadas'
+              value: renderChipsArray(selectedRow.firmas, false)
             }
           ]}
         />
@@ -293,94 +309,6 @@ export default function IndustriesClient() {
         </div>
       </div>
 
-      <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border relative flex flex-col items-center justify-center">
-        <div className="w-full flex justify-between items-center mb-2">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Distribución Geográfica de Industrias</h3>
-            <span className="text-xs text-muted-foreground">Colores resaltan países con operaciones filtradas activas</span>
-          </div>
-          <button 
-            onClick={() => setIsMapExpanded(!isMapExpanded)}
-            className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors flex items-center gap-1 bg-brand/10 px-3 py-1.5 rounded-lg"
-          >
-            {isMapExpanded ? (
-              <><ChevronUp className="h-4 w-4" /> Ocultar Mapa</>
-            ) : (
-              <><ChevronDown className="h-4 w-4" /> Mostrar Mapa</>
-            )}
-          </button>
-        </div>
-        {isMapExpanded && (
-        <div className="w-full h-[400px] bg-[#f8f9fa] rounded-xl overflow-hidden relative animate-in slide-in-from-top-2 fade-in duration-300">
-          {isMounted && (
-            <ComposableMap projection="geoMercator" projectionConfig={{scale: 130}} width={800} height={400} className="w-full h-full">
-            <Geographies geography={geoUrl}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
-                  const geoName = geo.properties?.name;
-                  const spanishNames = mapGeoToSpanish[geoName] || [geoName];
-                  
-                  const activeInds = getActiveIndustriesForCountry(spanishNames)
-                  const isActive = activeInds.length > 0
-                  
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={isActive ? "#E05C50" : "#D6D6DA"}
-                      stroke="#FFFFFF"
-                      strokeWidth={0.5}
-                      onMouseEnter={(e) => {
-                        if (isActive) {
-                          setTooltipContent({
-                            name: spanishNames[0],
-                            activeIndustries: activeInds,
-                            x: e.clientX,
-                            y: e.clientY
-                          })
-                        }
-                      }}
-                      onMouseMove={(e) => {
-                        if (tooltipContent) {
-                          setTooltipContent(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setTooltipContent(null)
-                      }}
-                      style={{
-                        default: { fill: isActive ? "#E05C50" : "#D6D6DA", outline: "none", transition: "all 0.3s" },
-                        hover: { fill: isActive ? "#c94b40" : "#F53", outline: "none", transition: "all 0.3s" },
-                        pressed: { outline: "none" },
-                      }}
-                    />
-                  );
-                })
-              }
-            </Geographies>
-          </ComposableMap>
-          )}
-
-          {tooltipContent && (
-            <div 
-              className="fixed z-[100] bg-[#1C1F33] text-white p-3 rounded-lg shadow-xl border border-white/10 pointer-events-none max-w-[250px]"
-              style={{ left: tooltipContent.x + 15, top: tooltipContent.y + 15 }}
-            >
-              <h4 className="font-bold text-sm border-b border-white/10 pb-1 mb-2 text-[#E05C50]">{tooltipContent.name}</h4>
-              <p className="text-xs text-white/60 mb-1">Industrias activas:</p>
-              <ul className="text-xs space-y-1 max-h-[150px] overflow-hidden">
-                {tooltipContent.activeIndustries.slice(0, 5).map(ind => (
-                  <li key={ind} className="truncate">• {ind}</li>
-                ))}
-                {tooltipContent.activeIndustries.length > 5 && (
-                  <li className="text-white/40 italic mt-1">+{tooltipContent.activeIndustries.length - 5} más...</li>
-                )}
-              </ul>
-            </div>
-          )}
-        </div>
-        )}
-      </div>
 
       <div className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[600px]">
         <div className="flex-1 bg-surface rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden">
@@ -575,9 +503,9 @@ export default function IndustriesClient() {
                       <Globe className="h-4 w-4" />
                       <span className="text-xs font-semibold">Países Involucrados ({selectedRow.paises.length})</span>
                     </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar">
-                      {selectedRow.paises.join(', ') || 'No especificados'}
-                    </p>
+                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                      {renderChipsArray(selectedRow.paises, true)}
+                    </div>
                   </div>
 
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
@@ -585,11 +513,9 @@ export default function IndustriesClient() {
                       <Building2 className="h-4 w-4" />
                       <span className="text-xs font-semibold">Empresas / Clientes ({selectedRow.empresas.length})</span>
                     </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {selectedRow.empresas.slice(0, 15).join(', ')}
-                      {selectedRow.empresas.length > 15 && <span className="text-white/50 italic"> y {selectedRow.empresas.length - 15} más...</span>}
-                      {selectedRow.empresas.length === 0 && 'No especificadas'}
-                    </p>
+                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                      {renderChipsArray(selectedRow.empresas, true)}
+                    </div>
                   </div>
 
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
@@ -597,11 +523,9 @@ export default function IndustriesClient() {
                       <Users className="h-4 w-4" />
                       <span className="text-xs font-semibold">Firmas Asesoras ({selectedRow.firmas.length})</span>
                     </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {selectedRow.firmas.slice(0, 15).join(', ')}
-                      {selectedRow.firmas.length > 15 && <span className="text-white/50 italic"> y {selectedRow.firmas.length - 15} más...</span>}
-                      {selectedRow.firmas.length === 0 && 'No especificadas'}
-                    </p>
+                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                      {renderChipsArray(selectedRow.firmas, true)}
+                    </div>
                   </div>
                 </div>
               </>
