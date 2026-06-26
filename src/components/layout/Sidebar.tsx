@@ -32,7 +32,7 @@ export default function Sidebar({ userRole = 'USER' }: { userRole?: string }) {
 
   const filteredNavigation = navigation.filter(item => {
     const isConfiguracionSmtp = item.name === 'Configuración SMTP'
-    const adminOnlyModules = ['Administración', 'Suscripción y Pago']
+    const adminOnlyModules = ['Administración']
     
     if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
     if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;

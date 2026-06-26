@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import AdminNav from './AdminNav'
 import { createClient } from '@/utils/supabase/server'
 import prisma from '@/lib/prisma'
@@ -16,6 +17,10 @@ export default async function AdminLayout({
     if (dbUser) {
       userRole = dbUser.role
     }
+  }
+
+  if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
+    redirect('/dashboard')
   }
 
   return (
