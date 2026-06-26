@@ -90,6 +90,7 @@ export default function CountriesClient() {
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
   
   const [isMounted, setIsMounted] = useState(false)
