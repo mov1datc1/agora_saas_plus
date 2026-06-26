@@ -6,6 +6,7 @@ import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Se
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import { exportToExcel } from '@/lib/exportUtils'
 import useSWR from 'swr'
 
@@ -224,21 +225,13 @@ export default function FirmsClient() {
         
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           {/* Filtro de País PRO */}
-          <div className="relative group shrink-0">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <Globe className="h-4 w-4 text-brand" />
-            </div>
-            <select 
-              className="appearance-none bg-surface border border-border rounded-xl text-sm font-medium text-foreground pl-9 pr-10 py-2.5 shadow-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-all cursor-pointer hover:border-brand/50 min-w-[180px]"
+          <div className="w-[220px]">
+            <SearchableSelect 
               value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-            >
-              <option value="Todos">Todos los países</option>
-              {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-              <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </div>
+              onChange={setSelectedCountry}
+              options={['Todos', ...uniqueCountries]}
+              placeholder="Seleccionar País..."
+            />
           </div>
 
           {/* Filtro de Fecha PRO */}
