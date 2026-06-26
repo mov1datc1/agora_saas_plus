@@ -25,7 +25,7 @@ interface TableRow {
 }
 
 export default function IndustriesClient() {
-  const [tableData, setTableData] = useState<TableRow[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
@@ -78,34 +78,109 @@ export default function IndustriesClient() {
     })), 'industrias_agora_plus')
   }
 
+  const [transactions, setTransactions] = useState<any[]>([])
+
   const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/industries', fetcher)
 
   useEffect(() => {
     if (apiData) {
-      setTableData(apiData)
+      setTransactions(apiData)
       setIsLoading(false)
     }
   }, [apiData])
-
-  const totalIndustries = tableData.length
-  const totalVolume = tableData.reduce((acc, row) => acc + (row.monto || 0), 0)
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
 
   const uniqueCountries = useMemo(() => {
     const countries = new Set<string>()
-    tableData.forEach(row => {
-      row.paises.forEach(p => countries.add(p.trim()))
+    transactions.forEach(tx => {
+      if (tx.country) {
+        tx.country.split(',').forEach((c: string) => countries.add(c.trim()))
+      }
     })
     return Array.from(countries).sort()
-  }, [tableData])
+  }, [transactions])
 
+  // Filtrado base de transacciones (Tipo, País, Fecha)
+  const baseFilteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      const matchesType = filterType === 'Todas' || tx.type === filterType
+      const matchesCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
+      
+      let matchesDate = true
+      if (dateRange.start || dateRange.end) {
+        const txDateStr = tx.dateAnnounced || tx.dateClosed
+        if (txDateStr) {
+          const txDate = new Date(txDateStr).getTime()
+          const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : 0
+          const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').getTime() + 86399999 : Infinity
+          matchesDate = txDate >= startDate && txDate <= endDate
+        } else {
+          matchesDate = false
+        }
+      }
+      
+      return matchesType && matchesCountry && matchesDate
+    })
+  }, [transactions, filterType, selectedCountry, dateRange])
+
+  // Agrupar por industria
+  const aggregatedIndustries = useMemo(() => {
+    const industryMap: Record<string, any> = {}
+
+    baseFilteredTransactions.forEach(tx => {
+      const indName = tx.industry?.name || 'Varios / Sin Clasificar'
+      
+      if (!industryMap[indName]) {
+        industryMap[indName] = {
+          id: indName,
+          industria: indName,
+          monto: 0,
+          operaciones: 0,
+          paises: new Set<string>(),
+          empresas: new Set<string>(),
+          firmas: new Set<string>(),
+          tiposOperacion: new Set<string>(),
+        }
+      }
+
+      industryMap[indName].operaciones += 1
+      if (tx.value) {
+        industryMap[indName].monto += Number(tx.value)
+      }
+      if (tx.country) {
+        tx.country.split(',').map((c: string) => c.trim()).forEach((c: string) => {
+          if (c) industryMap[indName].paises.add(c)
+        })
+      }
+      if (tx.type) {
+        industryMap[indName].tiposOperacion.add(tx.type)
+      }
+
+      tx.companies?.forEach((c: any) => {
+        if (c.company?.name) industryMap[indName].empresas.add(c.company.name)
+      })
+
+      tx.advisors?.forEach((a: any) => {
+        if (a.firm?.name) industryMap[indName].firmas.add(a.firm.name)
+      })
+    })
+
+    const tableData = Object.values(industryMap).map((ind: any) => ({
+      ...ind,
+      paises: Array.from(ind.paises),
+      empresas: Array.from(ind.empresas),
+      firmas: Array.from(ind.firmas),
+      tiposOperacion: Array.from(ind.tiposOperacion)
+    }))
+
+    return tableData
+  }, [baseFilteredTransactions])
+
+  // Filtrado final para la tabla y KPIs (búsqueda de texto)
   const filteredData = useMemo(() => {
-    let result = tableData.filter(row => {
-      const matchesType = filterType === 'Todas' || row.tiposOperacion.includes(filterType)
-      const matchesSearch = row.industria.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCountry = selectedCountry === 'Todos' || row.paises.some(p => p.includes(selectedCountry))
-      return matchesType && matchesSearch && matchesCountry
+    let result = aggregatedIndustries.filter(row => {
+      return row.industria.toLowerCase().includes(searchQuery.toLowerCase())
     })
 
     if (sortConfig) {
@@ -121,9 +196,11 @@ export default function IndustriesClient() {
         }
         return 0
       })
+    } else {
+      result.sort((a, b) => b.operaciones - a.operaciones)
     }
     return result
-  }, [tableData, filterType, searchQuery, sortConfig])
+  }, [aggregatedIndustries, searchQuery, sortConfig])
 
   const handleSort = (key: 'industria' | 'monto' | 'operaciones') => {
     let direction: 'asc' | 'desc' = 'asc'
@@ -159,9 +236,12 @@ export default function IndustriesClient() {
     return `$${value.toLocaleString()}`
   }
 
+  const totalIndustries = filteredData.length
+  const totalVolume = filteredData.reduce((acc, row) => acc + (row.monto || 0), 0)
+
   const topIndustriesList = useMemo(() => {
-    return [...tableData].sort((a, b) => b.operaciones - a.operaciones)
-  }, [tableData])
+    return [...filteredData].sort((a, b) => b.operaciones - a.operaciones)
+  }, [filteredData])
 
   const filteredRankingList = useMemo(() => {
     if (!rankingSearchQuery) return topIndustriesList
