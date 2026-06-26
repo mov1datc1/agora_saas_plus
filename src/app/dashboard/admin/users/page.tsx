@@ -1,9 +1,18 @@
 import prisma from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
 import AdminTabs from './AdminTabs'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminUsersPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  let currentUserRole = 'USER'
+  if (user?.email) {
+    const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+    if (dbUser) currentUserRole = dbUser.role
+  }
+
   const users = await prisma.user.findMany({
     include: {
       subscription: true
@@ -36,7 +45,7 @@ export default async function AdminUsersPage() {
   return (
     <div className="pt-6 h-full flex flex-col">
       <h3 className="text-xl font-bold leading-6 text-foreground mb-6">Control de Usuarios</h3>
-      <AdminTabs saasUsers={saasUsers} legacyUsers={legacyUsers} adminUsers={adminUsers} />
+      <AdminTabs saasUsers={saasUsers} legacyUsers={legacyUsers} adminUsers={adminUsers} currentUserRole={currentUserRole} />
     </div>
   )
 }

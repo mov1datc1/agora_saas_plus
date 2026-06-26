@@ -12,8 +12,8 @@ export default function AdminTabs({
   adminUsers 
 }: { 
   saasUsers: any[], 
-  legacyUsers: any[], 
-  adminUsers: any[] 
+  adminUsers: any[],
+  currentUserRole: string
 }) {
   const [activeTab, setActiveTab] = useState<'saas' | 'legacy' | 'admins'>('saas')
 
@@ -42,23 +42,25 @@ export default function AdminTabs({
           <Briefcase className="w-4 h-4" />
           Clientes Acuerdos / Legacy
         </button>
-        <button
-          onClick={() => setActiveTab('admins')}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-            activeTab === 'admins' 
-              ? 'bg-background text-foreground shadow-sm ring-1 ring-border' 
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          Administradores
-        </button>
+        {currentUserRole === 'SUPERADMIN' && (
+          <button
+            onClick={() => setActiveTab('admins')}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+              activeTab === 'admins' 
+                ? 'bg-background text-foreground shadow-sm ring-1 ring-border' 
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Administradores
+          </button>
+        )}
       </div>
 
       <div className="flex-1 w-full relative">
         {activeTab === 'saas' && <UsersClient initialUsers={saasUsers} />}
         {activeTab === 'legacy' && <LegacyUsersClient initialUsers={legacyUsers} />}
-        {activeTab === 'admins' && <AdminsClient initialUsers={adminUsers} />}
+        {activeTab === 'admins' && currentUserRole === 'SUPERADMIN' && <AdminsClient initialUsers={adminUsers} />}
       </div>
     </div>
   )

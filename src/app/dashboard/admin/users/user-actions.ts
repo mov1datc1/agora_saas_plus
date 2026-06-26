@@ -13,7 +13,11 @@ export async function createManualUser(data: { email: string, name: string, pass
     if (!currentUser) return { success: false, error: 'No autorizado' }
 
     const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
-    if (dbUser?.role !== 'ADMIN') return { success: false, error: 'Acceso denegado' }
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN')) return { success: false, error: 'Acceso denegado' }
+
+    if (data.role === 'ADMIN' && dbUser.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Acceso denegado: Solo un SuperAdmin puede crear nuevos administradores.' }
+    }
 
     // Create user in Supabase Auth via Admin API (bypasses email confirmation if configured, or just auto-confirms)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -72,7 +76,7 @@ export async function updateManualSubscription(userId: string, newExpiryDate: st
     if (!currentUser) return { success: false, error: 'No autorizado' }
 
     const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
-    if (dbUser?.role !== 'ADMIN') return { success: false, error: 'Acceso denegado' }
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN')) return { success: false, error: 'Acceso denegado' }
 
     await prisma.subscription.upsert({
       where: { userId },
@@ -109,9 +113,14 @@ export async function toggleUserActiveStatus(userId: string, isActive: boolean) 
     if (!currentUser) return { success: false, error: 'No autorizado' }
 
     const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
-    if (dbUser?.role !== 'ADMIN') return { success: false, error: 'Acceso denegado' }
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN')) return { success: false, error: 'Acceso denegado' }
 
     if (currentUser.id === userId) return { success: false, error: 'No puedes desactivar tu propio usuario' }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } })
+    if (targetUser && (targetUser.role === 'ADMIN' || targetUser.role === 'SUPERADMIN') && dbUser.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Solo un SuperAdmin puede desactivar a otros administradores' }
+    }
 
     await prisma.user.update({
       where: { id: userId },

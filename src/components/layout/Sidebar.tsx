@@ -19,7 +19,7 @@ const navigation = [
   { name: 'Configuración SMTP', href: '/dashboard/admin/smtp', icon: Mail },
 ]
 
-export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
+export default function Sidebar({ userRole = 'USER' }: { userRole?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -31,8 +31,12 @@ export default function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   }
 
   const filteredNavigation = navigation.filter(item => {
-    const adminOnlyModules = ['Administración', 'Configuración SMTP', 'Suscripción y Pago']
-    if (adminOnlyModules.includes(item.name) && !isAdmin) return false;
+    const isConfiguracionSmtp = item.name === 'Configuración SMTP'
+    const adminOnlyModules = ['Administración', 'Suscripción y Pago']
+    
+    if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
+    if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
+    
     return true;
   });
 

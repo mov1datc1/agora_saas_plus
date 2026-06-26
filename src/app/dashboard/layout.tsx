@@ -12,7 +12,7 @@ export default async function DashboardLayout({
 }>) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  let isAdmin = false;
+  let userRole = 'USER';
   let subscriptionStatus = 'INCOMPLETE';
   let userName = 'Usuario';
 
@@ -24,8 +24,12 @@ export default async function DashboardLayout({
     if (dbUser?.isActive === false) {
       redirect('/deactivated')
     }
-    if (dbUser?.role === 'ADMIN') {
-      isAdmin = true;
+    userRole = dbUser?.role || 'USER';
+    
+    // Auto-upgrade admins to SUPERADMIN if needed (Migration fallback)
+    if (userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
+      await prisma.user.update({ where: { email: dbUser.email }, data: { role: 'SUPERADMIN' } });
+      userRole = 'SUPERADMIN';
     }
     if (dbUser?.subscription) {
       subscriptionStatus = dbUser.subscription.status;
@@ -35,7 +39,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="h-full overflow-hidden flex bg-background">
-      <Sidebar isAdmin={isAdmin} />
+      <Sidebar userRole={userRole} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DunningBanner status={subscriptionStatus} />
         <Header userName={userName} />
