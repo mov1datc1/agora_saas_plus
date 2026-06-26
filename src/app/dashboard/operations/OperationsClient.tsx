@@ -10,6 +10,7 @@ import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 
 import useSWR from 'swr'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
 
 export type UITransaction = {
   id: string
@@ -485,23 +486,10 @@ export default function OperationsClient() {
           />
           <div className="flex flex-col lg:col-span-2">
             <label className="block text-xs font-medium text-foreground/70 mb-1">Rango de Fecha</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="date" 
-                className="w-full rounded-lg border border-border bg-background text-sm p-2 outline-none focus:border-[#EB3159] transition-colors"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                title="Fecha Inicial"
-              />
-              <span className="text-muted-foreground">-</span>
-              <input 
-                type="date" 
-                className="w-full rounded-lg border border-border bg-background text-sm p-2 outline-none focus:border-[#EB3159] transition-colors"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                title="Fecha Final"
-              />
-            </div>
+            <ProDateRangePicker 
+              value={dateRange}
+              onChange={setDateRange}
+            />
           </div>
           <SearchableSelect
             label="Valor Económico (USD)"

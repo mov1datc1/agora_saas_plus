@@ -7,6 +7,7 @@ import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import SearchableSelect from '@/components/ui/SearchableSelect'
+import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
 import { exportToExcel } from '@/lib/exportUtils'
 import useSWR from 'swr'
 
@@ -235,22 +236,10 @@ export default function FirmsClient() {
           </div>
 
           {/* Filtro de Fecha PRO */}
-          <div className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3 py-2 shadow-sm focus-within:border-brand focus-within:ring-1 focus-within:ring-brand/20 transition-all hover:border-brand/50 shrink-0">
-            <Calendar className="h-4 w-4 text-brand" />
-            <input 
-              type="date" 
-              className="bg-transparent text-sm font-medium text-foreground outline-none cursor-pointer w-[110px]"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            />
-            <span className="text-muted-foreground font-medium">-</span>
-            <input 
-              type="date" 
-              className="bg-transparent text-sm font-medium text-foreground outline-none cursor-pointer w-[110px]"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            />
-          </div>
+          <ProDateRangePicker 
+            value={dateRange}
+            onChange={setDateRange}
+          />
         </div>
       </div>
 
