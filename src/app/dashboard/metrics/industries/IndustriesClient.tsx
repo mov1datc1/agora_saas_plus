@@ -78,8 +78,6 @@ export default function IndustriesClient() {
     })), 'industrias_agora_plus')
   }
 
-  const [transactions, setTransactions] = useState<any[]>([])
-
   const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/industries', fetcher)
 
   useEffect(() => {
