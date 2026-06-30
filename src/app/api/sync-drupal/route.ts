@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         type = null // Force heuristic if it's boolean true or an object
       }
       
-      if (!type) {
+      if (!type || type === 'Operación General') {
         const textToAnalyze = `${title} ${attributes.body?.value || ''}`.toLowerCase()
         if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
           type = 'Emisiones'

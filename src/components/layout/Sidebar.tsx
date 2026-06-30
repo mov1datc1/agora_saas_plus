@@ -8,11 +8,13 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/utils/supabase/client'
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard Global', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Operaciones', href: '/dashboard/operations', icon: ArrowLeftRight },
-  { name: 'Métricas: Firmas', href: '/dashboard/metrics/firms', icon: Building2 },
-  { name: 'Métricas: Industrias', href: '/dashboard/metrics/industries', icon: Briefcase },
-  { name: 'Métricas: Países', href: '/dashboard/metrics/countries', icon: Users },
+  
+  { name: 'Firmas Asesoras', href: '/dashboard/metrics/firms', icon: Building2, isSubItem: true },
+  { name: 'Industrias', href: '/dashboard/metrics/industries', icon: Briefcase, isSubItem: true },
+  { name: 'Jurisdicciones', href: '/dashboard/metrics/countries', icon: Users, isSubItem: true },
+  
   { name: 'Ágora Copilot', href: '/dashboard/copilot', icon: Sparkles },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
   { name: 'Administración', href: '/dashboard/admin', icon: Settings },
@@ -53,35 +55,44 @@ export default function Sidebar({ userRole = 'USER' }: { userRole?: string }) {
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
         <nav className="flex-1 space-y-1">
-          {filteredNavigation.map((item) => {
+          {filteredNavigation.map((item, index) => {
             const isActive = pathname === item.href
+            const isFirstSubItem = item.isSubItem && !filteredNavigation[index - 1]?.isSubItem
+            
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  isActive
-                    ? 'bg-brand/10 text-brand'
-                    : 'text-foreground/70 hover:bg-muted hover:text-foreground',
-                  'group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200'
+              <div key={item.name}>
+                {isFirstSubItem && (
+                  <div className="px-3 pt-4 pb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rankings Analíticos</p>
+                  </div>
                 )}
-              >
-                <item.icon
+                <Link
+                  href={item.href}
                   className={cn(
-                    isActive ? 'text-brand' : 'text-foreground/50 group-hover:text-foreground',
-                    'mr-3 h-5 w-5 flex-shrink-0 transition-colors'
+                    isActive
+                      ? 'bg-brand/10 text-brand'
+                      : 'text-foreground/70 hover:bg-muted hover:text-foreground',
+                    'group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    item.isSubItem ? 'ml-4 mt-1' : 'mt-1'
                   )}
-                  aria-hidden="true"
-                />
-                <span className="flex items-center gap-2">
-                  {item.name}
-                  {item.name === 'Ágora Copilot' && (
-                    <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
-                      Beta
-                    </span>
-                  )}
-                </span>
-              </Link>
+                >
+                  <item.icon
+                    className={cn(
+                      isActive ? 'text-brand' : 'text-foreground/50 group-hover:text-foreground',
+                      'mr-3 h-5 w-5 flex-shrink-0 transition-colors'
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="flex items-center gap-2">
+                    {item.name}
+                    {item.name === 'Ágora Copilot' && (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/10">
+                        Beta
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </div>
             )
           })}
         </nav>

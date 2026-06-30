@@ -1,0 +1,9 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- The slanted left shape -->
+  <path d="M175 420 L40 420 L210 70 L300 70 Z" fill="none" stroke="#ca8a85" stroke-width="28" stroke-linejoin="round" />
+  <!-- The right 'A' shape -->
+  <path d="M210 420 L295 190 L380 420" stroke="#ca8a85" stroke-width="40" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M240 330 L350 330" stroke="#ca8a85" stroke-width="40" stroke-linecap="round" />
+  <!-- The accent on top of A -->
+  <path d="M320 140 L350 90" stroke="#ca8a85" stroke-width="32" stroke-linecap="round" />
+</svg>

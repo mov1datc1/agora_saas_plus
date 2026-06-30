@@ -294,7 +294,7 @@ export default function FirmsClient() {
           <div>
             <div className="flex items-center gap-3 text-muted-foreground mb-2">
               <FileText className="h-5 w-5" />
-              <h3 className="text-sm font-semibold">Volumen Financiero Global</h3>
+              <h3 className="text-sm font-semibold">Valor Total del Periodo (USD)</h3>
             </div>
             <p className="text-3xl font-bold text-foreground">{formatCurrency(totalVolume)}</p>
             <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
@@ -422,7 +422,7 @@ export default function FirmsClient() {
                     className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
                     onClick={() => handleSort('volumen')}
                   >
-                    Volumen Consolidado {sortConfig?.key === 'volumen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                    Valor Acumulado (USD) {sortConfig?.key === 'volumen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
                 </tr>
               </thead>

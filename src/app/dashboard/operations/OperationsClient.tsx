@@ -199,7 +199,7 @@ export default function OperationsClient() {
     return Array.from(new Set(all)).sort()
   }
 
-  const uniqueTypes = extractUnique('type')
+  const uniqueTypes = ['M&A', 'Emisiones', 'Financiamientos']
   const uniqueIndustries = extractUnique('industry')
   const uniqueFirms = extractUnique('firm')
   const uniqueCountries = extractUnique('country')
@@ -228,7 +228,8 @@ export default function OperationsClient() {
                         (tx.title || '').toLowerCase().includes(searchLower) || 
                         (tx.firm || '').toLowerCase().includes(searchLower) ||
                         (tx.lawyer || '').toLowerCase().includes(searchLower) ||
-                        (tx.industry || '').toLowerCase().includes(searchLower)
+                        (tx.industry || '').toLowerCase().includes(searchLower) ||
+                        (tx.country || '').toLowerCase().includes(searchLower)
 
     // Filtrado por Rango de Fecha
     let matchDate = true
@@ -371,6 +372,45 @@ export default function OperationsClient() {
       key,
       direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
     }))
+  }
+
+  // Computed Stats for Search Summary
+  const searchStats = useMemo(() => {
+    let totalValue = 0
+    let txWithValue = 0
+    const firmsSet = new Set<string>()
+    const countriesSet = new Set<string>()
+
+    filteredTransactions.forEach(tx => {
+      let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
+      if (!isNaN(num) && tx.amount !== 'Por definir') {
+        if (tx.amount.includes('B')) num *= 1000
+        else if (num > 100000) num = num / 1000000 // Convert big numbers to M
+        totalValue += num
+        txWithValue++
+      }
+      
+      if (tx.firm && tx.firm !== 'Sin firmas listadas' && tx.firm !== 'N/D') {
+        tx.firm.split(',').forEach(f => firmsSet.add(f.trim()))
+      }
+      
+      if (tx.country && tx.country !== 'N/D') {
+        tx.country.split(',').forEach(c => countriesSet.add(c.trim()))
+      }
+    })
+
+    return {
+      totalValue,
+      avgTicket: txWithValue > 0 ? totalValue / txWithValue : 0,
+      uniqueFirms: firmsSet.size,
+      uniqueCountries: countriesSet.size
+    }
+  }, [filteredTransactions])
+
+  const formatCurrencyStats = (valM: number) => {
+    if (valM === 0) return 'N/D'
+    if (valM >= 1000) return `$${(valM / 1000).toFixed(2)}B`
+    return `$${valM.toFixed(1)}M`
   }
 
   return (
@@ -659,10 +699,35 @@ export default function OperationsClient() {
 
         {isSidebarOpen && (
           <div className="lg:col-span-1 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border sticky top-0">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
-              <p className="text-4xl font-bold text-foreground tracking-tight mb-2">{filteredTransactions.length}</p>
-              <p className="text-sm text-muted-foreground leading-relaxed">Operaciones coinciden con los filtros aplicados.</p>
+            <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border sticky top-0 flex flex-col gap-6">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
+                <p className="text-4xl font-bold text-[#E05C50] tracking-tight mb-2">{filteredTransactions.length}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">Operaciones coinciden con los filtros aplicados.</p>
+              </div>
+
+              {filteredTransactions.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Valor Agregado</p>
+                    <p className="text-xl font-bold text-foreground">{formatCurrencyStats(searchStats.totalValue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ticket Promedio</p>
+                    <p className="text-xl font-bold text-foreground">{formatCurrencyStats(searchStats.avgTicket)}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Firmas</p>
+                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueFirms}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Países</p>
+                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueCountries}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -686,9 +751,7 @@ export default function OperationsClient() {
             
             <div className="space-y-8">
               <div className="border-b border-border pb-4">
-                <h4 className="text-xl font-bold text-foreground leading-tight mb-4">{selectedTx.title}</h4>
-                <p className="text-sm font-semibold text-foreground/80 mb-2">Operation date</p>
-                <p className="text-sm text-muted-foreground">{selectedTx.date}</p>
+                <h4 className="text-xl font-bold text-foreground leading-tight mb-2">{selectedTx.title}</h4>
               </div>
 
               {isLoadingDetails ? (
@@ -698,12 +761,12 @@ export default function OperationsClient() {
                   <div className="h-20 bg-muted rounded-xl w-full"></div>
                 </div>
               ) : txDetails ? (
-                <div className="space-y-8">
+                <div className="space-y-8 mt-4">
                   
-                  {/* Excerpt */}
+                  {/* Resumen (Excerpt) */}
                   {txDetails.excerpt && (
                     <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Excerpt</p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Resumen</p>
                       <div 
                         className="text-sm text-muted-foreground leading-relaxed space-y-4"
                         dangerouslySetInnerHTML={{ __html: txDetails.excerpt }}
@@ -711,10 +774,10 @@ export default function OperationsClient() {
                     </div>
                   )}
 
-                  {/* Operations & Amount */}
+                  {/* Valor */}
                   <div className="border-b border-border pb-6 space-y-4">
                     <div>
-                      <p className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">Operations <span className="text-xs bg-[#10b981] text-white px-2 py-0.5 rounded">Public</span> <span className="text-xs bg-[#f59e0b] text-white px-2 py-0.5 rounded">{selectedTx.status}</span></p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">Valor <span className="text-xs bg-[#10b981] text-white px-2 py-0.5 rounded">{selectedTx.status}</span></p>
                     </div>
                     <div>
                       <span className="inline-block bg-[#10b981] text-white text-sm font-bold px-3 py-1 rounded">
@@ -723,21 +786,30 @@ export default function OperationsClient() {
                     </div>
                   </div>
 
-                  {/* Firms involved */}
-                  {(txDetails.companies?.length > 0 || txDetails.advisors?.length > 0) && (
+                  {/* Empresas */}
+                  {txDetails.companies?.length > 0 && (
                     <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Firms involved</p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Empresas</p>
                       <div className="grid grid-cols-1 gap-3">
-                        {txDetails.companies?.map((c: any) => (
+                        {txDetails.companies.map((c: any) => (
                           <div key={`c-${c.id}`} className="flex items-start gap-2 text-sm text-foreground">
                             <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
                             <div>
-                              <span>{c.company.name}</span>
+                              <span>{c.company?.name}</span>
                               <span className="text-xs text-muted-foreground ml-2">({c.role})</span>
                             </div>
                           </div>
                         ))}
-                        {txDetails.advisors?.map((a: any) => (
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Firmas Asesoras */}
+                  {txDetails.advisors?.length > 0 && (
+                    <div className="border-b border-border pb-6">
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Firmas Asesoras</p>
+                      <div className="grid grid-cols-1 gap-3">
+                        {txDetails.advisors.map((a: any) => (
                           <div key={`a-${a.id}`} className="flex items-start gap-2 text-sm text-foreground">
                             <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
                             <div>
@@ -750,10 +822,10 @@ export default function OperationsClient() {
                     </div>
                   )}
 
-                  {/* Lawyers involved */}
+                  {/* Abogados */}
                   {txDetails.lawyers?.length > 0 && (
                     <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Lawyers involved</p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Abogados</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {txDetails.lawyers.map((l: any) => (
                           <div key={l.id} className="flex items-start gap-2 text-sm text-foreground">
@@ -768,10 +840,10 @@ export default function OperationsClient() {
                     </div>
                   )}
 
-                  {/* Industries */}
+                  {/* Industria */}
                   {selectedTx.industry && (
                     <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Industries</p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">Industria</p>
                       <div className="flex items-center gap-2 text-sm text-foreground">
                         <span className="text-[#E05C50] text-xs">▸</span>
                         <span>{selectedTx.industry}</span>
@@ -779,21 +851,10 @@ export default function OperationsClient() {
                     </div>
                   )}
 
-                  {/* Practice Areas */}
-                  {selectedTx.type && (
-                    <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Practice Areas</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="text-[#E05C50] text-xs">▸</span>
-                        <span>{selectedTx.type}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Countries */}
+                  {/* Países */}
                   {selectedTx.country && (
                     <div className="border-b border-border pb-6">
-                      <p className="text-sm font-semibold text-foreground/80 mb-4">Countries</p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-4">País</p>
                       <div className="flex flex-wrap gap-4">
                         {selectedTx.country.split(',').map((c: string) => (
                           <div key={c} className="flex items-center gap-2 text-sm text-foreground">
@@ -804,6 +865,20 @@ export default function OperationsClient() {
                       </div>
                     </div>
                   )}
+
+                  {/* Tipo / Fecha */}
+                  <div className="border-b border-border pb-6 grid grid-cols-2 gap-4">
+                    {selectedTx.type && (
+                      <div>
+                        <p className="text-sm font-semibold text-foreground/80 mb-2">Tipo de Operación</p>
+                        <p className="text-sm text-muted-foreground">{selectedTx.type}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-foreground/80 mb-2">Fecha de Operación</p>
+                      <p className="text-sm text-muted-foreground">{selectedTx.date}</p>
+                    </div>
+                  </div>
 
                 </div>
               ) : (

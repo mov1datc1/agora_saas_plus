@@ -138,7 +138,9 @@ export default function IndustriesClient() {
           paises: new Set<string>(),
           empresas: new Set<string>(),
           firmas: new Set<string>(),
+          firmasCount: {} as Record<string, number>,
           tiposOperacion: new Set<string>(),
+          transacciones: [] as any[]
         }
       }
 
@@ -160,8 +162,13 @@ export default function IndustriesClient() {
       })
 
       tx.advisors?.forEach((a: any) => {
-        if (a.firm?.name) industryMap[indName].firmas.add(a.firm.name)
+        if (a.firm?.name) {
+          industryMap[indName].firmas.add(a.firm.name)
+          industryMap[indName].firmasCount[a.firm.name] = (industryMap[indName].firmasCount[a.firm.name] || 0) + 1
+        }
       })
+
+      industryMap[indName].transacciones.push(tx)
     })
 
     const tableData = Object.values(industryMap).map((ind: any) => ({
@@ -169,6 +176,9 @@ export default function IndustriesClient() {
       paises: Array.from(ind.paises),
       empresas: Array.from(ind.empresas),
       firmas: Array.from(ind.firmas),
+      firmasRanking: Object.entries(ind.firmasCount)
+        .map(([name, count]) => ({ name, count: count as number }))
+        .sort((a, b) => b.count - a.count),
       tiposOperacion: Array.from(ind.tiposOperacion)
     }))
 
@@ -336,7 +346,7 @@ export default function IndustriesClient() {
           <div>
             <div className="flex items-center gap-3 text-muted-foreground mb-2">
               <FileText className="h-5 w-5" />
-              <h3 className="text-sm font-semibold">Volumen Financiero Global</h3>
+              <h3 className="text-sm font-semibold">Valor Total del Periodo (USD)</h3>
             </div>
             <p className="text-3xl font-bold text-foreground">{formatCurrency(totalVolume)}</p>
             <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
@@ -454,7 +464,7 @@ export default function IndustriesClient() {
                     className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
                     onClick={() => handleSort('monto')}
                   >
-                    Monto Consolidado {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                    Valor Acumulado (USD) {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
                   </th>
                   <th 
                     className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
@@ -599,10 +609,40 @@ export default function IndustriesClient() {
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
                     <div className="flex items-center gap-2 text-white/60 mb-1">
                       <Users className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Firmas Asesoras ({selectedRow.firmas.length})</span>
+                      <span className="text-xs font-semibold">Ranking Firmas Asesoras</span>
                     </div>
-                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                      {renderChipsArray(selectedRow.firmas, true)}
+                    <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2 mt-2">
+                      {selectedRow.firmasRanking?.length > 0 ? (
+                        selectedRow.firmasRanking.slice(0, 10).map((firma: any, idx: number) => (
+                          <div key={firma.name} className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2 text-white">
+                              <span className="text-white/40 font-mono w-4">{idx + 1}.</span>
+                              <span className="truncate max-w-[150px]">{firma.name}</span>
+                            </div>
+                            <span className="bg-white/10 px-2 py-0.5 rounded text-white/80">{firma.count} ops</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-white/40 italic">Sin firmas registradas</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Operaciones Recientes ({selectedRow.transacciones?.length})</span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-3 mt-2">
+                      {selectedRow.transacciones?.slice(0, 10).map((tx: any) => (
+                        <div key={tx.id} className="text-xs border-b border-white/10 pb-2 last:border-0 last:pb-0">
+                          <p className="font-semibold text-white leading-tight mb-1">{tx.title}</p>
+                          <div className="flex justify-between text-white/60">
+                            <span>{tx.date}</span>
+                            <span className="font-mono text-[#E05C50]">{tx.amount !== 'Por definir' ? `USD ${tx.amount}` : tx.amount}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

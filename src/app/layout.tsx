@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Ágora Plus | Inteligencia Transaccional",
   description: "Detecta oportunidades de negocio antes de que el mercado las vea.",
+  icons: [
+    {
+      rel: 'icon',
+      type: 'image/svg+xml',
+      url: '/favicon.svg',
+    },
+  ],
 };
 
 import { AuthListener } from "@/components/auth/AuthListener";

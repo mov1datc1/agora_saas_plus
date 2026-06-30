@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       date: tx.dateClosed ? new Date(tx.dateClosed).toLocaleDateString('es-ES') : 
             tx.dateAnnounced ? new Date(tx.dateAnnounced).toLocaleDateString('es-ES') : 'Sin fecha',
       title: tx.title,
-      type: tx.type || 'M&A',
+      type: (tx.type && tx.type !== 'Operación General') ? tx.type : 'M&A',
       amount: tx.valueString || 'Por definir',
       status: tx.status || 'Completada',
       industry: tx.industry?.name || 'Varios',

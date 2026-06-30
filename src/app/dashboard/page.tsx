@@ -1,4 +1,4 @@
-import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText, Briefcase } from 'lucide-react'
+import { ArrowUpRight, TrendingUp, DollarSign, Activity, FileText, Briefcase, Users, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import prisma from '@/lib/prisma'
 import { TransactionsChart } from '@/components/charts/TransactionsChart'
@@ -31,21 +31,33 @@ export default async function DashboardPage() {
     }
 
     // Obtenemos cuentas reales de Prisma
-    const totalTransactionsCount = await prisma.transaction.count()
+    const totalTransactionsCount = await prisma.transaction.count({
+      where: {
+        type: {
+          not: 'Operación General'
+        }
+      }
+    })
     const activeFirmsCount = await prisma.firm.count()
-    const coveredIndustriesCount = await prisma.industry.count()
+    const activeCompaniesCount = await prisma.company.count()
+    const activeLawyersCount = await prisma.lawyer.count()
 
     // Obtenemos todas las transacciones ordenadas
     const dbTransactions = await prisma.transaction.findMany({
+      where: {
+        type: {
+          not: 'Operación General'
+        }
+      },
       orderBy: { dateAnnounced: 'asc' },
       select: { id: true, title: true, type: true, valueString: true, dateAnnounced: true, status: true, industryId: true }
     })
 
-    // Calcular Volumen Analizado (como string simulado o si hubiera valores exactos)
     const stats = [
-      { name: 'Transacciones Históricas', value: totalTransactionsCount.toLocaleString(), change: '+12.5%', icon: Activity },
-      { name: 'Industrias Cubiertas', value: coveredIndustriesCount.toLocaleString(), change: '+8.2%', icon: Briefcase },
-      { name: 'Firmas Registradas', value: activeFirmsCount.toLocaleString(), change: '+4.1%', icon: TrendingUp },
+      { name: 'Operaciones Registradas', value: totalTransactionsCount.toLocaleString(), icon: Activity },
+      { name: 'Firmas Participantes', value: activeFirmsCount.toLocaleString(), icon: Building2 },
+      { name: 'Empresas Participantes', value: activeCompaniesCount.toLocaleString(), icon: Briefcase },
+      { name: 'Abogados Participantes', value: activeLawyersCount.toLocaleString(), icon: Users },
     ]
 
     // 1. Agrupación Histórica (Todos los tiempos)
@@ -118,7 +130,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((item) => (
             <div
               key={item.name}
@@ -132,11 +144,6 @@ export default async function DashboardPage() {
               </dt>
               <dd className="ml-16 flex items-baseline pb-1 sm:pb-2">
                 <p className="text-3xl font-bold text-gray-900">{item.value}</p>
-                <p className="ml-3 flex items-baseline text-sm font-semibold text-green-600">
-                  <ArrowUpRight className="h-4 w-4 flex-shrink-0 self-center text-green-500" aria-hidden="true" />
-                  <span className="sr-only">Increased by</span>
-                  {item.change}
-                </p>
               </dd>
             </div>
           ))}
@@ -175,20 +182,20 @@ export default async function DashboardPage() {
               <ul role="list" className="-mb-8">
                 {recentTransactions.map((transaction, eventIdx) => (
                   <li key={transaction.id}>
-                    <div className="relative pb-8">
+                    <Link href={`/dashboard/operations?search=${encodeURIComponent(transaction.title)}`} className="group relative pb-8 block">
                       {eventIdx !== recentTransactions.length - 1 ? (
                         <span className="absolute left-5 top-5 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
                       ) : null}
-                      <div className="relative flex items-start space-x-3">
+                      <div className="relative flex items-start space-x-3 hover:bg-gray-50 p-2 -ml-2 rounded-xl transition-colors">
                         <div className="relative">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 ring-8 ring-white">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 ring-8 ring-white group-hover:ring-gray-50 transition-colors">
                             <FileText className="h-5 w-5 text-[#E05C50]" aria-hidden="true" />
                           </div>
                         </div>
                         <div className="min-w-0 flex-1 pt-1.5">
                           <div className="flex justify-between space-x-4">
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">{transaction.title}</p>
+                              <p className="text-sm font-semibold text-gray-900 group-hover:text-[#E05C50] transition-colors">{transaction.title}</p>
                               <p className="mt-0.5 text-xs text-gray-500">{transaction.type} &middot; {transaction.value}</p>
                             </div>
                             <div className="whitespace-nowrap text-right text-xs text-gray-500">
@@ -197,7 +204,7 @@ export default async function DashboardPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
