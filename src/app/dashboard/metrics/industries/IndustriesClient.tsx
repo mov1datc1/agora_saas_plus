@@ -614,7 +614,7 @@ export default function IndustriesClient() {
                       <span className="text-xs font-semibold">Ranking Firmas Asesoras</span>
                     </div>
                     <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2 mt-2">
-                      {selectedRow.firmasRanking?.length > 0 ? (
+                      {(selectedRow.firmasRanking && selectedRow.firmasRanking.length > 0) ? (
                         selectedRow.firmasRanking.slice(0, 10).map((firma: any, idx: number) => (
                           <div key={firma.name} className="flex justify-between items-center text-xs">
                             <div className="flex items-center gap-2 text-white">
