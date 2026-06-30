@@ -21,7 +21,9 @@ interface TableRow {
   paises: string[]
   empresas: string[]
   firmas: string[]
+  firmasRanking?: { name: string, count: number }[]
   tiposOperacion: string[]
+  transacciones?: any[]
 }
 
 export default function IndustriesClient() {
