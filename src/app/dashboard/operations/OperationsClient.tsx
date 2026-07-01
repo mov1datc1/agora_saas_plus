@@ -23,6 +23,7 @@ export type UITransaction = {
   country: string
   firm: string
   lawyer: string
+  company: string
   link: string
 }
 

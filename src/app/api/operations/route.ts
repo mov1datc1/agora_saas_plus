@@ -45,6 +45,13 @@ export async function GET(request: Request) {
               select: { name: true }
             }
           }
+        },
+        companies: {
+          select: {
+            company: {
+              select: { name: true }
+            }
+          }
         }
       },
       orderBy: {
@@ -67,6 +74,7 @@ export async function GET(request: Request) {
       country: tx.country || 'Latinoamérica',
       firm: tx.advisors?.map(a => a.firm?.name).filter(Boolean).join(', ') || 'Sin firmas listadas', 
       lawyer: tx.lawyers?.map(l => l.lawyer?.name).filter(Boolean).join(', ') || 'Sin abogados listados',
+      company: tx.companies?.map(c => c.company?.name).filter(Boolean).join(', ') || 'Sin empresas listadas',
       link: tx.link || '#'
     }))
 

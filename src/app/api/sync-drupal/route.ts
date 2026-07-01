@@ -209,6 +209,32 @@ export async function POST(request: Request) {
         }
       }
 
+      // Extract operation type from paragraphs before upserting transaction
+      let paragraphOperationType: string | null = null;
+      if (relationships?.field_empresas_involucradas?.data) {
+        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
+          ? relationships.field_empresas_involucradas.data
+          : [relationships.field_empresas_involucradas.data];
+        for (const c of empresasData) {
+          if (!c) continue;
+          const paragraphNode = getIncludedResource(c.type, c.id)
+          if (paragraphNode && paragraphNode.attributes) {
+            const rawType = paragraphNode.attributes.field_tipo_de_operacion;
+            if (rawType && !paragraphOperationType) {
+              if (rawType === 'fusiones-y-adquisiciones') paragraphOperationType = 'M&A';
+              else if (rawType === 'emisiones') paragraphOperationType = 'Emisiones';
+              else if (rawType === 'financiamiento') paragraphOperationType = 'Financiamientos';
+              else if (rawType === 'arrendamientos') paragraphOperationType = 'Arrendamientos';
+              else if (rawType === 'reestructuraciones') paragraphOperationType = 'Reestructuraciones';
+              else if (rawType === 'litigios') paragraphOperationType = 'Litigios';
+            }
+          }
+        }
+      }
+
+      // Ensure type from paragraphs overrides if it's missing or generic
+      const finalType = paragraphOperationType || type;
+
       // Upsert Transaction Core
       await prisma.transaction.upsert({
         where: { id: transactionId },
@@ -216,7 +242,7 @@ export async function POST(request: Request) {
           id: transactionId,
           title,
           status,
-          type,
+          type: finalType,
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
@@ -229,7 +255,7 @@ export async function POST(request: Request) {
         update: {
           title,
           status,
-          type,
+          type: finalType,
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
@@ -290,12 +316,29 @@ export async function POST(request: Request) {
         for (const c of empresasData) {
           if (!c) continue;
           const paragraphNode = getIncludedResource(c.type, c.id)
+
           if (paragraphNode && paragraphNode.relationships?.field_empresa?.data) {
             const empresaData = paragraphNode.relationships.field_empresa.data
             const empresaNode = getIncludedResource(empresaData.type, empresaData.id)
             if (empresaNode && (empresaNode.attributes.name || empresaNode.attributes.title)) {
               const companyName = empresaNode.attributes.name || empresaNode.attributes.title
               
+              let companyRole = 'Parte Involucrada';
+              if (paragraphNode.attributes) {
+                const attrs = paragraphNode.attributes;
+                companyRole = attrs.field_rol_fusiones_y_adquisicion || 
+                              attrs.field_rol_emisiones || 
+                              attrs.field_rol_financiamiento || 
+                              attrs.field_rol_litigios || 
+                              attrs.field_rol_reestructuraciones || 
+                              attrs.field_rol_arrendamientos || 
+                              'Parte Involucrada';
+                // Capitalize first letter of role if it exists
+                if (typeof companyRole === 'string' && companyRole !== 'Parte Involucrada') {
+                  companyRole = companyRole.charAt(0).toUpperCase() + companyRole.slice(1).replace(/-/g, ' ');
+                }
+              }
+
               // Create or update Company
               const upsertedCompany = await prisma.company.upsert({
                 where: { id: empresaData.id },
@@ -309,16 +352,18 @@ export async function POST(request: Request) {
                   transactionId_companyId_role: {
                     transactionId: transactionId,
                     companyId: upsertedCompany.id,
-                    role: 'Parte Involucrada'
+                    role: companyRole
                   }
                 },
                 create: {
                   id: `${transactionId}-${upsertedCompany.id}`,
                   transactionId: transactionId,
                   companyId: upsertedCompany.id,
-                  role: 'Parte Involucrada'
+                  role: companyRole
                 },
-                update: {}
+                update: {
+                  role: companyRole
+                }
               })
             }
           }
