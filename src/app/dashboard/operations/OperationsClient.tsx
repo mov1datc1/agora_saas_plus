@@ -709,11 +709,11 @@ export default function OperationsClient() {
               {filteredTransactions.length > 0 && (
                 <div className="space-y-4 pt-4 border-t border-border">
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Valor Agregado</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Valor Agregado (USD)</p>
                     <p className="text-xl font-bold text-foreground">{formatCurrencyStats(searchStats.totalValue)}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ticket Promedio</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ticket Promedio (USD)</p>
                     <p className="text-xl font-bold text-foreground">{formatCurrencyStats(searchStats.avgTicket)}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
