@@ -70,12 +70,40 @@ export async function exportToPDF(elementId: string, filename: string) {
   }
 }
 
-export function exportNativePDF(tx: any, details: any, filename: string) {
+export async function exportNativePDF(tx: any, details: any, filename: string) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const margin = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const maxLineWidth = pageWidth - margin * 2;
   let cursorY = margin;
+
+  let logoData: string | null = null;
+  let logoWidth = 0;
+  let logoHeight = 0;
+
+  try {
+    const img = new Image();
+    img.src = '/logo.png';
+    await new Promise((resolve, reject) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          logoData = canvas.toDataURL('image/png');
+          logoWidth = img.width;
+          logoHeight = img.height;
+        }
+        resolve(null);
+      };
+      img.onerror = reject;
+    });
+  } catch (e) {
+    console.warn('Could not load logo for PDF watermark', e);
+  }
 
   const addText = (text: string, fontSize: number, isBold: boolean = false, color: [number, number, number] = [0, 0, 0], addLineSpace = true) => {
     if (!text) return;
@@ -171,6 +199,41 @@ export function exportNativePDF(tx: any, details: any, filename: string) {
     const countries = tx.country.split(',').map((c: string) => c.trim()).join(', ');
     addText(`• ${countries}`, 10, false, [51, 51, 51]);
     addLineBreak(4);
+  }
+
+  // Add decorations (watermark and footer) to all pages
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Add watermark
+    if (logoData && typeof doc.setGState === 'function' && typeof doc.GState === 'function') {
+      try {
+        const gState = new doc.GState({ opacity: 0.1 });
+        doc.setGState(gState);
+        
+        // Calculate watermark dimensions
+        // Let's set a target width for the watermark (e.g. 140mm)
+        const targetW = 140;
+        const targetH = (logoHeight * targetW) / logoWidth;
+        const xPos = (pageWidth - targetW) / 2;
+        const yPos = (pageHeight - targetH) / 2;
+        
+        doc.addImage(logoData, 'PNG', xPos, yPos, targetW, targetH);
+        
+        // Restore opacity
+        const restoreGState = new doc.GState({ opacity: 1 });
+        doc.setGState(restoreGState);
+      } catch (e) {
+        console.warn('Failed to add watermark', e);
+      }
+    }
+
+    // Add footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Ágora - todos los derechos reservados", pageWidth / 2, pageHeight - 10, { align: 'center' });
   }
 
   doc.save(`${filename}.pdf`);
