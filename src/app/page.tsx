@@ -1,8 +1,30 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle2, ArrowUp } from 'lucide-react'
+import prisma from '@/lib/prisma'
+import { createClient } from '@/utils/supabase/server'
+import UnderConstruction from '@/components/layout/UnderConstruction'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } });
+  
+  if (config?.maintenanceModeEnabled) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let isAdmin = false;
+    
+    if (user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+      if (dbUser?.role === 'ADMIN' || dbUser?.role === 'SUPERADMIN') {
+        isAdmin = true;
+      }
+    }
+    
+    if (!isAdmin) {
+      return <UnderConstruction />;
+    }
+  }
+
   return (
     <div className="bg-white min-h-screen font-sans selection:bg-[#E05C50] selection:text-white scroll-smooth relative">
       {/* Navbar Simple */}

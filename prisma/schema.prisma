@@ -150,6 +150,7 @@ model SystemConfig {
   id                       String   @id @default("global")
   trialRestrictionsEnabled Boolean  @default(false)
   gaMeasurementId          String?
+  maintenanceModeEnabled   Boolean  @default(false)
   updatedAt                DateTime @updatedAt
 }
 

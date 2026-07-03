@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import prisma from "@/lib/prisma";
 import DunningBanner from "./DunningBanner";
 import { redirect } from 'next/navigation';
+import UnderConstruction from '@/components/layout/UnderConstruction';
 
 export default async function DashboardLayout({
   children,
@@ -35,6 +36,16 @@ export default async function DashboardLayout({
       subscriptionStatus = dbUser.subscription.status;
     }
     userName = dbUser?.name || user.email.split('@')[0];
+  }
+
+  const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } });
+  
+  if (config?.maintenanceModeEnabled && userRole !== 'SUPERADMIN' && userRole !== 'ADMIN') {
+    return (
+      <div className="h-full w-full bg-[#0a0a0a] text-white">
+        <UnderConstruction />
+      </div>
+    );
   }
 
   return (

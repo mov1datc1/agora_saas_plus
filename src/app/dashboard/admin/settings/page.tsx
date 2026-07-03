@@ -3,7 +3,7 @@ import { getSystemConfig } from './actions'
 import SettingsClient from './SettingsClient'
 import MassiveSyncClient from './MassiveSyncClient'
 import ClearCacheClient from './ClearCacheClient'
-
+import MaintenanceClient from './MaintenanceClient'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -197,6 +197,7 @@ export default async function SettingsPage() {
             <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
               <div className="sm:col-span-6">
                 <SettingsClient initialEnabled={config.trialRestrictionsEnabled} />
+                <MaintenanceClient initialEnabled={config.maintenanceModeEnabled} />
               </div>
             </div>
           </div>
