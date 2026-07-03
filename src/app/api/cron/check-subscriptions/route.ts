@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         // Enviar correo
         try {
           await resend.emails.send({
-            from: 'Agora Plus <no-reply@mail.agoraplus.app>', // Change to your verified Resend domain
+            from: 'Agora Plus <no-reply@agora-lexlatin.com>', // Change to your verified Resend domain
             to: [user.email],
             subject: subject,
             html: `

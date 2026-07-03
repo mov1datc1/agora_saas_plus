@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Mail, Key, ExternalLink, Save, CheckCircle2, AlertCircle } from 'lucide-react'
-import { getEmailTemplates, saveEmailTemplate } from '@/app/actions/smtp'
+import { Mail, Key, ExternalLink, Save, CheckCircle2, AlertCircle, Send } from 'lucide-react'
+import { getEmailTemplates, saveEmailTemplate, testResendConnection } from '@/app/actions/smtp'
 
 const DEFAULT_WELCOME = `<h1>¡Bienvenido a Ágora Plus!</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p>\n<p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
 
@@ -15,6 +15,12 @@ export default function SMTPSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null)
+
+  // Test Connection State
+  const [testEmail, setTestEmail] = useState('')
+  const [testFromEmail, setTestFromEmail] = useState('soporte@agora-lexlatin.com')
+  const [isTesting, setIsTesting] = useState(false)
+  const [testMessage, setTestMessage] = useState<{type: 'success'|'error', text: string} | null>(null)
 
   // Local cache to avoid losing unsaved edits when switching tabs
   const [templates, setTemplates] = useState<Record<string, { subject: string, htmlBody: string }>>({
@@ -71,6 +77,19 @@ export default function SMTPSettingsPage() {
     setTimeout(() => setMessage(null), 4000)
   }
 
+  const handleTestConnection = async () => {
+    if (!testEmail || !testFromEmail) return
+    setIsTesting(true)
+    setTestMessage(null)
+    const result = await testResendConnection(testEmail, testFromEmail)
+    if (result.success) {
+      setTestMessage({ type: 'success', text: '¡Correo enviado! Revisa tu bandeja de entrada. La API está funcionando.' })
+    } else {
+      setTestMessage({ type: 'error', text: result.error || 'Error al conectar con Resend.' })
+    }
+    setIsTesting(false)
+  }
+
   if (isLoading) {
     return <div className="p-8 text-muted-foreground animate-pulse">Cargando plantillas...</div>
   }
@@ -114,6 +133,50 @@ export default function SMTPSettingsPage() {
               </dd>
             </div>
           </dl>
+        </div>
+        {/* Test Connection Section */}
+        <div className="border-t border-border px-4 py-6 sm:px-6 bg-surface">
+          <h4 className="text-sm font-medium text-foreground mb-4">Validar Conexión y Dominio</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end max-w-2xl">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Correo Remitente (From)</label>
+              <input 
+                type="email" 
+                value={testFromEmail}
+                onChange={(e) => setTestFromEmail(e.target.value)}
+                className="block w-full rounded-xl border-0 py-2 px-3 text-foreground shadow-sm ring-1 ring-inset ring-border bg-surface sm:text-sm"
+                placeholder="soporte@tu-dominio.com"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Enviar Prueba A (To)</label>
+              <input 
+                type="email" 
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                className="block w-full rounded-xl border-0 py-2 px-3 text-foreground shadow-sm ring-1 ring-inset ring-border bg-surface sm:text-sm"
+                placeholder="tu-correo@gmail.com"
+              />
+            </div>
+            <div className="sm:col-span-2 flex items-center justify-between mt-2">
+              <div className="flex-1">
+                {testMessage && (
+                  <div className={`flex items-center gap-2 text-sm ${testMessage.type === 'success' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {testMessage.type === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                    <span>{testMessage.text}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleTestConnection}
+                disabled={isTesting || !testEmail || !testFromEmail}
+                className="flex items-center gap-2 bg-surface border border-border text-foreground px-4 py-2 rounded-xl text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" />
+                {isTesting ? 'Enviando...' : 'Probar Conexión'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

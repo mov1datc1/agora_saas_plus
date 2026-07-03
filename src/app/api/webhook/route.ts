@@ -107,7 +107,7 @@ export async function POST(req: Request) {
                          .replace(/{{dashboardUrl}}/g, dashboardUrl)
 
               await resend.emails.send({
-                from: 'Ágora Plus <soporte@agora-plus.com>',
+                from: 'Ágora Plus <soporte@agora-lexlatin.com>',
                 to: [dbUser.email],
                 subject: subject,
                 html: html,
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
                          .replace(/{{dashboardUrl}}/g, dashboardUrl)
 
               await resend.emails.send({
-                from: 'Ágora Plus Pagos <soporte@agora-plus.com>',
+                from: 'Ágora Plus Pagos <soporte@agora-lexlatin.com>',
                 to: [dbSubUser.email],
                 subject: subject,
                 html: html,
