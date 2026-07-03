@@ -207,10 +207,10 @@ export async function exportNativePDF(tx: any, details: any, filename: string) {
     doc.setPage(i);
     
     // Add watermark
-    if (logoData && typeof doc.setGState === 'function' && typeof doc.GState === 'function') {
+    if (logoData && typeof (doc as any).setGState === 'function' && typeof (doc as any).GState === 'function') {
       try {
-        const gState = new doc.GState({ opacity: 0.1 });
-        doc.setGState(gState);
+        const gState = new (doc as any).GState({ opacity: 0.1 });
+        (doc as any).setGState(gState);
         
         // Calculate watermark dimensions
         // Let's set a target width for the watermark (e.g. 140mm)
@@ -222,8 +222,8 @@ export async function exportNativePDF(tx: any, details: any, filename: string) {
         doc.addImage(logoData, 'PNG', xPos, yPos, targetW, targetH);
         
         // Restore opacity
-        const restoreGState = new doc.GState({ opacity: 1 });
-        doc.setGState(restoreGState);
+        const restoreGState = new (doc as any).GState({ opacity: 1 });
+        (doc as any).setGState(restoreGState);
       } catch (e) {
         console.warn('Failed to add watermark', e);
       }
