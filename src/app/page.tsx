@@ -6,11 +6,11 @@ import { createClient } from '@/utils/supabase/server'
 import UnderConstruction from '@/components/layout/UnderConstruction'
 
 export default async function LandingPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } });
   
   if (config?.maintenanceModeEnabled) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
     let isAdmin = false;
     
     if (user?.email) {
