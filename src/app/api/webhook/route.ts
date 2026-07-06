@@ -150,6 +150,35 @@ export async function POST(req: Request) {
         }
         break
 
+      case 'customer.subscription.trial_will_end':
+        const trialSub = event.data.object as Stripe.Subscription
+        const dbTrialUser = await prisma.user.findUnique({
+          where: { stripeCustomerId: trialSub.customer as string }
+        })
+
+        if (dbTrialUser) {
+          try {
+            const template = await prisma.emailTemplate.findUnique({ where: { type: 'REMINDER_TRIAL' }})
+            const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+            
+            const subject = template?.subject || 'Aviso: Tu prueba gratuita está por concluir'
+            let html = template?.htmlBody || `<h1>Tu prueba de Ágora Plus está por terminar</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Esperamos que hayas disfrutado de tu prueba gratuita. Te recordamos que en 3 días comenzará tu suscripción PRO y se realizará el cargo automático a tu método de pago registrado.</p>\n<p>Si deseas continuar con nosotros, no tienes que hacer nada. Si necesitas revisar tu método de pago o cancelación, visita el enlace abajo:</p>\n<p><a href="{{dashboardUrl}}/billing">Ver Mi Facturación</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
+            
+            html = html.replace(/{{userFirstname}}/g, dbTrialUser.name || 'Usuario')
+                       .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+            await resend.emails.send({
+              from: 'Ágora Plus <soporte@agora-lexlatin.com>',
+              to: [dbTrialUser.email],
+              subject: subject,
+              html: html,
+            })
+          } catch (emailErr) {
+            console.error('[RESEND_ERROR] Failed to send trial reminder email', emailErr)
+          }
+        }
+        break
+
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         const dbSubUser = await prisma.user.findUnique({

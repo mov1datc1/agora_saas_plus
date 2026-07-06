@@ -5,11 +5,11 @@ import { Mail, Key, ExternalLink, Save, CheckCircle2, AlertCircle, Send } from '
 import { getEmailTemplates, saveEmailTemplate, testResendConnection } from '@/app/actions/smtp'
 
 const DEFAULT_WELCOME = `<h1>¡Bienvenido a Ágora Plus!</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p>\n<p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
-
 const DEFAULT_DUNNING = `<h1>Hubo un problema con tu pago</h1>\n<p>Hola {{userFirstname}},</p>\n<p>No pudimos procesar el último cargo de tu suscripción a <strong>Ágora Plus</strong>. Para evitar interrupciones, por favor actualiza tu tarjeta.</p>\n<p><a href="{{dashboardUrl}}/billing">Actualizar Método de Pago</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
+const DEFAULT_REMINDER_TRIAL = `<h1>Tu prueba de Ágora Plus está por terminar</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Esperamos que hayas disfrutado de tu prueba gratuita. Te recordamos que en 3 días comenzará tu suscripción PRO y se realizará el cargo automático a tu método de pago registrado.</p>\n<p>Si deseas continuar con nosotros, no tienes que hacer nada. Si necesitas revisar tu método de pago o cancelación, visita el enlace abajo:</p>\n<p><a href="{{dashboardUrl}}/billing">Ver Mi Facturación</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
 
 export default function SMTPSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'WELCOME' | 'DUNNING'>('WELCOME')
+  const [activeTab, setActiveTab] = useState<'WELCOME' | 'DUNNING' | 'REMINDER_TRIAL'>('WELCOME')
   const [subject, setSubject] = useState('')
   const [htmlBody, setHtmlBody] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -25,7 +25,8 @@ export default function SMTPSettingsPage() {
   // Local cache to avoid losing unsaved edits when switching tabs
   const [templates, setTemplates] = useState<Record<string, { subject: string, htmlBody: string }>>({
     'WELCOME': { subject: '¡Bienvenido a Ágora Plus PRO!', htmlBody: DEFAULT_WELCOME },
-    'DUNNING': { subject: 'Acción Requerida: Actualiza tu método de pago', htmlBody: DEFAULT_DUNNING }
+    'DUNNING': { subject: 'Acción Requerida: Actualiza tu método de pago', htmlBody: DEFAULT_DUNNING },
+    'REMINDER_TRIAL': { subject: 'Aviso: Tu prueba gratuita está por concluir', htmlBody: DEFAULT_REMINDER_TRIAL }
   })
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function SMTPSettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleTabChange = (type: 'WELCOME' | 'DUNNING') => {
+  const handleTabChange = (type: 'WELCOME' | 'DUNNING' | 'REMINDER_TRIAL') => {
     // Save current active tab to local state
     setTemplates(prev => ({
       ...prev,
@@ -205,6 +206,12 @@ export default function SMTPSettingsPage() {
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'DUNNING' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
             >
               Recuperación
+            </button>
+            <button
+              onClick={() => handleTabChange('REMINDER_TRIAL')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'REMINDER_TRIAL' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
+            >
+              Recordatorio (Prueba)
             </button>
           </div>
         </div>
