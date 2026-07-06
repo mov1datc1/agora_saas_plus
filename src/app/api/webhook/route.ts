@@ -66,6 +66,14 @@ export async function POST(req: Request) {
               
               if (existing) {
                 userId = existing.id
+                // El usuario ya existe, le generamos un magic link para que pueda entrar
+                const { data: magicLinkData } = await supabaseAdmin.auth.admin.generateLink({
+                  type: 'magiclink',
+                  email: customerEmail,
+                })
+                if (magicLinkData?.properties?.action_link) {
+                  inviteUrl = magicLinkData.properties.action_link
+                }
               } else {
                 console.error('[WEBHOOK_AUTH_ERROR]', linkError)
                 throw new Error(`Auth Error: ${linkError?.message || 'Failed to create user in Supabase'}`);
