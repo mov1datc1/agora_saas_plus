@@ -45,11 +45,13 @@ export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL',
     const adminOnlyModules = ['Administración']
     const isTeamModule = item.name === 'Mi Equipo'
     const isCopilot = item.name === 'Ágora Copilot'
+    const isBilling = item.name === 'Suscripción y Pago'
     
     if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
     if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     if (isTeamModule && (accountType !== 'CORPORATE' || parentId !== null)) return false;
     if (isCopilot && !copilotEnabled && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
+    if (isBilling && parentId !== null) return false;
     
     return true;
   });

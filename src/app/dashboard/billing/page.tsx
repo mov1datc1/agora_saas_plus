@@ -21,6 +21,11 @@ export default async function BillingPage() {
     include: { subscription: true }
   })
 
+  // Prevent team members (children) from accessing the billing module
+  if (dbUser?.parentId) {
+    redirect('/dashboard')
+  }
+
   const subscription = dbUser?.subscription
   const hasActiveTrial = subscription?.status === 'TRIAL'
   const isCanceled = subscription?.status === 'CANCELED'
