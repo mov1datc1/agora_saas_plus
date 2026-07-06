@@ -47,10 +47,11 @@ export async function POST(req: Request) {
             where: { email: customerEmail }
           })
           
+          let inviteUrl = ''
+          
           if (!dbUser) {
             // Auto-signup flow: create user in Supabase Auth using generateLink to bypass Supabase SMTP
             const { supabaseAdmin } = await import('@/utils/supabase/admin')
-            let inviteUrl = ''
             let userId = ''
             
             const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
