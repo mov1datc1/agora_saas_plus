@@ -151,6 +151,7 @@ model SystemConfig {
   trialRestrictionsEnabled Boolean  @default(false)
   gaMeasurementId          String?
   maintenanceModeEnabled   Boolean  @default(false)
+  leadFormScript           String?  @db.Text
   updatedAt                DateTime @updatedAt
 }
 

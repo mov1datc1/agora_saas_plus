@@ -24,3 +24,14 @@ export async function toggleTrialRestrictions(enabled: boolean) {
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/admin/settings')
 }
+
+export async function saveLeadFormScript(script: string) {
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { leadFormScript: script },
+    create: { id: 'global', leadFormScript: script }
+  })
+  revalidatePath('/iniciar-prueba-gratuita')
+  revalidatePath('/dashboard/admin/settings')
+  return { success: true }
+}
