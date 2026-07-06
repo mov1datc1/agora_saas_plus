@@ -26,9 +26,10 @@ interface SidebarProps {
   userRole?: string;
   accountType?: string;
   parentId?: string | null;
+  copilotEnabled?: boolean;
 }
 
-export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL', parentId = null }: SidebarProps) {
+export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL', parentId = null, copilotEnabled = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -43,10 +44,12 @@ export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL',
     const isConfiguracionSmtp = item.name === 'Configuración SMTP'
     const adminOnlyModules = ['Administración']
     const isTeamModule = item.name === 'Mi Equipo'
+    const isCopilot = item.name === 'Ágora Copilot'
     
     if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
     if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     if (isTeamModule && (accountType !== 'CORPORATE' || parentId !== null)) return false;
+    if (isCopilot && !copilotEnabled && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     
     return true;
   });

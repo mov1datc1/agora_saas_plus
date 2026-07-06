@@ -25,6 +25,27 @@ export async function toggleTrialRestrictions(enabled: boolean) {
   revalidatePath('/dashboard/admin/settings')
 }
 
+export async function toggleMaintenanceMode(enabled: boolean) {
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { maintenanceModeEnabled: enabled },
+    create: { id: 'global', maintenanceModeEnabled: enabled }
+  })
+  revalidatePath('/')
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/admin/settings')
+}
+
+export async function toggleCopilotEnabled(enabled: boolean) {
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { copilotEnabled: enabled },
+    create: { id: 'global', copilotEnabled: enabled }
+  })
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/admin/settings')
+}
+
 export async function saveLeadFormScript(script: string) {
   await prisma.systemConfig.upsert({
     where: { id: 'global' },

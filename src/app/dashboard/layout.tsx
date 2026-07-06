@@ -43,6 +43,7 @@ export default async function DashboardLayout({
   }
 
   const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } });
+  const copilotEnabled = config?.copilotEnabled ?? false;
   
   if (config?.maintenanceModeEnabled && userRole !== 'SUPERADMIN' && userRole !== 'ADMIN') {
     return (
@@ -54,7 +55,12 @@ export default async function DashboardLayout({
 
   return (
     <div className="h-full overflow-hidden flex bg-background">
-      <Sidebar userRole={userRole} accountType={accountType} parentId={parentId} />
+      <Sidebar 
+        userRole={userRole} 
+        accountType={accountType} 
+        parentId={parentId} 
+        copilotEnabled={copilotEnabled} 
+      />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DunningBanner status={subscriptionStatus} />
         <Header userName={userName} />

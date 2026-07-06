@@ -5,6 +5,7 @@ import MassiveSyncClient from './MassiveSyncClient'
 import ClearCacheClient from './ClearCacheClient'
 import MaintenanceClient from './MaintenanceClient'
 import LeadFormClient from './LeadFormClient'
+import CopilotToggleClient from './CopilotToggleClient'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -199,6 +200,7 @@ export default async function SettingsPage() {
               <div className="sm:col-span-6">
                 <SettingsClient initialEnabled={config.trialRestrictionsEnabled} />
                 <MaintenanceClient initialEnabled={config.maintenanceModeEnabled} />
+                <CopilotToggleClient initialEnabled={config.copilotEnabled} />
               </div>
             </div>
           </div>
