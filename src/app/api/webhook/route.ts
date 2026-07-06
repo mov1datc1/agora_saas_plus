@@ -48,18 +48,37 @@ export async function POST(req: Request) {
           })
           
           if (!dbUser) {
-            // Auto-signup flow: create user in Supabase Auth
+            // Auto-signup flow: create user in Supabase Auth using generateLink to bypass Supabase SMTP
             const { supabaseAdmin } = await import('@/utils/supabase/admin')
-            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(customerEmail)
+            let inviteUrl = ''
+            let userId = ''
             
-            if (authError || !authData.user) {
-              console.error('[WEBHOOK_AUTH_ERROR]', authError)
-              throw new Error(`Auth Error: ${authError?.message || 'Failed to create user in Supabase'}`);
+            const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+              type: 'invite',
+              email: customerEmail,
+            })
+            
+            if (linkError) {
+              // If user already exists, generateLink for invite throws an error. We fallback to fetching their ID.
+              const { data: listData } = await supabaseAdmin.auth.admin.listUsers()
+              const existing = listData?.users?.find(u => u.email === customerEmail)
+              
+              if (existing) {
+                userId = existing.id
+              } else {
+                console.error('[WEBHOOK_AUTH_ERROR]', linkError)
+                throw new Error(`Auth Error: ${linkError?.message || 'Failed to create user in Supabase'}`);
+              }
+            } else if (linkData.user) {
+              userId = linkData.user.id
+              inviteUrl = linkData.properties?.action_link || ''
             }
+
+            if (!userId) throw new Error('Failed to resolve user ID from Supabase');
 
             dbUser = await prisma.user.create({
               data: {
-                id: authData.user.id,
+                id: userId,
                 email: customerEmail,
                 name: session.customer_details?.name || customerEmail.split('@')[0],
                 role: 'USER',
@@ -103,8 +122,11 @@ export async function POST(req: Request) {
               const subject = template?.subject || '¡Bienvenido a Ágora Plus PRO!'
               let html = template?.htmlBody || `<h1>¡Bienvenido a Ágora Plus!</h1><p>Hola {{userFirstname}},</p><p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p><p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
               
+              // Si tenemos un inviteUrl, lo usamos como el dashboardUrl para que puedan configurar su contraseña
+              const finalUrl = inviteUrl ? inviteUrl : dashboardUrl;
+              
               html = html.replace(/{{userFirstname}}/g, dbUser.name || 'Usuario')
-                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+                         .replace(/{{dashboardUrl}}/g, finalUrl)
 
               await resend.emails.send({
                 from: 'Ágora Plus <soporte@agora-lexlatin.com>',
