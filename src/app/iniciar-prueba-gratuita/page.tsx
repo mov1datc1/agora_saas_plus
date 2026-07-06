@@ -55,11 +55,11 @@ export default async function IniciarPruebaGratuita() {
           <div className="flex justify-center lg:justify-start mb-8">
             <Link href="/">
               <Image 
-                src="/agora-logo.svg" 
+                src="/logo.png" 
                 alt="Ágora Logo" 
-                width={200} 
-                height={70} 
-                className="h-16 w-auto"
+                width={160} 
+                height={50} 
+                className="h-12 w-auto object-contain"
               />
             </Link>
           </div>
