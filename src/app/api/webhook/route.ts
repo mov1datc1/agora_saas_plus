@@ -196,7 +196,7 @@ export async function POST(req: Request) {
     }
   } catch (error: any) {
     console.error('[WEBHOOK_DB_ERROR]', error)
-    return new NextResponse(`Database Error: ${error?.message || 'Unknown error'}`, { status: 500 })
+    return new NextResponse(`Detailed Error: ${error?.message || 'Unknown error'} | Stack: ${error?.stack?.substring(0, 500)}`, { status: 500 })
   }
 
   return new NextResponse('Webhook processed', { status: 200 })
