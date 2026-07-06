@@ -19,6 +19,9 @@ model User {
   copilotUsages    CopilotUsage[]
   dailyUsages      DailyUsage[]
   subscription     Subscription?
+  parentId         String?
+  parent           User?          @relation("CorporateTeam", fields: [parentId], references: [id])
+  children         User[]         @relation("CorporateTeam")
 }
 
 model Subscription {

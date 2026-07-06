@@ -17,11 +17,18 @@ const navigation = [
   
   { name: 'Ágora Copilot', href: '/dashboard/copilot', icon: Sparkles },
   { name: 'Suscripción y Pago', href: '/dashboard/billing', icon: Briefcase },
+  { name: 'Mi Equipo', href: '/dashboard/team', icon: Users },
   { name: 'Administración', href: '/dashboard/admin', icon: Settings },
   { name: 'Configuración SMTP', href: '/dashboard/admin/smtp', icon: Mail },
 ]
 
-export default function Sidebar({ userRole = 'USER' }: { userRole?: string }) {
+interface SidebarProps {
+  userRole?: string;
+  accountType?: string;
+  parentId?: string | null;
+}
+
+export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL', parentId = null }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -35,9 +42,11 @@ export default function Sidebar({ userRole = 'USER' }: { userRole?: string }) {
   const filteredNavigation = navigation.filter(item => {
     const isConfiguracionSmtp = item.name === 'Configuración SMTP'
     const adminOnlyModules = ['Administración']
+    const isTeamModule = item.name === 'Mi Equipo'
     
     if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
     if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
+    if (isTeamModule && (accountType !== 'CORPORATE' || parentId !== null)) return false;
     
     return true;
   });

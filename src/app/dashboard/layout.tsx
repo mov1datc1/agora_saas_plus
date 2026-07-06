@@ -16,6 +16,8 @@ export default async function DashboardLayout({
   let userRole = 'USER';
   let subscriptionStatus = 'INCOMPLETE';
   let userName = 'Usuario';
+  let accountType = 'INDIVIDUAL';
+  let parentId: string | null = null;
 
   if (user?.email) {
     const dbUser = await prisma.user.findUnique({ 
@@ -36,6 +38,8 @@ export default async function DashboardLayout({
       subscriptionStatus = dbUser.subscription.status;
     }
     userName = dbUser?.name || user.email.split('@')[0];
+    accountType = dbUser?.accountType || 'INDIVIDUAL';
+    parentId = dbUser?.parentId || null;
   }
 
   const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } });
@@ -50,7 +54,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="h-full overflow-hidden flex bg-background">
-      <Sidebar userRole={userRole} />
+      <Sidebar userRole={userRole} accountType={accountType} parentId={parentId} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DunningBanner status={subscriptionStatus} />
         <Header userName={userName} />
