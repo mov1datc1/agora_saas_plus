@@ -107,6 +107,10 @@ export async function POST(request: Request) {
         type = null
       }
       
+      // Normalizar nombres que vienen de la UI de Drupal a los estándares de Ágora
+      if (type === 'Fusiones y adquisiciones') type = 'M&A'
+      if (type === 'Financiamiento') type = 'Financiamientos'
+      
       if (!type || type.trim() === '' || type === 'Operación General') {
         const textToAnalyze = `${title} ${excerpt || ''}`.toLowerCase()
         
