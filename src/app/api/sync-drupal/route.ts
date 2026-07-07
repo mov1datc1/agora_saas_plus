@@ -103,21 +103,8 @@ export async function POST(request: Request) {
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
       const excerpt = attributes.body?.value || null
       let type = attributes.field_operacion_principal
-      if (typeof type !== 'string') {
-        type = null // Force heuristic if it's boolean true or an object
-      }
-      
-      if (!type || type === 'Operación General') {
-        const textToAnalyze = `${title} ${attributes.body?.value || ''}`.toLowerCase()
-        if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
-          type = 'Emisiones'
-        } else if (textToAnalyze.includes('financiamiento') || textToAnalyze.includes('préstamo') || textToAnalyze.includes('crédito') || textToAnalyze.includes('financia')) {
-          type = 'Financiamientos'
-        } else if (textToAnalyze.includes('fusión') || textToAnalyze.includes('adquisición') || textToAnalyze.includes('compra') || textToAnalyze.includes('vende')) {
-          type = 'M&A'
-        } else {
-          type = 'Operación General'
-        }
+      if (!type || typeof type !== 'string' || type.trim() === '') {
+        type = 'Operación General'
       }
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
 
