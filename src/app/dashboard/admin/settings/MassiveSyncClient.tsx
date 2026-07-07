@@ -237,15 +237,15 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
               </div>
               <div className="flex items-center gap-2">
                 {activeJob.status === 'RUNNING' ? (
-                  <button onClick={handlePause} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-sm font-semibold transition-colors">
+                  <button type="button" onClick={handlePause} className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-sm font-semibold transition-colors">
                     <Pause className="w-4 h-4" /> Pausar
                   </button>
                 ) : (
-                  <button onClick={handleResume} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-sm font-semibold transition-colors">
+                  <button type="button" onClick={handleResume} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg text-sm font-semibold transition-colors">
                     <Play className="w-4 h-4" /> Reanudar
                   </button>
                 )}
-                <button onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors">
+                <button type="button" onClick={handleCancel} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors">
                   <Square className="w-4 h-4" /> Cancelar
                 </button>
               </div>
@@ -283,6 +283,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
               <p className="text-sm text-muted-foreground">Genera un nuevo SyncJob que recorrerá toda la base histórica.</p>
             </div>
             <button
+              type="button"
               onClick={() => setIsConfirmOpen(true)}
               className="flex items-center justify-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm hover:bg-foreground/80 transition-colors shrink-0"
             >

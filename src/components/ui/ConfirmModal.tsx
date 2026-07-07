@@ -32,7 +32,7 @@ export default function ConfirmModal({
           <div className="bg-[#E05C50]/10 p-3 rounded-full text-[#E05C50]">
             <AlertCircle className="w-6 h-6" />
           </div>
-          <button onClick={onClose} disabled={isLoading} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors disabled:opacity-50">
+          <button type="button" onClick={onClose} disabled={isLoading} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors disabled:opacity-50">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -44,6 +44,7 @@ export default function ConfirmModal({
 
         <div className="flex gap-3">
           <button 
+            type="button"
             onClick={onClose} 
             disabled={isLoading}
             className="flex-1 text-center bg-muted text-foreground font-semibold py-3 px-4 rounded-xl hover:bg-muted/80 transition-colors shadow-sm disabled:opacity-50"
@@ -51,6 +52,7 @@ export default function ConfirmModal({
             {cancelText}
           </button>
           <button 
+            type="button"
             onClick={onConfirm} 
             disabled={isLoading}
             className="flex-1 flex items-center justify-center gap-2 bg-[#E05C50] text-white font-semibold py-3 px-4 rounded-xl hover:bg-[#D92B4F] transition-colors shadow-sm disabled:opacity-50"
