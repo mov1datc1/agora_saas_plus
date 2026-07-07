@@ -387,6 +387,8 @@ export default function OperationsClient() {
     let txWithValue = 0
     const firmsSet = new Set<string>()
     const countriesSet = new Set<string>()
+    const companiesSet = new Set<string>()
+    const lawyersSet = new Set<string>()
 
     filteredTransactions.forEach(tx => {
       let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
@@ -404,13 +406,23 @@ export default function OperationsClient() {
       if (tx.country && tx.country !== 'N/D') {
         tx.country.split(',').forEach(c => countriesSet.add(c.trim()))
       }
+      
+      if (tx.company && tx.company !== 'Sin empresas listadas' && tx.company !== 'N/D') {
+        tx.company.split(',').forEach(c => companiesSet.add(c.trim()))
+      }
+      
+      if (tx.lawyer && tx.lawyer !== 'Sin abogados listados' && tx.lawyer !== 'N/D') {
+        tx.lawyer.split(',').forEach(l => lawyersSet.add(l.trim()))
+      }
     })
 
     return {
       totalValue,
       avgTicket: txWithValue > 0 ? totalValue / txWithValue : 0,
       uniqueFirms: firmsSet.size,
-      uniqueCountries: countriesSet.size
+      uniqueCountries: countriesSet.size,
+      uniqueCompanies: companiesSet.size,
+      uniqueLawyers: lawyersSet.size
     }
   }, [filteredTransactions])
 
@@ -727,6 +739,16 @@ export default function OperationsClient() {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Firmas</p>
                       <p className="text-lg font-bold text-foreground">{searchStats.uniqueFirms}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Empresas</p>
+                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueCompanies}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Abogados</p>
+                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueLawyers}</p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Países</p>
