@@ -103,8 +103,29 @@ export async function POST(request: Request) {
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
       const excerpt = attributes.body?.value || null
       let type = attributes.field_operacion_principal
-      if (!type || typeof type !== 'string' || type.trim() === '') {
-        type = 'Operación General'
+      if (typeof type !== 'string') {
+        type = null
+      }
+      
+      if (!type || type.trim() === '' || type === 'Operación General') {
+        const textToAnalyze = `${title} ${excerpt || ''}`.toLowerCase()
+        
+        // Prioridad 1: M&A (Es la más común y la que más reclaman)
+        if (textToAnalyze.includes('fusión') || textToAnalyze.includes('adquisición') || textToAnalyze.includes('compra') || textToAnalyze.includes('vende') || textToAnalyze.includes('adquiere')) {
+          type = 'M&A'
+        } 
+        // Prioridad 2: Emisiones
+        else if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
+          type = 'Emisiones'
+        } 
+        // Prioridad 3: Financiamientos
+        else if (textToAnalyze.includes('financiamiento') || textToAnalyze.includes('préstamo') || textToAnalyze.includes('crédito') || textToAnalyze.includes('financia')) {
+          type = 'Financiamientos'
+        } 
+        // Si no adivina nada, lo deja fuera para que no ensucie
+        else {
+          type = 'Operación General'
+        }
       }
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
 
