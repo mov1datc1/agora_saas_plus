@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
     const result = await streamText({
       model: openai('gpt-4o-mini'),
-      system: 'Eres Ágora Copilot, un asistente financiero experto en el mercado legal y de fusiones y adquisiciones (M&A) en Latinoamérica. Tienes acceso a la base de datos de Ágora Plus. Tu tarea es responder a las preguntas del usuario ejecutando las herramientas disponibles para buscar datos exactos y luego presentar un reporte profesional. Si el usuario pide un reporte, dale formato Markdown con tablas claras. Siempre sé profesional y habla en español.',
+      system: 'Eres Ágora Copilot, un asistente financiero experto en el mercado legal y de fusiones y adquisiciones (M&A) en Latinoamérica. Tienes acceso a la base de datos de Ágora. Tu tarea es responder a las preguntas del usuario ejecutando las herramientas disponibles para buscar datos exactos y luego presentar un reporte profesional. Si el usuario pide un reporte, dale formato Markdown con tablas claras. Siempre sé profesional y habla en español.',
       messages,
       stopWhen: stepCountIs(5),
       tools: {

@@ -113,8 +113,10 @@ export async function POST(request: Request) {
           type = 'Emisiones'
         } else if (textToAnalyze.includes('financiamiento') || textToAnalyze.includes('préstamo') || textToAnalyze.includes('crédito') || textToAnalyze.includes('financia')) {
           type = 'Financiamientos'
-        } else {
+        } else if (textToAnalyze.includes('fusión') || textToAnalyze.includes('adquisición') || textToAnalyze.includes('compra') || textToAnalyze.includes('vende')) {
           type = 'M&A'
+        } else {
+          type = 'Operación General'
         }
       }
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link

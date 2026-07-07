@@ -19,6 +19,11 @@ export async function GET(request: Request) {
 
     // 3. Consulta de Base de Datos Eficiente
     const dbTransactions = await prisma.transaction.findMany({
+      where: {
+        type: {
+          in: ['M&A', 'Emisiones', 'Financiamientos']
+        }
+      },
       select: {
         id: true,
         title: true,
@@ -67,7 +72,7 @@ export async function GET(request: Request) {
       date: tx.dateClosed ? new Date(tx.dateClosed).toLocaleDateString('es-ES') : 
             tx.dateAnnounced ? new Date(tx.dateAnnounced).toLocaleDateString('es-ES') : 'Sin fecha',
       title: tx.title,
-      type: (tx.type && tx.type !== 'Operación General') ? tx.type : 'M&A',
+      type: tx.type,
       amount: tx.valueString || 'Por definir',
       status: tx.status || 'Completada',
       industry: tx.industry?.name || 'Varios',

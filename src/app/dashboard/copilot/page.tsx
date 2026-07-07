@@ -75,7 +75,7 @@ export default function CopilotPage() {
             <div className="max-w-md">
               <h2 className="text-xl font-semibold text-foreground mb-2">¿En qué puedo ayudarte hoy?</h2>
               <p className="text-muted-foreground text-sm mb-6">
-                Tengo acceso directo a la base de datos de Ágora Plus. Puedo cruzar datos, listar transacciones y generar reportes analíticos precisos en segundos.
+                Tengo acceso directo a la base de datos de Ágora. Puedo cruzar datos, listar transacciones y generar reportes analíticos precisos en segundos.
               </p>
               <div className="grid grid-cols-1 gap-3 text-left">
                 {suggestions.map((suggestion, idx) => (
@@ -112,7 +112,7 @@ export default function CopilotPage() {
               }`}>
                 {m.role !== 'user' && hasTools ? (
                   <div className="text-xs text-muted-foreground italic mb-2 animate-pulse">
-                    Analizando datos de Ágora Plus...
+                    Analizando datos de Ágora...
                   </div>
                 ) : null}
 

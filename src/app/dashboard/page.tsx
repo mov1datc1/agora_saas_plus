@@ -117,7 +117,7 @@ export default async function DashboardPage() {
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Bienvenido a Ágora Plus</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Bienvenido a Ágora</h2>
             <p className="mt-2 text-sm text-gray-500">
               Aquí tienes un resumen de la actividad transaccional más reciente.
             </p>

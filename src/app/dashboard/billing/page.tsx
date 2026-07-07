@@ -66,7 +66,7 @@ export default async function BillingPage() {
         <div className="bg-white p-12 rounded-3xl border border-gray-100 shadow-sm text-center">
           <h3 className="text-2xl font-bold text-gray-900 mb-4">Empieza tu Prueba Gratuita</h3>
           <p className="text-gray-500 max-w-lg mx-auto mb-8 leading-relaxed">
-            Obtén acceso total a la plataforma de Ágora Plus durante 15 días. Se requiere tarjeta de crédito para evitar interrupciones, pero no se hará ningún cargo hasta que termine el periodo de prueba.
+            Obtén acceso total a la plataforma de Ágora durante 15 días. Se requiere tarjeta de crédito para evitar interrupciones, pero no se hará ningún cargo hasta que termine el periodo de prueba.
           </p>
           <CheckoutButton />
         </div>
@@ -95,7 +95,7 @@ export default async function BillingPage() {
               
               <div className="space-y-1">
                 <p className="text-4xl font-bold text-gray-900">
-                  {isCanceled ? 'Cancelado' : 'Ágora Plus'}
+                  {isCanceled ? 'Cancelado' : 'Ágora'}
                 </p>
                 <p className="text-sm font-medium text-gray-500 flex items-center gap-2">
                   Estado: 

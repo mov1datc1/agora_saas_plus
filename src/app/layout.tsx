@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ágora Plus | Inteligencia Transaccional",
+  title: "Ágora | Inteligencia Transaccional",
   description: "Detecta oportunidades de negocio antes de que el mercado las vea.",
   icons: [
     {

@@ -201,10 +201,14 @@ export default function OperationsClient() {
   }
 
   const uniqueTypes = ['M&A', 'Emisiones', 'Financiamientos']
-  const uniqueIndustries = extractUnique('industry')
-  const uniqueFirms = extractUnique('firm')
-  const uniqueCountries = extractUnique('country')
-  const uniqueLawyers = extractUnique('lawyer')
+  const { uniqueIndustries, uniqueFirms, uniqueCountries, uniqueLawyers } = useMemo(() => {
+    return {
+      uniqueIndustries: extractUnique('industry'),
+      uniqueFirms: extractUnique('firm'),
+      uniqueCountries: extractUnique('country'),
+      uniqueLawyers: extractUnique('lawyer')
+    }
+  }, [transactions])
 
   const valueRangeOptions = [
     'Todos',
@@ -216,73 +220,75 @@ export default function OperationsClient() {
   ]
 
   // Lógica de filtrado
-  const filteredTransactions = transactions.filter(tx => {
-    const matchType = selectedType === 'Todos' || (tx.type || '').trim() === selectedType.trim()
-    const matchIndustry = selectedIndustry === 'Todas' || (tx.industry || '').includes(selectedIndustry)
-    const matchFirm = selectedFirm === 'Todas' || (tx.firm || '').includes(selectedFirm)
-    const matchCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
-    const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer)
-    
-    // Filtrado por Búsqueda de Texto
-    const searchLower = searchQuery.toLowerCase().trim()
-    const matchSearch = searchLower === '' || 
-                        (tx.title || '').toLowerCase().includes(searchLower) || 
-                        (tx.firm || '').toLowerCase().includes(searchLower) ||
-                        (tx.lawyer || '').toLowerCase().includes(searchLower) ||
-                        (tx.industry || '').toLowerCase().includes(searchLower) ||
-                        (tx.country || '').toLowerCase().includes(searchLower)
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      const matchType = selectedType === 'Todos' || (tx.type || '').trim() === selectedType.trim()
+      const matchIndustry = selectedIndustry === 'Todas' || (tx.industry || '').includes(selectedIndustry)
+      const matchFirm = selectedFirm === 'Todas' || (tx.firm || '').includes(selectedFirm)
+      const matchCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
+      const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer)
+      
+      // Filtrado por Búsqueda de Texto
+      const searchLower = searchQuery.toLowerCase().trim()
+      const matchSearch = searchLower === '' || 
+                          (tx.title || '').toLowerCase().includes(searchLower) || 
+                          (tx.firm || '').toLowerCase().includes(searchLower) ||
+                          (tx.lawyer || '').toLowerCase().includes(searchLower) ||
+                          (tx.industry || '').toLowerCase().includes(searchLower) ||
+                          (tx.country || '').toLowerCase().includes(searchLower)
 
-    // Filtrado por Rango de Fecha
-    let matchDate = true
-    if (dateRange.start || dateRange.end) {
-      const parts = tx.date.split('/')
-      if (parts.length === 3) {
-        const txDateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-        const txDate = txDateObj.getTime()
-        
-        // Al usar inputs type="date", el valor viene como "YYYY-MM-DD". 
-        // Agregamos "T00:00:00" para evitar el desfase de zona horaria (UTC vs Local)
-        const startDateObj = dateRange.start ? new Date(dateRange.start + 'T00:00:00') : new Date(0)
-        const startDate = startDateObj.getTime()
-        
-        const endDateObj = dateRange.end ? new Date(dateRange.end + 'T00:00:00') : new Date(8640000000000000)
-        const endDate = endDateObj.getTime() + 86399999 // Incluir hasta el final del día
+      // Filtrado por Rango de Fecha
+      let matchDate = true
+      if (dateRange.start || dateRange.end) {
+        const parts = tx.date.split('/')
+        if (parts.length === 3) {
+          const txDateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
+          const txDate = txDateObj.getTime()
+          
+          // Al usar inputs type="date", el valor viene como "YYYY-MM-DD". 
+          // Agregamos "T00:00:00" para evitar el desfase de zona horaria (UTC vs Local)
+          const startDateObj = dateRange.start ? new Date(dateRange.start + 'T00:00:00') : new Date(0)
+          const startDate = startDateObj.getTime()
+          
+          const endDateObj = dateRange.end ? new Date(dateRange.end + 'T00:00:00') : new Date(8640000000000000)
+          const endDate = endDateObj.getTime() + 86399999 // Incluir hasta el final del día
 
-        matchDate = txDate >= startDate && txDate <= endDate
-      } else {
-        matchDate = false
-      }
-    }
-
-    // Filtrado por Valor Económico
-    let matchValue = true
-    if (selectedValueRange !== 'Todos') {
-      let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
-      if (tx.amount.includes('B')) num *= 1000
-      else if (tx.amount === 'Por definir' || isNaN(num)) num = -1
-
-      // Si el número es gigante (mayor a 100,000), asumimos que está expresado en unidades enteras y lo pasamos a millones.
-      if (num > 100000) {
-        num = num / 1000000
+          matchDate = txDate >= startDate && txDate <= endDate
+        } else {
+          matchDate = false
+        }
       }
 
-      if (num === -1) {
-        matchValue = false
-      } else if (selectedValueRange === 'Menos de $10M') {
-        matchValue = num < 10
-      } else if (selectedValueRange === '$10M - $50M') {
-        matchValue = num >= 10 && num < 50
-      } else if (selectedValueRange === '$50M - $100M') {
-        matchValue = num >= 50 && num < 100
-      } else if (selectedValueRange === '$100M - $500M') {
-        matchValue = num >= 100 && num < 500
-      } else if (selectedValueRange === 'Más de $500M') {
-        matchValue = num >= 500
+      // Filtrado por Valor Económico
+      let matchValue = true
+      if (selectedValueRange !== 'Todos') {
+        let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
+        if (tx.amount.includes('B')) num *= 1000
+        else if (tx.amount === 'Por definir' || isNaN(num)) num = -1
+
+        // Si el número es gigante (mayor a 100,000), asumimos que está expresado en unidades enteras y lo pasamos a millones.
+        if (num > 100000) {
+          num = num / 1000000
+        }
+
+        if (num === -1) {
+          matchValue = false
+        } else if (selectedValueRange === 'Menos de $10M') {
+          matchValue = num < 10
+        } else if (selectedValueRange === '$10M - $50M') {
+          matchValue = num >= 10 && num < 50
+        } else if (selectedValueRange === '$50M - $100M') {
+          matchValue = num >= 50 && num < 100
+        } else if (selectedValueRange === '$100M - $500M') {
+          matchValue = num >= 100 && num < 500
+        } else if (selectedValueRange === 'Más de $500M') {
+          matchValue = num >= 500
+        }
       }
-    }
-    
-    return matchType && matchIndustry && matchFirm && matchCountry && matchLawyer && matchSearch && matchDate && matchValue
-  })
+      
+      return matchType && matchIndustry && matchFirm && matchCountry && matchLawyer && matchSearch && matchDate && matchValue
+    })
+  }, [transactions, selectedType, selectedIndustry, selectedFirm, selectedCountry, selectedLawyer, searchQuery, dateRange, selectedValueRange])
 
   // Parseadores para ordenamiento
   const parseDate = (dateStr: string) => {
