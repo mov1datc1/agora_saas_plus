@@ -37,12 +37,12 @@ export default async function RootLayout({
 
   return (
     <html lang="es" className="h-full bg-background antialiased">
+      {config?.gtmMeasurementId && <GoogleTagManager gtmId={config.gtmMeasurementId} />}
+      {config?.gaMeasurementId && <GoogleAnalytics gaId={config.gaMeasurementId} />}
       <body className={`${geistSans.variable} ${geistMono.variable} h-full`}>
         <AuthListener />
         {children}
       </body>
-      {config?.gaMeasurementId && <GoogleAnalytics gaId={config.gaMeasurementId} />}
-      {config?.gtmMeasurementId && <GoogleTagManager gtmId={config.gtmMeasurementId} />}
     </html>
   );
 }
