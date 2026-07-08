@@ -35,7 +35,7 @@ export async function GET() {
       return {
         id: adv.id,
         firma: adv.firm.name,
-        monto: tx.valueString || 'No revelado',
+        monto: (tx.valueString === 'Por definir' || !tx.valueString) ? 'Valor confidencial' : tx.valueString,
         volumen: tx.value ? Number(tx.value) : null,
         tipoOperacion: tx.type || 'M&A',
         pais: tx.country || 'N/D',

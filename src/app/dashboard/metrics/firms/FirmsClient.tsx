@@ -202,7 +202,7 @@ export default function FirmsClient() {
   }, [topFirmsList, rankingSearchQuery])
 
   const formatCurrency = (value: number | null | undefined) => {
-    if (!value) return 'No revelado'
+    if (!value) return 'Valor confidencial'
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
     return `$${value.toLocaleString()}`
@@ -274,7 +274,7 @@ export default function FirmsClient() {
           onClose={() => setIsDetailModalOpen(false)}
           title={selectedRow.firma}
           subtitle={`Operación de ${selectedRow.tipoOperacion}`}
-          amount={selectedRow.monto !== 'No revelado' ? selectedRow.monto : undefined}
+          amount={selectedRow.monto !== 'Valor confidencial' ? selectedRow.monto : undefined}
           iconType="firm"
           sections={[
             { label: 'País Involucrado', value: renderChips(selectedRow.pais, false) },

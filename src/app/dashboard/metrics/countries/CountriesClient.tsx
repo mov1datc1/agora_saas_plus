@@ -288,7 +288,7 @@ export default function CountriesClient() {
   const formatCurrency = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
-    if (value === 0) return 'No revelado'
+    if (value === 0) return 'Valor confidencial'
     return `$${value.toLocaleString()}`
   }
 
