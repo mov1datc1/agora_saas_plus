@@ -100,7 +100,7 @@ export default async function DashboardPage() {
       id: t.id,
       title: t.title,
       type: t.type || 'Operación General',
-      value: t.valueString || 'No revelado',
+      value: t.valueString === 'Por definir' ? 'Valor confidencial' : (t.valueString || 'Valor confidencial'),
       date: t.dateAnnounced ? t.dateAnnounced.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
       status: t.status || 'Completada',
     })) : [

@@ -112,23 +112,29 @@ export async function POST(request: Request) {
       if (type === 'Financiamiento') type = 'Financiamientos'
       
       if (!type || type.trim() === '' || type === 'Operación General') {
-        const textToAnalyze = `${title} ${excerpt || ''}`.toLowerCase()
+        const titleLower = title.toLowerCase()
+        const fullTextLower = `${title} ${excerpt || ''}`.toLowerCase()
         
-        // Prioridad 1: M&A (Es la más común y la que más reclaman)
-        if (textToAnalyze.includes('fusión') || textToAnalyze.includes('adquisición') || textToAnalyze.includes('compra') || textToAnalyze.includes('vende') || textToAnalyze.includes('adquiere')) {
-          type = 'M&A'
-        } 
-        // Prioridad 2: Emisiones
-        else if (textToAnalyze.includes('emisión') || textToAnalyze.includes('emite') || textToAnalyze.includes('emisiones') || textToAnalyze.includes('bonos') || textToAnalyze.includes('notas')) {
-          type = 'Emisiones'
-        } 
-        // Prioridad 3: Financiamientos
-        else if (textToAnalyze.includes('financiamiento') || textToAnalyze.includes('préstamo') || textToAnalyze.includes('crédito') || textToAnalyze.includes('financia')) {
-          type = 'Financiamientos'
-        } 
-        // Si no adivina nada, lo deja fuera para que no ensucie
-        else {
-          type = 'Operación General'
+        // Función de evaluación
+        const determineType = (text: string) => {
+          if (text.includes('emisión') || text.includes('emite') || text.includes('emisiones') || text.includes('bonos') || text.includes('notas')) {
+            return 'Emisiones'
+          }
+          if (text.includes('fusión') || text.includes('adquisición') || text.includes('compra') || text.includes('vende') || text.includes('adquiere')) {
+            return 'M&A'
+          }
+          if (text.includes('financiamiento') || text.includes('préstamo') || text.includes('crédito') || text.includes('financia')) {
+            return 'Financiamientos'
+          }
+          return null
+        }
+
+        // 1. Evaluar primero el título (más preciso)
+        type = determineType(titleLower)
+        
+        // 2. Si no hay nada claro en el título, evaluar el texto completo
+        if (!type) {
+          type = determineType(fullTextLower) || 'Operación General'
         }
       }
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link

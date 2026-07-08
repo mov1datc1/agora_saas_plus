@@ -264,7 +264,7 @@ export default function OperationsClient() {
       if (selectedValueRange !== 'Todos') {
         let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
         if (tx.amount.includes('B')) num *= 1000
-        else if (tx.amount === 'Por definir' || isNaN(num)) num = -1
+        else if (tx.amount === 'Por definir' || tx.amount === 'Valor confidencial' || isNaN(num)) num = -1
 
         // Si el número es gigante (mayor a 100,000), asumimos que está expresado en unidades enteras y lo pasamos a millones.
         if (num > 100000) {
@@ -300,7 +300,7 @@ export default function OperationsClient() {
   }
 
   const parseAmount = (amountStr: string) => {
-    if (!amountStr || amountStr === 'Por definir') return 0
+    if (!amountStr || amountStr === 'Por definir' || amountStr === 'Valor confidencial') return 0
     let num = parseFloat(amountStr.replace(/[^0-9.-]/g, ''))
     if (amountStr.includes('B')) num *= 1000
     return isNaN(num) ? 0 : num
@@ -392,7 +392,7 @@ export default function OperationsClient() {
 
     filteredTransactions.forEach(tx => {
       let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
-      if (!isNaN(num) && tx.amount !== 'Por definir') {
+      if (!isNaN(num) && tx.amount !== 'Por definir' && tx.amount !== 'Valor confidencial') {
         if (tx.amount.includes('B')) num *= 1000
         else if (num > 100000) num = num / 1000000 // Convert big numbers to M
         totalValue += num
@@ -676,7 +676,7 @@ export default function OperationsClient() {
                       {tx.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80 font-medium" title="Dólares Estadounidenses (USD)">{tx.amount === 'Por definir' ? <span className="text-muted-foreground font-normal">Por definir</span> : tx.amount}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-foreground/80 font-medium" title="Dólares Estadounidenses (USD)">{(tx.amount === 'Por definir' || tx.amount === 'Valor confidencial') ? <span className="text-muted-foreground font-normal">Valor confidencial</span> : tx.amount}</td>
                 </tr>
               )))}
               {isDataAllowed && sortedTransactions.length === 0 && !isSwrLoading && (
@@ -810,7 +810,7 @@ export default function OperationsClient() {
                     </div>
                     <div>
                       <span className="inline-block bg-[#10b981] text-white text-sm font-bold px-3 py-1 rounded">
-                        {selectedTx.amount !== 'Por definir' ? `USD ${selectedTx.amount}` : selectedTx.amount}
+                        {(selectedTx.amount !== 'Por definir' && selectedTx.amount !== 'Valor confidencial') ? `USD ${selectedTx.amount}` : 'Valor confidencial'}
                       </span>
                     </div>
                   </div>
