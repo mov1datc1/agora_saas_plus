@@ -13,7 +13,7 @@ export async function saveGAConfig(formData: FormData) {
   })
 
   revalidatePath('/dashboard/admin/marketing')
-  revalidatePath('/') // Revalidate layout where GA is injected
+  revalidatePath('/', 'layout') // Revalidate layout where GA is injected
 }
 
 export async function saveGTMConfig(formData: FormData) {
@@ -26,5 +26,5 @@ export async function saveGTMConfig(formData: FormData) {
   })
 
   revalidatePath('/dashboard/admin/marketing')
-  revalidatePath('/') // Revalidate layout where GTM is injected
+  revalidatePath('/', 'layout') // Revalidate layout where GTM is injected
 }
