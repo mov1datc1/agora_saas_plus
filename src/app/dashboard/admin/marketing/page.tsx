@@ -1,6 +1,6 @@
-import { Server, Target, LineChart, Activity, Save } from 'lucide-react'
+import { Server, Target, LineChart, Activity, Save, Tags } from 'lucide-react'
 import prisma from '@/lib/prisma'
-import { saveGAConfig } from './actions'
+import { saveGAConfig, saveGTMConfig } from './actions'
 
 export default async function MarketingSettingsPage() {
   const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } })
@@ -8,6 +8,59 @@ export default async function MarketingSettingsPage() {
   return (
     <div className="space-y-10 divide-y divide-border">
       <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-6 md:grid-cols-3">
+        <div className="px-4 sm:px-0">
+          <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
+            <Tags className="h-5 w-5 text-brand" />
+            Google Tag Manager
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-foreground/60">
+            Administra todas las etiquetas (Google Ads, Meta, Analytics) desde un solo lugar.
+          </p>
+          <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 ring-1 ring-blue-400/30">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-500">Recomendado</h3>
+                <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                  <p>Configura tu GTM ID aquí para manejar todas tus etiquetas externamente sin necesidad de tocar el código.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form action={saveGTMConfig} className="bg-surface shadow-sm ring-1 ring-border sm:rounded-xl md:col-span-2">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+              <div className="sm:col-span-4">
+                <label htmlFor="gtm-id" className="block text-sm font-medium leading-6 text-foreground">
+                  Container ID (Ej. GTM-XXXXXXX)
+                </label>
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    name="gtm-id"
+                    id="gtm-id"
+                    defaultValue={config?.gtmMeasurementId || ""}
+                    placeholder="GTM-"
+                    className="block w-full rounded-md border-0 py-1.5 text-foreground shadow-sm ring-1 ring-inset ring-border focus:ring-2 focus:ring-inset focus:ring-brand sm:text-sm sm:leading-6"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-x-6 border-t border-border px-4 py-4 sm:px-8">
+            <button
+              type="submit"
+              className="flex items-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <Save className="h-4 w-4" />
+              Guardar Configuración
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
         <div className="px-4 sm:px-0">
           <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
             <LineChart className="h-5 w-5 text-brand" />

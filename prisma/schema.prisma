@@ -153,6 +153,7 @@ model SystemConfig {
   id                       String   @id @default("global")
   trialRestrictionsEnabled Boolean  @default(false)
   gaMeasurementId          String?
+  gtmMeasurementId         String?
   maintenanceModeEnabled   Boolean  @default(false)
   copilotEnabled           Boolean  @default(false)
   leadFormScript           String?  @db.Text

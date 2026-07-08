@@ -15,3 +15,16 @@ export async function saveGAConfig(formData: FormData) {
   revalidatePath('/dashboard/admin/marketing')
   revalidatePath('/') // Revalidate layout where GA is injected
 }
+
+export async function saveGTMConfig(formData: FormData) {
+  const gtmId = formData.get('gtm-id') as string
+
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { gtmMeasurementId: gtmId },
+    create: { id: 'global', gtmMeasurementId: gtmId }
+  })
+
+  revalidatePath('/dashboard/admin/marketing')
+  revalidatePath('/') // Revalidate layout where GTM is injected
+}

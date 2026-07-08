@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthListener } from "@/components/auth/AuthListener";
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics, GoogleTagManager } from '@next/third-parties/google'
 import prisma from '@/lib/prisma'
 
 export default async function RootLayout({
@@ -42,6 +42,7 @@ export default async function RootLayout({
         {children}
       </body>
       {config?.gaMeasurementId && <GoogleAnalytics gaId={config.gaMeasurementId} />}
+      {config?.gtmMeasurementId && <GoogleTagManager gtmId={config.gtmMeasurementId} />}
     </html>
   );
 }
