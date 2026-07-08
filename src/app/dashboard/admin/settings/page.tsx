@@ -6,6 +6,7 @@ import ClearCacheClient from './ClearCacheClient'
 import MaintenanceClient from './MaintenanceClient'
 import LeadFormClient from './LeadFormClient'
 import CopilotToggleClient from './CopilotToggleClient'
+import MetricsToggleClient from './MetricsToggleClient'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -201,6 +202,7 @@ export default async function SettingsPage() {
                 <SettingsClient initialEnabled={config.trialRestrictionsEnabled} />
                 <MaintenanceClient initialEnabled={config.maintenanceModeEnabled} />
                 <CopilotToggleClient initialEnabled={config.copilotEnabled} />
+                <MetricsToggleClient initialEnabled={config.showGlobalMetricsToUsers} />
               </div>
             </div>
           </div>

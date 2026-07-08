@@ -11,6 +11,7 @@ export default async function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const dbUser = user && user.email ? await prisma.user.findUnique({ where: { email: user.email }, include: { subscription: true } }) : null
     const subscription = dbUser?.subscription
+    const config = await prisma.systemConfig.findUnique({ where: { id: 'global' } })
 
     let badgeText = "Suscripción Inactiva"
     let badgeColor = "bg-gray-50 text-gray-700 ring-gray-600/20"
@@ -130,24 +131,26 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((item) => (
-            <div
-              key={item.name}
-              className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md"
-            >
-              <dt>
-                <div className="absolute rounded-xl bg-red-50 p-3">
-                  <item.icon className="h-6 w-6 text-[#E05C50]" aria-hidden="true" />
-                </div>
-                <p className="ml-16 truncate text-sm font-medium text-gray-500">{item.name}</p>
-              </dt>
-              <dd className="ml-16 flex items-baseline pb-1 sm:pb-2">
-                <p className="text-3xl font-bold text-gray-900">{item.value}</p>
-              </dd>
-            </div>
-          ))}
-        </div>
+        {dbUser && (dbUser.role === 'ADMIN' || dbUser.role === 'SUPERADMIN' || (config && config.showGlobalMetricsToUsers)) && (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {stats.map((item) => (
+              <div
+                key={item.name}
+                className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md"
+              >
+                <dt>
+                  <div className="absolute rounded-xl bg-red-50 p-3">
+                    <item.icon className="h-6 w-6 text-[#E05C50]" aria-hidden="true" />
+                  </div>
+                  <p className="ml-16 truncate text-sm font-medium text-gray-500">{item.name}</p>
+                </dt>
+                <dd className="ml-16 flex items-baseline pb-1 sm:pb-2">
+                  <p className="text-3xl font-bold text-gray-900">{item.value}</p>
+                </dd>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Main Chart Area */}

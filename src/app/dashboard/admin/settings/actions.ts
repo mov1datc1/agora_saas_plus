@@ -46,6 +46,16 @@ export async function toggleCopilotEnabled(enabled: boolean) {
   revalidatePath('/dashboard/admin/settings')
 }
 
+export async function toggleGlobalMetrics(enabled: boolean) {
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { showGlobalMetricsToUsers: enabled },
+    create: { id: 'global', showGlobalMetricsToUsers: enabled }
+  })
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/admin/settings')
+}
+
 export async function saveLeadFormScript(script: string) {
   await prisma.systemConfig.upsert({
     where: { id: 'global' },
