@@ -110,7 +110,9 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
     let currentOffset = job.currentOffset
     let totalProcessed = job.totalProcessed
     let skippedBlocks = job.skippedBlocks
+    const skippedOffsets: number[] = [] // Track which offsets failed for retry pass
 
+    // ── PASS 1: Main sequential sync ──
     while (keepSyncingRef.current) {
       let retries = 0
       let success = false
@@ -139,15 +141,8 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           totalProcessed += count
 
           if (count < 5) {
+            // End of data reached — but don't mark complete yet, check for retry pass
             keepSyncingRef.current = false
-            await patchJob(job.id, { 
-              status: 'COMPLETED', 
-              currentOffset, 
-              totalProcessed, 
-              skippedBlocks, 
-              log: `¡Completado! Total descargadas: ${totalProcessed}. Bloques saltados: ${skippedBlocks}.` 
-            })
-            fetchJobs()
           } else {
             currentOffset += 5
             await patchJob(job.id, { currentOffset, totalProcessed, skippedBlocks })
@@ -164,6 +159,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
           console.error(`Error en offset ${currentOffset}, intento ${retries}:`, err)
           if (retries >= 3) {
             skippedBlocks++
+            skippedOffsets.push(currentOffset) // Remember this offset for Pass 2
             currentOffset += 5
             await patchJob(job.id, { 
               currentOffset, 
@@ -180,6 +176,104 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
         }
       }
     }
+
+    // ── PASS 2: Recovery pass for skipped blocks ──
+    if (skippedOffsets.length > 0) {
+      keepSyncingRef.current = true // Re-enable the loop for pass 2
+      
+      setActiveJob((prev: any) => ({
+        ...prev,
+        logs: JSON.stringify([...(prev?.logs ? JSON.parse(prev.logs) : []), { 
+          time: new Date().toISOString(), 
+          message: `🔄 Iniciando Pase de Recuperación: ${skippedOffsets.length} bloques por reintentar...` 
+        }])
+      }))
+      await patchJob(job.id, { log: `🔄 Pase de Recuperación: reintentando ${skippedOffsets.length} bloques saltados...` })
+
+      // Wait 10s before starting recovery to let Drupal server cool down
+      await new Promise(resolve => setTimeout(resolve, 10000))
+
+      let recovered = 0
+      let stillFailed = 0
+
+      for (const failedOffset of skippedOffsets) {
+        if (!keepSyncingRef.current) break // Allow cancel during recovery
+
+        let retries = 0
+        let success = false
+
+        while (retries < 3 && !success) {
+          try {
+            const logMsg = retries > 0 
+              ? `🔄 Recuperación: reintentando offset ${failedOffset} (${retries + 1}/3)...`
+              : `🔄 Recuperación: descargando offset ${failedOffset}...`
+
+            setActiveJob((prev: any) => ({
+              ...prev,
+              logs: JSON.stringify([...(prev?.logs ? JSON.parse(prev.logs) : []), { time: new Date().toISOString(), message: logMsg }])
+            }))
+
+            const result = await runSyncChunk(failedOffset)
+
+            if (!result.success) {
+              throw new Error(result.error || 'Error desconocido')
+            }
+
+            const count = result.processedCount || 0
+            totalProcessed += count
+            skippedBlocks-- // Recovered one!
+            recovered++
+            success = true
+
+            setActiveJob((prev: any) => ({
+              ...prev,
+              totalProcessed,
+              skippedBlocks,
+              logs: JSON.stringify([...(prev?.logs ? JSON.parse(prev.logs) : []), { 
+                time: new Date().toISOString(), 
+                message: `✅ Offset ${failedOffset} recuperado (${count} transacciones)` 
+              }])
+            }))
+
+            // Longer wait between recovery blocks to not overwhelm Drupal
+            await new Promise(resolve => setTimeout(resolve, 3000))
+
+          } catch (err: any) {
+            retries++
+            if (retries >= 3) {
+              stillFailed++
+              setActiveJob((prev: any) => ({
+                ...prev,
+                logs: JSON.stringify([...(prev?.logs ? JSON.parse(prev.logs) : []), { 
+                  time: new Date().toISOString(), 
+                  message: `❌ Offset ${failedOffset} falló definitivamente tras 6 intentos totales` 
+                }])
+              }))
+              break
+            }
+            // Wait 5s between recovery retries (more generous than pass 1)
+            await new Promise(resolve => setTimeout(resolve, 5000))
+          }
+        }
+      }
+
+      await patchJob(job.id, { 
+        totalProcessed, 
+        skippedBlocks,
+        log: `🔄 Pase de Recuperación finalizado: ${recovered} recuperados, ${stillFailed} irrecuperables.` 
+      })
+    }
+
+    // ── FINAL: Mark as completed ──
+    keepSyncingRef.current = false
+    await patchJob(job.id, { 
+      status: 'COMPLETED', 
+      currentOffset, 
+      totalProcessed, 
+      skippedBlocks, 
+      log: `¡Completado! Total descargadas: ${totalProcessed}. Bloques irrecuperables: ${skippedBlocks}.` 
+    })
+    fetchJobs()
   }
 
   const renderTerminal = (logsStr: string) => {
