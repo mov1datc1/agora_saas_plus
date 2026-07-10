@@ -174,6 +174,59 @@ const ROLE_SIGNALS: Record<string, string[]> = {
   'Private Capital': ['lead investor', 'co-investor', 'portfolio company', 'general partner', 'limited partner'],
 }
 
+// ─── PHASE 0: Noise Filter (Taxonomía Editorial — Ángela Castillo v0.1) ────
+// Content that is NOT a corporate transaction. If the article is primarily about
+// these topics, it should be classified as "Operación General" (Review Required).
+// Per spec: "Corporate News" and "Legal News" are NOT transactions.
+
+const CORPORATE_NEWS_SIGNALS: string[] = [
+  'nombramiento', 'nombrado', 'nombra como',
+  'promoción', 'promovido', 'asciende',
+  'lateral hiring', 'fichaje', 'incorpora como socio',
+  'nueva oficina', 'abre oficina', 'inaugura oficina',
+  'cambio de marca', 'rebranding',
+  'resultados financieros', 'resultados trimestrales', 'informe anual',
+  'alianza estratégica', 'alianza comercial', 'convenio',
+  'premio', 'reconocimiento', 'ranking', 'certificación',
+]
+
+const LEGAL_NEWS_SIGNALS: string[] = [
+  'litigio', 'demanda', 'arbitraje', 'sentencia', 'fallo judicial',
+  'regulación', 'regulador', 'ley aprobada', 'reforma',
+  'compliance', 'cumplimiento normativo',
+  'entrevista', 'opinión', 'columna',
+  'evento', 'congreso', 'conferencia', 'foro', 'seminario',
+  'publicación', 'libro', 'guía jurídica',
+]
+
+function isNonTransactional(titleLower: string, fullText: string): boolean {
+  // Count noise signals vs transaction signals
+  let noiseScore = 0
+  let transactionSignalFound = false
+
+  for (const signal of [...CORPORATE_NEWS_SIGNALS, ...LEGAL_NEWS_SIGNALS]) {
+    if (titleLower.includes(signal)) {
+      noiseScore += 3 // Title match = strong signal
+    } else if (fullText.includes(signal)) {
+      noiseScore += 1
+    }
+  }
+
+  // Check if ANY deterministic transaction keyword exists
+  for (const keywords of Object.values(DETERMINISTIC)) {
+    for (const kw of keywords) {
+      if (fullText.includes(kw)) {
+        transactionSignalFound = true
+        break
+      }
+    }
+    if (transactionSignalFound) break
+  }
+
+  // If noise is strong AND no deterministic transaction signal exists, it's non-transactional
+  return noiseScore >= 3 && !transactionSignalFound
+}
+
 // ─── MAIN CLASSIFIER ───────────────────────────────────────────────────────
 
 export type ClassificationResult = {
@@ -191,6 +244,13 @@ export function classifyOperationType(
   const excerptLower = (excerpt || '').toLowerCase()
   // Strip HTML tags from excerpt
   const cleanExcerpt = excerptLower.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
+  const fullText = `${titleLower} ${cleanExcerpt}`
+
+  // ── PHASE 0: Noise Filter (Ángela Castillo spec) ──
+  // Detect Corporate News / Legal News that are NOT transactions
+  if (isNonTransactional(titleLower, fullText)) {
+    return { type: 'Operación General', confidence: 'LOW', phase: 0 }
+  }
 
   // ── PHASE 1: Deterministic (title only first, then full text) ──
   for (const [type, keywords] of Object.entries(DETERMINISTIC)) {
@@ -202,7 +262,6 @@ export function classifyOperationType(
   }
 
   // Deterministic on full text (title + excerpt)
-  const fullText = `${titleLower} ${cleanExcerpt}`
   for (const [type, keywords] of Object.entries(DETERMINISTIC)) {
     for (const kw of keywords) {
       if (fullText.includes(kw)) {
@@ -249,9 +308,11 @@ export function classifyOperationType(
     }
   }
 
-  // ── PHASE 4: Fallback ──
-  // If there's a weak winner (score >= 2), use it with LOW confidence
-  if (topScore >= 2) {
+  // ── PHASE 4: Strict Fallback (Ángela Castillo: "evidencia suficiente") ──
+  // Per spec: "invertirá USD 500M" is NOT sufficient evidence.
+  // Only assign a type if there's meaningful evidence (score >= 3).
+  // A weak score (2) is no longer enough — it goes to Operación General.
+  if (topScore >= 3) {
     return { type: topType, confidence: 'LOW', phase: 4 }
   }
 
