@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { classifyOperationType, classifyIndustry } from '@/lib/classificationEngine'
 
 const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi'
 
@@ -8,7 +9,6 @@ export async function POST(request: Request) {
     const CRON_SECRET = process.env.CRON_SECRET || 'agora-secret-token'
     const authHeader = request.headers.get('authorization')
     if (authHeader !== `Bearer ${CRON_SECRET}` && authHeader !== 'Bearer agora-bypass-token') {
-      // Allow for local dev testing if no CRON_SECRET is set, but reject in production if token doesn't match
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
@@ -48,31 +48,7 @@ export async function POST(request: Request) {
       return included?.find((item: any) => item.type === type && item.id === id)
     }
 
-    // 3.5 Heuristic Industry Guesser
-    const guessIndustryFromText = (text: string): string | null => {
-      const t = text.toLowerCase()
-      if (t.includes('banco') || t.includes('banca') || t.includes('scotiabank') || t.includes('citigroup') || t.includes('financiero') || t.includes('fideicomiso') || t.includes('crédito') || t.includes('bonos')) return 'Banca'
-      if (t.includes('inmobiliari') || t.includes('bienes raíces') || t.includes('hotel') || t.includes('resort') || t.includes('terreno')) return 'Bienes Raíces'
-      if (t.includes('energía') || t.includes('petróleo') || t.includes('gas') || t.includes('solar') || t.includes('eólica') || t.includes('eléctric')) return 'Energía y recursos naturales | No Renovable - Petróleo'
-      if (t.includes('minería') || t.includes('mina') || t.includes('cobre') || t.includes('litio') || t.includes('oro')) return 'Minería'
-      if (t.includes('retail') || t.includes('supermercado') || t.includes('tienda') || t.includes('comercio')) return 'Retail'
-      if (t.includes('tecnología') || t.includes('software') || t.includes('app') || t.includes('informática') || t.includes('startup') || t.includes('fintech')) return 'Informática'
-      if (t.includes('telecomunicacion') || t.includes('telefon') || t.includes('internet') || t.includes('fibra óptica')) return 'Telecomunicaciones'
-      if (t.includes('salud') || t.includes('hospital') || t.includes('clínica') || t.includes('farmacéutic') || t.includes('medicamento')) return 'Salud'
-      if (t.includes('transporte') || t.includes('logística') || t.includes('aerolínea') || t.includes('aviación') || t.includes('marítim') || t.includes('autopista')) return 'Transporte y logística'
-      if (t.includes('alimento') || t.includes('bebida') || t.includes('agrícola') || t.includes('agro') || t.includes('pesca') || t.includes('nutrición')) return 'Agrícola'
-      if (t.includes('educación') || t.includes('universidad') || t.includes('colegio') || t.includes('escuela')) return 'Educación'
-      if (t.includes('seguro') || t.includes('reaseguro') || t.includes('asegurador')) return 'Seguros y reaseguros'
-      if (t.includes('construcción') || t.includes('infraestructura') || t.includes('cemento') || t.includes('obras')) return 'Infraestructura'
-      if (t.includes('abogado') || t.includes('firma') || t.includes('lexincorp') || t.includes('baker') || t.includes('mckenzie') || t.includes('ontier') || t.includes('greenberg') || t.includes('legal') || t.includes('derecho') || t.includes('cuatrecasas') || t.includes('garrigues') || t.includes('uria') || t.includes('bufete') || t.includes('socio')) return 'Derecho'
-      if (t.includes('consultor') || t.includes('asesor') || t.includes('zelca')) return 'Consultoría'
-      if (t.includes('entretenimiento') || t.includes('televisión') || t.includes('cine') || t.includes('música') || t.includes('deporte')) return 'Entretenimiento'
-      if (t.includes('capital') || t.includes('fondo') || t.includes('inversión') || t.includes('acciones') || t.includes('adquiere') || t.includes('compra') || t.includes('fusión') || t.includes('fusiona')) return 'Banca'
-      
-      return null
-    }
-
-    // 3.6 Helper to parse dirty dates (e.g. year "0026" instead of "2026")
+    // 3.5 Helper to parse dirty dates (e.g. year "0026" instead of "2026")
     const parseSafeDate = (dateString: string | null) => {
       if (!dateString) return null
       const d = new Date(dateString)
@@ -111,32 +87,59 @@ export async function POST(request: Request) {
       if (type === 'Fusiones y adquisiciones') type = 'M&A'
       if (type === 'Financiamiento') type = 'Financiamientos'
       
-      if (!type || type.trim() === '' || type === 'Operación General') {
-        const titleLower = title.toLowerCase()
-        const fullTextLower = `${title} ${excerpt || ''}`.toLowerCase()
-        
-        // Función de evaluación
-        const determineType = (text: string) => {
-          if (text.includes('emisión') || text.includes('emite') || text.includes('emisiones') || text.includes('bonos') || text.includes('notas')) {
-            return 'Emisiones'
-          }
-          if (text.includes('fusión') || text.includes('adquisición') || text.includes('compra') || text.includes('vende') || text.includes('adquiere')) {
-            return 'M&A'
-          }
-          if (text.includes('financiamiento') || text.includes('préstamo') || text.includes('crédito') || text.includes('financia')) {
-            return 'Financiamientos'
-          }
-          return null
-        }
+      // ── Extract company roles BEFORE classification (needed for Phase 3) ──
+      const companyRoles: string[] = []
+      let paragraphOperationType: string | null = null
 
-        // 1. Evaluar primero el título (más preciso)
-        type = determineType(titleLower)
-        
-        // 2. Si no hay nada claro en el título, evaluar el texto completo
-        if (!type) {
-          type = determineType(fullTextLower) || 'Operación General'
+      if (relationships?.field_empresas_involucradas?.data) {
+        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
+          ? relationships.field_empresas_involucradas.data
+          : [relationships.field_empresas_involucradas.data];
+        for (const c of empresasData) {
+          if (!c) continue;
+          const paragraphNode = getIncludedResource(c.type, c.id)
+          if (paragraphNode && paragraphNode.attributes) {
+            const attrs = paragraphNode.attributes;
+            
+            // Collect roles for classification Phase 3
+            const role = attrs.field_rol_fusiones_y_adquisicion || 
+                         attrs.field_rol_emisiones || 
+                         attrs.field_rol_financiamiento || 
+                         attrs.field_rol_litigios || 
+                         attrs.field_rol_reestructuraciones || 
+                         attrs.field_rol_arrendamientos
+            if (role) companyRoles.push(role)
+
+            // Extract paragraph-level operation type
+            const rawType = attrs.field_tipo_de_operacion;
+            if (rawType && !paragraphOperationType) {
+              if (rawType === 'fusiones-y-adquisiciones') paragraphOperationType = 'M&A';
+              else if (rawType === 'emisiones') paragraphOperationType = 'Emisiones';
+              else if (rawType === 'financiamiento') paragraphOperationType = 'Financiamientos';
+              else if (rawType === 'arrendamientos') paragraphOperationType = 'Arrendamientos';
+              else if (rawType === 'reestructuraciones') paragraphOperationType = 'Reestructuraciones';
+              else if (rawType === 'litigios') paragraphOperationType = 'Litigios';
+            }
+          }
         }
       }
+
+      // ── CLASSIFICATION ENGINE v2.0 ──
+      // Priority: 1) Drupal explicit type → 2) Paragraph type → 3) AI Classifier
+      if (!type || type.trim() === '' || type === 'Operación General') {
+        if (paragraphOperationType) {
+          type = paragraphOperationType
+        } else {
+          const classification = classifyOperationType(title, excerpt, companyRoles)
+          type = classification.type
+        }
+      }
+
+      // Use paragraph type as override only if main type is generic
+      const finalType = (type === 'Operación General' && paragraphOperationType) 
+        ? paragraphOperationType 
+        : type;
+
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
 
       // Process Relationships (Industries)
@@ -158,10 +161,10 @@ export async function POST(request: Request) {
         }
       }
 
-      // If no industry was found in Drupal, try to guess it from Title and Body
+      // If no industry was found in Drupal, use the new weighted classifier
       if (!finalIndustryName) {
         const textToAnalyze = `${title} ${attributes.body?.value || ''}`
-        const guessed = guessIndustryFromText(textToAnalyze)
+        const guessed = classifyIndustry(textToAnalyze)
         if (guessed) {
           finalIndustryName = guessed
         }
@@ -200,7 +203,7 @@ export async function POST(request: Request) {
       const combinedCountries = countryNames.length > 0 ? countryNames.join(', ') : null
 
       // Process Value String (Monto)
-      let transactionValue = 'Por definir'
+      let transactionValue = 'Valor confidencial'
       let transactionValueNumeric: number | null = null
       if (relationships?.field_operacion?.data) {
         const opDataArray = Array.isArray(relationships.field_operacion.data) ? relationships.field_operacion.data : [relationships.field_operacion.data]
@@ -228,32 +231,6 @@ export async function POST(request: Request) {
           }
         }
       }
-
-      // Extract operation type from paragraphs before upserting transaction
-      let paragraphOperationType: string | null = null;
-      if (relationships?.field_empresas_involucradas?.data) {
-        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
-          ? relationships.field_empresas_involucradas.data
-          : [relationships.field_empresas_involucradas.data];
-        for (const c of empresasData) {
-          if (!c) continue;
-          const paragraphNode = getIncludedResource(c.type, c.id)
-          if (paragraphNode && paragraphNode.attributes) {
-            const rawType = paragraphNode.attributes.field_tipo_de_operacion;
-            if (rawType && !paragraphOperationType) {
-              if (rawType === 'fusiones-y-adquisiciones') paragraphOperationType = 'M&A';
-              else if (rawType === 'emisiones') paragraphOperationType = 'Emisiones';
-              else if (rawType === 'financiamiento') paragraphOperationType = 'Financiamientos';
-              else if (rawType === 'arrendamientos') paragraphOperationType = 'Arrendamientos';
-              else if (rawType === 'reestructuraciones') paragraphOperationType = 'Reestructuraciones';
-              else if (rawType === 'litigios') paragraphOperationType = 'Litigios';
-            }
-          }
-        }
-      }
-
-      // Ensure type from paragraphs overrides if it's missing or generic
-      const finalType = paragraphOperationType || type;
 
       // Upsert Transaction Core
       await prisma.transaction.upsert({

@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {
-          in: ['M&A', 'Emisiones', 'Financiamientos']
+          in: ['M&A', 'Emisiones', 'Financiamientos', 'Private Capital']
         }
       },
       select: {
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
             tx.dateAnnounced ? new Date(tx.dateAnnounced).toLocaleDateString('es-ES') : 'Sin fecha',
       title: tx.title,
       type: tx.type,
-      amount: tx.valueString || 'Por definir',
+      amount: (tx.valueString === 'Por definir' || !tx.valueString) ? 'Valor confidencial' : tx.valueString,
       status: tx.status || 'Completada',
       industry: tx.industry?.name || 'Varios',
       country: tx.country || 'Latinoamérica',
