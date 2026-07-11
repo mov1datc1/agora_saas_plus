@@ -62,27 +62,61 @@ export default async function DashboardPage() {
     ]
 
     // 1. Agrupación Histórica (Todos los tiempos)
+    // Usamos nombres de mes hardcodeados para evitar inconsistencias de locale en Node.js/Vercel
+    const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+    
     const groupedData: Record<string, number> = {}
+    let minYear = Infinity, minMonth = 11, maxYear = 0, maxMonth = 0
+    
     dbTransactions.forEach(tx => {
       if (!tx.dateAnnounced) return
-      const month = tx.dateAnnounced.toLocaleString('es-ES', { month: 'short' })
       const year = tx.dateAnnounced.getFullYear()
-      const key = `${month} ${year}`
+      const monthIdx = tx.dateAnnounced.getMonth() // 0-11
+      const key = `${MONTH_NAMES[monthIdx]} ${year}`
       
       if (!groupedData[key]) {
         groupedData[key] = 0
       }
       groupedData[key] += 1
+      
+      // Rastrear rango de fechas para llenar gaps
+      if (year < minYear || (year === minYear && monthIdx < minMonth)) {
+        minYear = year; minMonth = monthIdx
+      }
+      if (year > maxYear || (year === maxYear && monthIdx > maxMonth)) {
+        maxYear = year; maxMonth = monthIdx
+      }
     })
 
-    const chartData = Object.keys(groupedData).map(key => ({
-      name: key,
-      transacciones: groupedData[key]
-    }))
+    // Generar timeline continua (sin gaps) en orden cronológico
+    const chartData: { name: string; transacciones: number }[] = []
+    if (minYear !== Infinity) {
+      for (let y = minYear; y <= maxYear; y++) {
+        const startM = (y === minYear) ? minMonth : 0
+        const endM = (y === maxYear) ? maxMonth : 11
+        for (let m = startM; m <= endM; m++) {
+          const key = `${MONTH_NAMES[m]} ${y}`
+          chartData.push({ name: key, transacciones: groupedData[key] || 0 })
+        }
+      }
+    }
 
     // 2. Data para Gráfico de Industrias
+    // IMPORTANTE: Filtramos 'Operación General' para que el gráfico solo cuente transacciones reales clasificadas
     const dbIndustries = await prisma.industry.findMany({
-      include: { _count: { select: { transactions: true } } }
+      include: { 
+        _count: { 
+          select: { 
+            transactions: {
+              where: {
+                type: {
+                  not: 'Operación General'
+                }
+              }
+            }
+          } 
+        } 
+      }
     })
     
     const industryChartData = dbIndustries
@@ -90,6 +124,7 @@ export default async function DashboardPage() {
         name: ind.name,
         count: ind._count.transactions
       }))
+      .filter(ind => ind.count > 0) // Solo mostrar industrias con transacciones reales
       .sort((a, b) => b.count - a.count)
       .slice(0, 10) // Mostrar Top 10 para evitar saturación del gráfico
 

@@ -347,7 +347,7 @@ const INDUSTRY_CLUSTERS: IndustryCluster[] = [
   {
     name: 'Banca y Servicios Financieros',
     keywords: [
-      { word: 'banco', weight: 2 }, { word: 'banca', weight: 3 }, { word: 'scotiabank', weight: 3 },
+      { word: 'banco', weight: 1 }, { word: 'banca', weight: 3 }, { word: 'scotiabank', weight: 3 },
       { word: 'citigroup', weight: 3 }, { word: 'citibank', weight: 3 }, { word: 'bbva', weight: 3 },
       { word: 'santander', weight: 2 }, { word: 'itaú', weight: 3 }, { word: 'bradesco', weight: 3 },
       { word: 'bancolombia', weight: 3 }, { word: 'banorte', weight: 3 },
