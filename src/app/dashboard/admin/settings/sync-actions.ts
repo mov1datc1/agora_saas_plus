@@ -59,7 +59,7 @@ export async function wipeAllData() {
       prisma.lawyer.deleteMany(),
       prisma.firm.deleteMany(),
       prisma.industry.deleteMany(),
-    ])
+    ], { timeout: 60000 }) // 60s timeout for large datasets
 
     revalidatePath('/', 'layout')
     return { success: true, message: 'Wipe completado. La base de datos está lista para re-sincronizar.' }
