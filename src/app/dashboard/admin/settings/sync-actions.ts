@@ -47,19 +47,23 @@ export async function clearSystemCache() {
 
 export async function wipeAllData() {
   try {
-    // Import prisma and delete in order (same logic as /api/sync-drupal/reset)
+    // Import prisma and delete sequentially (not in a $transaction to avoid Vercel timeout)
+    // Order matters: delete junction tables first, then dependent entities
     const prisma = (await import('@/lib/prisma')).default
     
-    await prisma.$transaction([
-      prisma.transactionCompany.deleteMany(),
-      prisma.transactionLawyer.deleteMany(),
-      prisma.transactionAdvisor.deleteMany(),
-      prisma.transaction.deleteMany(),
-      prisma.company.deleteMany(),
-      prisma.lawyer.deleteMany(),
-      prisma.firm.deleteMany(),
-      prisma.industry.deleteMany(),
-    ], { timeout: 60000 }) // 60s timeout for large datasets
+    // Step 1: Junction tables (fast, small)
+    await prisma.transactionCompany.deleteMany()
+    await prisma.transactionLawyer.deleteMany()
+    await prisma.transactionAdvisor.deleteMany()
+    
+    // Step 2: Main entity
+    await prisma.transaction.deleteMany()
+    
+    // Step 3: Supporting entities
+    await prisma.company.deleteMany()
+    await prisma.lawyer.deleteMany()
+    await prisma.firm.deleteMany()
+    await prisma.industry.deleteMany()
 
     revalidatePath('/', 'layout')
     return { success: true, message: 'Wipe completado. La base de datos está lista para re-sincronizar.' }
