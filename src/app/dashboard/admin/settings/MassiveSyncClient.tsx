@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle } from 'lucide-react'
-import { runSyncChunk } from './sync-actions'
+import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle, Trash2 } from 'lucide-react'
+import { runSyncChunk, wipeAllData } from './sync-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) {
@@ -12,6 +12,8 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   
   // Local UI State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false)
+  const [isWiping, setIsWiping] = useState(false)
   const [isLoadingJobs, setIsLoadingJobs] = useState(true)
   
   // This ref acts as our "worker thread" memory so we can cancel loops
@@ -423,8 +425,16 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
                 target="_blank"
                 className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-600 transition-colors shrink-0"
               >
-                <Download className="w-4 h-4" /> Descargar Conflictos
+                <Download className="w-4 h-4" /> Conflictos
               </a>
+              <button
+                type="button"
+                onClick={() => setIsWipeConfirmOpen(true)}
+                disabled={isWiping}
+                className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition-colors shrink-0"
+              >
+                {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} {isWiping ? 'Borrando...' : 'Wipe Data'}
+              </button>
               <button
                 type="button"
                 onClick={() => { conflictsRef.current = []; setConflicts([]); setIsConfirmOpen(true) }}
@@ -481,6 +491,32 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
         title="Crear Nuevo SyncJob"
         message="Esta acción creará un nuevo Trabajo en Segundo Plano en la base de datos para extraer progresivamente miles de transacciones de LexLatin. Podrás monitorear su progreso, pausarlo y reanudarlo en cualquier momento."
         confirmText="Iniciar Ahora"
+        cancelText="Cancelar"
+      />
+
+      <ConfirmModal
+        isOpen={isWipeConfirmOpen}
+        onClose={() => setIsWipeConfirmOpen(false)}
+        onConfirm={async () => {
+          setIsWipeConfirmOpen(false)
+          setIsWiping(true)
+          try {
+            const result = await wipeAllData()
+            if (result.success) {
+              alert('✅ ' + result.message)
+              fetchJobs()
+            } else {
+              alert('❌ Error: ' + result.error)
+            }
+          } catch (e: any) {
+            alert('❌ Error: ' + e.message)
+          } finally {
+            setIsWiping(false)
+          }
+        }}
+        title="⚠️ Borrar TODA la Data"
+        message="Esta acción eliminará TODAS las transacciones, firmas, abogados, empresas e industrias de la base de datos. Esta acción es IRREVERSIBLE. Solo hazlo si planeas re-sincronizar inmediatamente después."
+        confirmText="Sí, Borrar Todo"
         cancelText="Cancelar"
       />
     </div>

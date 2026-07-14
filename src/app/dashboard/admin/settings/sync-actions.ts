@@ -44,3 +44,27 @@ export async function clearSystemCache() {
     return { success: false, error: error.message }
   }
 }
+
+export async function wipeAllData() {
+  try {
+    // Import prisma and delete in order (same logic as /api/sync-drupal/reset)
+    const prisma = (await import('@/lib/prisma')).default
+    
+    await prisma.$transaction([
+      prisma.transactionCompany.deleteMany(),
+      prisma.transactionLawyer.deleteMany(),
+      prisma.transactionAdvisor.deleteMany(),
+      prisma.transaction.deleteMany(),
+      prisma.company.deleteMany(),
+      prisma.lawyer.deleteMany(),
+      prisma.firm.deleteMany(),
+      prisma.industry.deleteMany(),
+    ])
+
+    revalidatePath('/', 'layout')
+    return { success: true, message: 'Wipe completado. La base de datos está lista para re-sincronizar.' }
+  } catch (error: any) {
+    console.error("wipeAllData error:", error)
+    return { success: false, error: error.message }
+  }
+}
