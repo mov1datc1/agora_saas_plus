@@ -2,7 +2,48 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { classifyOperationType, classifyIndustry } from '@/lib/classificationEngine'
 
-const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi'
+const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/jsonapi'
+
+// ── Practice Area → Operation Type Mapping (Source of Truth from Data Entry team) ──
+// Only these 3 operation types exist. "Private Capital" was removed per owner specification.
+const PRACTICE_AREA_MAP: Record<string, string> = {
+  'corporativo - adquisiciones': 'M&A',
+  'corporativo - fusiones': 'M&A',
+  'banca y finanzas (créditos y financiamientos)': 'Financiamientos',
+  'banca y finanzas': 'Financiamientos',
+  'mercado de capitales - emisiones': 'Emisiones',
+}
+
+function mapPracticeAreaToType(practiceAreas: string[]): { type: string; matchedArea: string | null; allMappedTypes: string[] } {
+  const allMappedTypes: string[] = []
+  let firstMatch: { type: string; matchedArea: string } | null = null
+
+  for (const area of practiceAreas) {
+    const areaLower = area.toLowerCase().trim()
+    // Check exact matches first
+    if (PRACTICE_AREA_MAP[areaLower]) {
+      allMappedTypes.push(PRACTICE_AREA_MAP[areaLower])
+      if (!firstMatch) firstMatch = { type: PRACTICE_AREA_MAP[areaLower], matchedArea: area }
+      continue
+    }
+    // Check partial matches
+    for (const [key, value] of Object.entries(PRACTICE_AREA_MAP)) {
+      if (areaLower.includes(key) || key.includes(areaLower)) {
+        allMappedTypes.push(value)
+        if (!firstMatch) firstMatch = { type: value, matchedArea: area }
+        break
+      }
+    }
+  }
+
+  // Deduplicate (e.g., two areas both mapping to M&A is not a conflict)
+  const uniqueTypes = [...new Set(allMappedTypes)]
+  
+  if (firstMatch) {
+    return { type: firstMatch.type, matchedArea: firstMatch.matchedArea, allMappedTypes: uniqueTypes }
+  }
+  return { type: 'Operación General', matchedArea: null, allMappedTypes: [] }
+}
 
 export async function POST(request: Request) {
   try {
@@ -18,9 +59,10 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url)
     const offset = searchParams.get('offset') || '0'
     
-    // We request the included relationships to get Firm, Lawyer, Company, Industry, and Financial data.
+    // Primary filter: field_tipo_de_noticia = "Transacción" (this is the main entry point)
+    // field_ae included to get "Áreas de práctica" taxonomy terms for deterministic classification
     // Reducido a page[limit]=5 porque el servidor Drupal (Cloudways) arroja Error 500 (timeout de PHP) si pedimos más debido a los complejos JOINs de relaciones
-    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios&page[limit]=5&page[offset]=${offset}&sort=-created`
+    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=5&page[offset]=${offset}&sort=-created`
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
@@ -66,6 +108,7 @@ export async function POST(request: Request) {
 
     // 4. Process and Upsert each Post (Transaction)
     let processedCount = 0
+    const multiAreaConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
 
     for (const post of posts) {
       const attributes = post.attributes
@@ -78,67 +121,88 @@ export async function POST(request: Request) {
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
       const excerpt = attributes.body?.value || null
-      let type = attributes.field_operacion_principal
-      if (typeof type !== 'string') {
-        type = null
-      }
-      
-      // Normalizar nombres que vienen de la UI de Drupal a los estándares de Ágora
-      if (type === 'Fusiones y adquisiciones') type = 'M&A'
-      if (type === 'Financiamiento') type = 'Financiamientos'
-      
-      // ── Extract company roles BEFORE classification (needed for Phase 3) ──
-      const companyRoles: string[] = []
-      let paragraphOperationType: string | null = null
 
-      if (relationships?.field_empresas_involucradas?.data) {
-        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
-          ? relationships.field_empresas_involucradas.data
-          : [relationships.field_empresas_involucradas.data];
-        for (const c of empresasData) {
-          if (!c) continue;
-          const paragraphNode = getIncludedResource(c.type, c.id)
-          if (paragraphNode && paragraphNode.attributes) {
-            const attrs = paragraphNode.attributes;
-            
-            // Collect roles for classification Phase 3
-            const role = attrs.field_rol_fusiones_y_adquisicion || 
-                         attrs.field_rol_emisiones || 
-                         attrs.field_rol_financiamiento || 
-                         attrs.field_rol_litigios || 
-                         attrs.field_rol_reestructuraciones || 
-                         attrs.field_rol_arrendamientos
-            if (role) companyRoles.push(role)
+      // ── PUBLICATION STATUS ──
+      // "Caso no publicado" = transactions exclusive to Ágora (not published on LexLatin portal)
+      // These are valid transactions that count in analytics but are not public-facing
+      const casoNoPublicado = attributes.field_caso_no_publicado === true
+      const isPublished = !casoNoPublicado
 
-            // Extract paragraph-level operation type
-            const rawType = attrs.field_tipo_de_operacion;
-            if (rawType && !paragraphOperationType) {
-              if (rawType === 'fusiones-y-adquisiciones') paragraphOperationType = 'M&A';
-              else if (rawType === 'emisiones') paragraphOperationType = 'Emisiones';
-              else if (rawType === 'financiamiento') paragraphOperationType = 'Financiamientos';
-              else if (rawType === 'arrendamientos') paragraphOperationType = 'Arrendamientos';
-              else if (rawType === 'reestructuraciones') paragraphOperationType = 'Reestructuraciones';
-              else if (rawType === 'litigios') paragraphOperationType = 'Litigios';
-            }
+      // ── CLASSIFICATION v3.0: Deterministic by "Áreas de práctica" (field_ae) ──
+      // Source of truth: Data Entry team marks practice areas in the Drupal form
+      // Priority: field_ae (deterministic) → classifyOperationType (heuristic) → "Operación General"
+      
+      let practiceAreas: string[] = []
+      
+      if (relationships?.field_ae?.data) {
+        const aeData = Array.isArray(relationships.field_ae.data)
+          ? relationships.field_ae.data
+          : [relationships.field_ae.data]
+        
+        for (const ae of aeData) {
+          if (!ae) continue
+          const aeNode = getIncludedResource(ae.type, ae.id)
+          if (aeNode) {
+            // Practice area nodes use 'title' (they are node--areas_de_practica, not taxonomy terms)
+            const aeName = aeNode.attributes?.title || aeNode.attributes?.name
+            if (aeName) practiceAreas.push(aeName)
           }
         }
       }
 
-      // ── CLASSIFICATION ENGINE v2.0 ──
-      // Priority: 1) Drupal explicit type → 2) Paragraph type → 3) AI Classifier
-      if (!type || type.trim() === '' || type === 'Operación General') {
-        if (paragraphOperationType) {
-          type = paragraphOperationType
-        } else {
-          const classification = classifyOperationType(title, excerpt, companyRoles)
-          type = classification.type
-        }
+      // Step 0: Check for manual override (persists through re-syncs)
+      const existingTx = await prisma.transaction.findUnique({
+        where: { id: transactionId },
+        select: { typeOverride: true }
+      })
+
+      // Step 1: Deterministic mapping from practice areas
+      const { type: mappedType, matchedArea, allMappedTypes } = mapPracticeAreaToType(practiceAreas)
+      let finalType = existingTx?.typeOverride || mappedType // Override takes priority
+      const practiceAreaRaw = practiceAreas.join(', ') || null
+
+      // Track multi-area conflicts for Data Entry review
+      if (allMappedTypes.length > 1 && !existingTx?.typeOverride) {
+        multiAreaConflicts.push({
+          id: transactionId,
+          title,
+          link: `https://lexlatin.com/node/${attributes.drupal_internal__nid}`,
+          practiceAreas: practiceAreaRaw || '',
+          assignedType: finalType,
+          alternativeTypes: allMappedTypes.filter(t => t !== finalType)
+        })
       }
 
-      // Use paragraph type as override only if main type is generic
-      const finalType = (type === 'Operación General' && paragraphOperationType) 
-        ? paragraphOperationType 
-        : type;
+      // Step 2: Heuristic fallback for posts without matching practice area
+      // This covers legacy posts or incomplete data entry
+      if (finalType === 'Operación General') {
+        // Extract company roles for Phase 3 of heuristic engine
+        const companyRoles: string[] = []
+        if (relationships?.field_empresas_involucradas?.data) {
+          const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
+            ? relationships.field_empresas_involucradas.data
+            : [relationships.field_empresas_involucradas.data];
+          for (const c of empresasData) {
+            if (!c) continue;
+            const paragraphNode = getIncludedResource(c.type, c.id)
+            if (paragraphNode && paragraphNode.attributes) {
+              const attrs = paragraphNode.attributes;
+              const role = attrs.field_rol_fusiones_y_adquisicion || 
+                           attrs.field_rol_emisiones || 
+                           attrs.field_rol_financiamiento || 
+                           attrs.field_rol_litigios || 
+                           attrs.field_rol_reestructuraciones || 
+                           attrs.field_rol_arrendamientos
+              if (role) companyRoles.push(role)
+            }
+          }
+        }
+
+        const classification = classifyOperationType(title, excerpt, companyRoles)
+        if (classification.type !== 'Operación General') {
+          finalType = classification.type
+        }
+      }
 
       const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
 
@@ -161,7 +225,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // If no industry was found in Drupal, use the new weighted classifier
+      // If no industry was found in Drupal, use the weighted classifier
       if (!finalIndustryName) {
         const textToAnalyze = `${title} ${attributes.body?.value || ''}`
         const guessed = classifyIndustry(textToAnalyze)
@@ -243,6 +307,8 @@ export async function POST(request: Request) {
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
+          isPublished,
+          practiceArea: practiceAreaRaw,
           dateAnnounced: parseSafeDate(dateAnnouncedStr),
           dateClosed: parseSafeDate(dateClosedStr),
           value: transactionValueNumeric,
@@ -256,6 +322,8 @@ export async function POST(request: Request) {
           link,
           country: combinedCountries,
           industryId: prismaIndustryId,
+          isPublished,
+          practiceArea: practiceAreaRaw,
           dateAnnounced: parseSafeDate(dateAnnouncedStr),
           dateClosed: parseSafeDate(dateClosedStr),
           value: transactionValueNumeric,
@@ -413,7 +481,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       success: true, 
       message: `Successfully synchronized ${processedCount} transactions from Drupal.`,
-      processedCount
+      processedCount,
+      multiAreaConflicts: multiAreaConflicts.length > 0 ? multiAreaConflicts : undefined,
+      multiAreaConflictCount: multiAreaConflicts.length
     })
 
   } catch (error: any) {

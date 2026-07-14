@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {
-          in: ['M&A', 'Emisiones', 'Financiamientos', 'Private Capital']
+          in: ['M&A', 'Emisiones', 'Financiamientos']
         }
       },
       select: {

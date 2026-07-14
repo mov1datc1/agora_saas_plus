@@ -200,7 +200,7 @@ export default function OperationsClient() {
     return Array.from(new Set(all)).sort()
   }
 
-  const uniqueTypes = ['M&A', 'Emisiones', 'Financiamientos', 'Private Capital']
+  const uniqueTypes = ['M&A', 'Emisiones', 'Financiamientos']
   const { uniqueIndustries, uniqueFirms, uniqueCountries, uniqueLawyers } = useMemo(() => {
     return {
       uniqueIndustries: extractUnique('industry'),

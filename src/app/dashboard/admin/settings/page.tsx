@@ -95,7 +95,7 @@ export default async function SettingsPage() {
                 </div>
               </div>
             </div>
-            <MassiveSyncClient drupalUrl={process.env.DRUPAL_API_URL || "https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi"} />
+            <MassiveSyncClient drupalUrl={process.env.DRUPAL_API_URL || "https://lexlatin.com/jsonapi"} />
           </div>
           <div className="flex items-center justify-end gap-x-6 border-t border-border px-4 py-4 sm:px-8">
             <button type="button" className="text-sm font-semibold leading-6 text-foreground hover:text-foreground/80">

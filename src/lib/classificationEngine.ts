@@ -1,8 +1,9 @@
 /**
- * Ágora Plus — Motor de Clasificación de Operaciones v2.0
- * Basado en la Ontología Transaccional (Vol. I) y Knowledge Graph (Vol. II)
+ * Ágora Plus — Motor de Clasificación de Operaciones v3.0
+ * HEURISTIC FALLBACK ENGINE — used only when field_ae (Áreas de práctica) doesn't resolve.
+ * Primary classification is deterministic via Drupal's practice area checkboxes (see sync-drupal/route.ts).
  * 
- * 4 Familias: M&A, Emisiones, Financiamientos, Private Capital
+ * 3 Familias: M&A, Emisiones, Financiamientos
  * 4 Fases: Determinística → Scoring → Roles → Fallback
  */
 
@@ -58,22 +59,6 @@ const DETERMINISTIC: Record<string, string[]> = {
     'green loan', 'préstamo verde',
     'trade finance', 'financiamiento comercial',
     'working capital facility',
-  ],
-  'Private Capital': [
-    'series a', 'serie a',
-    'series b', 'serie b',
-    'series c', 'serie c',
-    'series d', 'serie d',
-    'seed round', 'ronda semilla', 'ronda seed',
-    'pre-seed', 'pre seed',
-    'venture capital', 'capital de riesgo',
-    'private equity', 'capital privado',
-    'growth equity', 'capital de crecimiento',
-    'lead investor', 'inversionista líder',
-    'angel investment', 'inversión ángel', 'inversionista ángel',
-    'levantó una ronda', 'cerró una ronda',
-    'ronda de financiamiento', 'ronda de inversión',
-    'ronda de capital',
   ],
 }
 
@@ -144,26 +129,6 @@ const HEURISTIC: Record<string, WeightedKeyword[]> = {
     { word: 'deudor', weight: 2 },
     { word: 'banco', weight: 1 },
   ],
-  'Private Capital': [
-    { word: 'startup', weight: 2 },
-    { word: 'scale-up', weight: 2 },
-    { word: 'unicornio', weight: 3 },
-    { word: 'unicorn', weight: 3 },
-    { word: 'ronda', weight: 2 },
-    { word: 'fondo de inversión', weight: 2 },
-    { word: 'fondo de capital', weight: 2 },
-    { word: 'portfolio company', weight: 3 },
-    { word: 'general partner', weight: 3 },
-    { word: 'limited partner', weight: 3 },
-    { word: 'co-investor', weight: 2 },
-    { word: 'anchor investor', weight: 2 },
-    { word: 'fintech', weight: 1 },
-    { word: 'proptech', weight: 1 },
-    { word: 'healthtech', weight: 1 },
-    { word: 'edtech', weight: 1 },
-    { word: 'recapitalización', weight: 2 },
-    { word: 'exit', weight: 1 },
-  ],
 }
 
 // ─── PHASE 3: Role-based confirmation ──────────────────────────────────────
@@ -171,7 +136,7 @@ const ROLE_SIGNALS: Record<string, string[]> = {
   'M&A': ['comprador', 'target', 'vendedor', 'buyer', 'seller', 'acquirer'],
   'Emisiones': ['emisor', 'issuer', 'bookrunner', 'placement agent', 'trustee', 'underwriter', 'paying agent'],
   'Financiamientos': ['prestatario', 'prestamista', 'borrower', 'lender', 'agent', 'guarantor', 'garante'],
-  'Private Capital': ['lead investor', 'co-investor', 'portfolio company', 'general partner', 'limited partner'],
+
 }
 
 // ─── PHASE 0: Noise Filter (Taxonomía Editorial — Ángela Castillo v0.1) ────
@@ -271,7 +236,7 @@ export function classifyOperationType(
   }
 
   // ── PHASE 2: Weighted Scoring ──
-  const scores: Record<string, number> = { 'M&A': 0, 'Emisiones': 0, 'Financiamientos': 0, 'Private Capital': 0 }
+  const scores: Record<string, number> = { 'M&A': 0, 'Emisiones': 0, 'Financiamientos': 0 }
 
   for (const [type, keywords] of Object.entries(HEURISTIC)) {
     for (const { word, weight } of keywords) {

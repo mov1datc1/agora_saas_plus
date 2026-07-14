@@ -68,6 +68,9 @@ model Transaction {
   valueString   String?
   status        String
   country       String?
+  isPublished   Boolean              @default(true)
+  practiceArea  String?
+  typeOverride  String?
   dateAnnounced DateTime?
   dateClosed    DateTime?
   createdAt     DateTime             @default(now())

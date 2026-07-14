@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal } from 'lucide-react'
+import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle } from 'lucide-react'
 import { runSyncChunk } from './sync-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -16,6 +16,10 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   
   // This ref acts as our "worker thread" memory so we can cancel loops
   const keepSyncingRef = useRef(false)
+  
+  // Multi-area conflict tracking (for Data Entry team review)
+  const [conflicts, setConflicts] = useState<Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }>>([])
+  const conflictsRef = useRef<typeof conflicts>([])
 
   const fetchJobs = async () => {
     try {
@@ -139,6 +143,12 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
 
           const count = result.processedCount || 0
           totalProcessed += count
+
+          // Accumulate multi-area conflicts from this chunk
+          if (result.multiAreaConflicts && result.multiAreaConflicts.length > 0) {
+            conflictsRef.current = [...conflictsRef.current, ...result.multiAreaConflicts]
+            setConflicts([...conflictsRef.current])
+          }
 
           if (count < 5) {
             // End of data reached — but don't mark complete yet, check for retry pass
@@ -271,7 +281,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
       currentOffset, 
       totalProcessed, 
       skippedBlocks, 
-      log: `¡Completado! Total descargadas: ${totalProcessed}. Bloques irrecuperables: ${skippedBlocks}.` 
+      log: `¡Completado! Total descargadas: ${totalProcessed}. Bloques irrecuperables: ${skippedBlocks}. Conflictos multi-área: ${conflictsRef.current.length}.` 
     })
     fetchJobs()
   }
@@ -355,10 +365,41 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
                 <p className="text-lg font-bold text-brand">{activeJob.totalProcessed}</p>
               </div>
               <div className="bg-muted/50 p-3 rounded-lg border border-border">
-                <p className="text-xs text-muted-foreground font-medium mb-1">Bloques Saltados</p>
-                <p className="text-lg font-bold text-red-500">{activeJob.skippedBlocks}</p>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Conflictos Multi-Área</p>
+                <p className={`text-lg font-bold ${conflicts.length > 0 ? 'text-amber-500' : 'text-foreground'}`}>{conflicts.length}</p>
               </div>
             </div>
+
+            {/* Conflict Download Button */}
+            {conflicts.length > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">{conflicts.length} transacciones con múltiples áreas de práctica</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500">Descarga el reporte para que Data Entry revise y confirme el tipo correcto.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const csvHeader = 'Título,URL,Tipo Asignado,Tipos Alternativos,Áreas de Práctica\n'
+                    const csvRows = conflicts.map(c => {
+                      const title = `"${c.title.replace(/"/g, '""')}"`
+                      return `${title},${c.link},${c.assignedType},"${c.alternativeTypes.join('; ')}","${c.practiceAreas}"`
+                    }).join('\n')
+                    const blob = new Blob([csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `conflictos_multi_area_${new Date().toISOString().split('T')[0]}.csv`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 text-white hover:bg-amber-600 rounded-lg text-sm font-semibold transition-colors shrink-0"
+                >
+                  <Download className="w-4 h-4" /> CSV
+                </button>
+              </div>
+            )}
 
             {/* Progress Bar Visual (Based on 25k max expected) */}
             <div className="w-full bg-border rounded-full h-2 mb-2 overflow-hidden shadow-inner">
@@ -376,13 +417,22 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
               <h5 className="font-semibold text-foreground mb-1">Iniciar Nueva Sincronización</h5>
               <p className="text-sm text-muted-foreground">Genera un nuevo SyncJob que recorrerá toda la base histórica.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsConfirmOpen(true)}
-              className="flex items-center justify-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm hover:bg-foreground/80 transition-colors shrink-0"
-            >
-              <Play className="w-4 h-4" /> Iniciar SyncJob
-            </button>
+            <div className="flex items-center gap-3">
+              <a
+                href="/api/sync-drupal/conflicts?format=csv"
+                target="_blank"
+                className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-600 transition-colors shrink-0"
+              >
+                <Download className="w-4 h-4" /> Descargar Conflictos
+              </a>
+              <button
+                type="button"
+                onClick={() => { conflictsRef.current = []; setConflicts([]); setIsConfirmOpen(true) }}
+                className="flex items-center justify-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm hover:bg-foreground/80 transition-colors shrink-0"
+              >
+                <Play className="w-4 h-4" /> Iniciar SyncJob
+              </button>
+            </div>
           </div>
         )}
 
