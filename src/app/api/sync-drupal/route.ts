@@ -55,64 +55,77 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Fetch data from Drupal (node--post = Transactions)
+    // 2. Pagination loop: process batches of 5 until no more new posts
+    const BATCH_SIZE = 5
+    const MAX_BATCHES = 10 // Safety cap: 50 posts max per cron run (~45s, within Vercel Pro 60s limit)
     const { searchParams } = new URL(request.url)
-    const offset = searchParams.get('offset') || '0'
-    
-    // Primary filter: field_tipo_de_noticia = "Transacción" (this is the main entry point)
-    // field_ae included to get "Áreas de práctica" taxonomy terms for deterministic classification
-    // Reducido a page[limit]=5 porque el servidor Drupal (Cloudways) arroja Error 500 (timeout de PHP) si pedimos más debido a los complejos JOINs de relaciones
-    const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=5&page[offset]=${offset}&sort=-created`
+    const startOffset = parseInt(searchParams.get('offset') || '0', 10)
     
     const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
     const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
     const authString = Buffer.from(`${drupalUser}:${drupalPass}`).toString('base64')
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Basic ${authString}`,
-        'Accept': 'application/vnd.api+json'
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`Drupal API responded with ${response.status}: ${response.statusText}`)
-    }
-
-    const { data: posts, included } = await response.json()
-
-    if (!posts || posts.length === 0) {
-      return NextResponse.json({ message: 'No posts found to sync.' })
-    }
-
-    // 3. Helper to parse 'included' data
-    const getIncludedResource = (type: string, id: string) => {
-      return included?.find((item: any) => item.type === type && item.id === id)
-    }
-
-    // 3.5 Helper to parse dirty dates (e.g. year "0026" instead of "2026")
+    // 3. Helpers (defined outside loop)
     const parseSafeDate = (dateString: string | null) => {
       if (!dateString) return null
       const d = new Date(dateString)
-      if (isNaN(d.getTime())) return null // Invalid Date
-      
+      if (isNaN(d.getTime())) return null
       let year = d.getFullYear()
-      if (year < 100) {
-        // Fix typos like 0026 -> 2026
-        d.setFullYear(year + 2000)
-      } else if (year < 1900) {
-        return null // Too old to be valid data
-      }
+      if (year < 100) d.setFullYear(year + 2000)
+      else if (year < 1900) return null
       return d
     }
 
-    // 4. Process and Upsert each Post (Transaction)
-    let processedCount = 0
-    const multiAreaConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
+    let totalProcessed = 0
+    let batchNumber = 0
+    let currentOffset = startOffset
+    const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
 
-    for (const post of posts) {
-      const attributes = post.attributes
-      const relationships = post.relationships
+    while (batchNumber < MAX_BATCHES) {
+      batchNumber++
+      
+      // Fetch batch from Drupal
+      const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=${BATCH_SIZE}&page[offset]=${currentOffset}&sort=-created`
+      
+      let posts: any[] = []
+      let included: any[] = []
+      
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Basic ${authString}`,
+            'Accept': 'application/vnd.api+json'
+          }
+        })
+
+        if (!response.ok) {
+          console.error(`Drupal batch ${batchNumber} failed: ${response.status}`)
+          break // Stop pagination on error, return what we have
+        }
+
+        const json = await response.json()
+        posts = json.data || []
+        included = json.included || []
+      } catch (fetchError) {
+        console.error(`Drupal fetch error on batch ${batchNumber}:`, fetchError)
+        break
+      }
+
+      if (!posts || posts.length === 0) {
+        break // No more posts to sync
+      }
+
+      // Helper to parse 'included' data (scoped per batch since included changes)
+      const getIncludedResource = (type: string, id: string) => {
+        return included?.find((item: any) => item.type === type && item.id === id)
+      }
+
+      // Process each post in this batch
+      let processedCount = 0
+      const multiAreaConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
+      for (const post of posts) {
+        const attributes = post.attributes
+        const relationships = post.relationships
       const transactionId = post.id // Using Drupal UUID as the Primary Key in Supabase
 
       // Extract attributes
@@ -476,14 +489,29 @@ export async function POST(request: Request) {
       }
 
       processedCount++
+      }
+
+      // Track conflicts from this batch
+      allConflicts.push(...multiAreaConflicts)
+      totalProcessed += processedCount
+
+      // Advance offset for next batch
+      currentOffset += BATCH_SIZE
+
+      // If this batch returned fewer than BATCH_SIZE, we've reached the end
+      if (posts.length < BATCH_SIZE) {
+        break
+      }
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synchronized ${processedCount} transactions from Drupal.`,
-      processedCount,
-      multiAreaConflicts: multiAreaConflicts.length > 0 ? multiAreaConflicts : undefined,
-      multiAreaConflictCount: multiAreaConflicts.length
+      message: `Successfully synchronized ${totalProcessed} transactions from Drupal in ${batchNumber} batch(es).`,
+      processedCount: totalProcessed,
+      batchesProcessed: batchNumber,
+      finalOffset: currentOffset,
+      multiAreaConflicts: allConflicts.length > 0 ? allConflicts : undefined,
+      multiAreaConflictCount: allConflicts.length
     })
 
   } catch (error: any) {
