@@ -1,5 +1,6 @@
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
+// @ts-ignore - Prisma adapter mode exports PrismaClient differently
 import { PrismaClient } from '@prisma/client'
 
 let connectionString = `${process.env.DATABASE_URL}`

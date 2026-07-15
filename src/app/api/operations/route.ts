@@ -28,6 +28,7 @@ export async function GET(request: Request) {
         id: true,
         title: true,
         type: true,
+        value: true,
         valueString: true,
         status: true,
         country: true,
@@ -67,19 +68,36 @@ export async function GET(request: Request) {
     })
 
     // 4. Mapeo Agresivo para el Cliente
-    const mappedTransactions = dbTransactions.map(tx => ({
+    // Format monetary value for display
+    const formatValue = (val: any, valStr: string | null) => {
+      if (!val || Number(val) === 0) return 'Valor confidencial'
+      const num = Number(val)
+      if (num >= 1e9) return `USD ${(num / 1e9).toFixed(1)}B`
+      if (num >= 1e6) return `USD ${(num / 1e6).toFixed(1)}M`
+      if (num >= 1e3) return `USD ${(num / 1e3).toFixed(0)}K`
+      return `USD ${num.toLocaleString()}`
+    }
+
+    const formatDate = (d: Date | null) => {
+      if (!d) return 'Sin fecha'
+      const year = d.getFullYear()
+      if (year < 1990 || year > 2030) return 'Sin fecha'
+      return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+
+    const mappedTransactions = dbTransactions.map((tx: any) => ({
       id: tx.id,
-      date: tx.dateClosed ? new Date(tx.dateClosed).toLocaleDateString('es-ES') : 
-            tx.dateAnnounced ? new Date(tx.dateAnnounced).toLocaleDateString('es-ES') : 'Sin fecha',
+      date: formatDate(tx.dateClosed || tx.dateAnnounced),
       title: tx.title,
       type: tx.type,
-      amount: (tx.valueString === 'Por definir' || !tx.valueString) ? 'Valor confidencial' : tx.valueString,
+      amount: formatValue(tx.value, tx.valueString),
+      amountRaw: tx.value ? Number(tx.value) : 0,
       status: tx.status || 'Completada',
       industry: tx.industry?.name || 'Varios',
       country: tx.country || 'Latinoamérica',
-      firm: tx.advisors?.map(a => a.firm?.name).filter(Boolean).join(', ') || 'Sin firmas listadas', 
-      lawyer: tx.lawyers?.map(l => l.lawyer?.name).filter(Boolean).join(', ') || 'Sin abogados listados',
-      company: tx.companies?.map(c => c.company?.name).filter(Boolean).join(', ') || 'Sin empresas listadas',
+      firm: tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean).join(', ') || 'Sin firmas listadas', 
+      lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'Sin abogados listados',
+      company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'Sin empresas listadas',
       link: tx.link || '#'
     }))
 

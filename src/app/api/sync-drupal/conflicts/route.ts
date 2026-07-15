@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     if (format === 'csv') {
       // Generate CSV for download
       const csvHeader = 'Título,URL,Tipo Asignado,Override Manual,Áreas de Práctica\n'
-      const csvRows = multiAreaTransactions.map(tx => {
+      const csvRows = multiAreaTransactions.map((tx: any) => {
         const title = `"${(tx.title || '').replace(/"/g, '""')}"`
         const link = tx.link || ''
         const type = tx.type || ''
@@ -60,8 +60,8 @@ export async function GET(request: Request) {
     // JSON response with stats
     const stats = {
       total: multiAreaTransactions.length,
-      withOverride: multiAreaTransactions.filter(t => t.typeOverride).length,
-      pendingReview: multiAreaTransactions.filter(t => !t.typeOverride).length,
+      withOverride: multiAreaTransactions.filter((t: any) => t.typeOverride).length,
+      pendingReview: multiAreaTransactions.filter((t: any) => !t.typeOverride).length,
     }
 
     return NextResponse.json({

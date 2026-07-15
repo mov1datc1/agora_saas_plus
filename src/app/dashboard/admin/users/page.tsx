@@ -23,7 +23,7 @@ export default async function AdminUsersPage() {
   })
 
   // Format data for the client
-  const formattedUsers = users.map(u => ({
+  const formattedUsers = users.map((u: any) => ({
     id: u.id,
     name: u.name || 'Sin nombre',
     email: u.email,
@@ -36,9 +36,9 @@ export default async function AdminUsersPage() {
     createdAt: u.createdAt.toISOString(),
   }))
 
-  const adminUsers = formattedUsers.filter(u => u.role === 'ADMIN' || u.role === 'SUPERADMIN')
-  const legacyUsers = formattedUsers.filter(u => u.role !== 'ADMIN' && u.role !== 'SUPERADMIN' && u.status === 'ACTIVE' && !u.stripeCustomerId)
-  const saasUsers = formattedUsers.filter(u => u.role !== 'ADMIN' && u.role !== 'SUPERADMIN' && !(u.status === 'ACTIVE' && !u.stripeCustomerId))
+  const adminUsers = formattedUsers.filter((u: any) => u.role === 'ADMIN' || u.role === 'SUPERADMIN')
+  const legacyUsers = formattedUsers.filter((u: any) => u.role !== 'ADMIN' && u.role !== 'SUPERADMIN' && u.status === 'ACTIVE' && !u.stripeCustomerId)
+  const saasUsers = formattedUsers.filter((u: any) => u.role !== 'ADMIN' && u.role !== 'SUPERADMIN' && !(u.status === 'ACTIVE' && !u.stripeCustomerId))
 
   return (
     <div className="pt-6 h-full flex flex-col">

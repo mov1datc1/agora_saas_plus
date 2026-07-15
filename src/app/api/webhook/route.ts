@@ -3,7 +3,14 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import prisma from '@/lib/prisma'
-import { SubscriptionStatus } from '@prisma/client'
+// SubscriptionStatus enum values (Prisma adapter mode doesn't export enums)
+const SubscriptionStatus = {
+  TRIAL: 'TRIAL' as const,
+  ACTIVE: 'ACTIVE' as const,
+  CANCELED: 'CANCELED' as const,
+  PAST_DUE: 'PAST_DUE' as const,
+  INCOMPLETE: 'INCOMPLETE' as const,
+}
 import { Resend } from 'resend'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import DunningEmail from '@/emails/DunningEmail'
@@ -187,7 +194,7 @@ export async function POST(req: Request) {
 
         if (dbSubUser) {
           // Map Stripe status to Prisma Enum
-          let newStatus: SubscriptionStatus = SubscriptionStatus.INCOMPLETE
+          let newStatus: any = SubscriptionStatus.INCOMPLETE
           if (subscription.status === 'trialing') newStatus = SubscriptionStatus.TRIAL
           if (subscription.status === 'active') newStatus = SubscriptionStatus.ACTIVE
           if (subscription.status === 'canceled') newStatus = SubscriptionStatus.CANCELED

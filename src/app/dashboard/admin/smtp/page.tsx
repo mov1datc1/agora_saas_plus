@@ -33,7 +33,7 @@ export default function SMTPSettingsPage() {
     async function load() {
       const data = await getEmailTemplates()
       const newTemplates = { ...templates }
-      data.forEach(t => {
+      data.forEach((t: any) => {
         newTemplates[t.type] = { subject: t.subject, htmlBody: t.htmlBody }
       })
       setTemplates(newTemplates)

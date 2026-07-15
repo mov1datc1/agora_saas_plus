@@ -18,6 +18,7 @@ export type UITransaction = {
   title: string
   type: string
   amount: string
+  amountRaw: number
   status: string
   industry: string
   country: string
@@ -262,27 +263,22 @@ export default function OperationsClient() {
       // Filtrado por Valor Económico
       let matchValue = true
       if (selectedValueRange !== 'Todos') {
-        let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
-        if (tx.amount.includes('B')) num *= 1000
-        else if (tx.amount === 'Por definir' || tx.amount === 'Valor confidencial' || isNaN(num)) num = -1
+        const num = tx.amountRaw || 0
+        // amountRaw is in USD (e.g. 150000000 = $150M)
+        const numM = num / 1000000 // Convert to millions for range comparison
 
-        // Si el número es gigante (mayor a 100,000), asumimos que está expresado en unidades enteras y lo pasamos a millones.
-        if (num > 100000) {
-          num = num / 1000000
-        }
-
-        if (num === -1) {
+        if (num <= 0) {
           matchValue = false
         } else if (selectedValueRange === 'Menos de $10M') {
-          matchValue = num < 10
+          matchValue = numM < 10
         } else if (selectedValueRange === '$10M - $50M') {
-          matchValue = num >= 10 && num < 50
+          matchValue = numM >= 10 && numM < 50
         } else if (selectedValueRange === '$50M - $100M') {
-          matchValue = num >= 50 && num < 100
+          matchValue = numM >= 50 && numM < 100
         } else if (selectedValueRange === '$100M - $500M') {
-          matchValue = num >= 100 && num < 500
+          matchValue = numM >= 100 && numM < 500
         } else if (selectedValueRange === 'Más de $500M') {
-          matchValue = num >= 500
+          matchValue = numM >= 500
         }
       }
       

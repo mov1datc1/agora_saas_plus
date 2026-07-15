@@ -78,7 +78,7 @@ export async function POST(req: Request) {
                 }
               }
             })
-            return firms.map(f => ({ name: f.name, deals: f._count.transactions })).sort((a, b) => b.deals - a.deals)
+            return firms.map((f: any) => ({ name: f.name, deals: f._count.transactions })).sort((a: any, b: any) => b.deals - a.deals)
           },
         }),
         getTopIndustries: tool({
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
                 }
               }
             })
-            return industries.map(i => ({ name: i.name, deals: i._count.transactions })).sort((a, b) => b.deals - a.deals)
+            return industries.map((i: any) => ({ name: i.name, deals: i._count.transactions })).sort((a: any, b: any) => b.deals - a.deals)
           },
         }),
         getTopCountries: tool({
@@ -130,10 +130,10 @@ export async function POST(req: Request) {
             })
 
             const countMap: Record<string, number> = {}
-            transactions.forEach(t => {
+            transactions.forEach((t: any) => {
               if (t.country) {
-                const countriesArray = t.country.split(',').map(c => c.trim())
-                countriesArray.forEach(c => {
+                const countriesArray = t.country.split(',').map((c: string) => c.trim())
+                countriesArray.forEach((c: string) => {
                   countMap[c] = (countMap[c] || 0) + 1
                 })
               }

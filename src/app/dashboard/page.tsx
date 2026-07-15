@@ -43,15 +43,19 @@ export default async function DashboardPage() {
     const activeCompaniesCount = await prisma.company.count()
     const activeLawyersCount = await prisma.lawyer.count()
 
-    // Obtenemos todas las transacciones ordenadas
+    // Obtenemos todas las transacciones con fechas válidas para el chart
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {
           not: 'Operación General'
+        },
+        dateAnnounced: {
+          gte: new Date('1990-01-01'),
+          lte: new Date('2030-12-31'),
         }
       },
       orderBy: { dateAnnounced: 'asc' },
-      select: { id: true, title: true, type: true, valueString: true, dateAnnounced: true, status: true, industryId: true }
+      select: { id: true, title: true, type: true, value: true, valueString: true, dateAnnounced: true, status: true, industryId: true }
     })
 
     const stats = [
@@ -68,7 +72,7 @@ export default async function DashboardPage() {
     const groupedData: Record<string, number> = {}
     let minYear = Infinity, minMonth = 11, maxYear = 0, maxMonth = 0
     
-    dbTransactions.forEach(tx => {
+    dbTransactions.forEach((tx: any) => {
       if (!tx.dateAnnounced) return
       const year = tx.dateAnnounced.getFullYear()
       const monthIdx = tx.dateAnnounced.getMonth() // 0-11
@@ -120,32 +124,43 @@ export default async function DashboardPage() {
     })
     
     const industryChartData = dbIndustries
-      .map(ind => ({
+      .map((ind: any) => ({
         name: ind.name,
         count: ind._count.transactions
       }))
-      .filter(ind => ind.count > 0) // Solo mostrar industrias con transacciones reales
-      .sort((a, b) => b.count - a.count)
+      .filter((ind: any) => ind.count > 0) // Solo mostrar industrias con transacciones reales
+      .sort((a: any, b: any) => b.count - a.count)
       .slice(0, 10) // Mostrar Top 10 para evitar saturación del gráfico
 
-    // 3. Las 5 transacciones recientes para la lista
-    const recentList = [...dbTransactions].reverse().slice(0, 5)
+    // 3. Las 5 transacciones más recientes (con fechas válidas, ordenadas por fecha)
+    const recentList = [...dbTransactions]
+      .filter(t => t.dateAnnounced && t.dateAnnounced.getFullYear() >= 1990 && t.dateAnnounced.getFullYear() <= 2030)
+      .sort((a: any, b: any) => (b.dateAnnounced?.getTime() || 0) - (a.dateAnnounced?.getTime() || 0))
+      .slice(0, 5)
+
+    const formatVal = (v: any, vs: string | null) => {
+      if (!v || Number(v) === 0) return 'Valor confidencial'
+      const n = Number(v)
+      if (n >= 1e9) return `USD ${(n/1e9).toFixed(1)}B`
+      if (n >= 1e6) return `USD ${(n/1e6).toFixed(1)}M`
+      return `USD ${n.toLocaleString()}`
+    }
 
     const recentTransactions = recentList.length > 0 ? recentList.map(t => ({
       id: t.id,
       title: t.title,
       type: t.type || 'Operación General',
-      value: t.valueString === 'Por definir' ? 'Valor confidencial' : (t.valueString || 'Valor confidencial'),
+      value: formatVal(t.value, t.valueString),
       date: t.dateAnnounced ? t.dateAnnounced.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
       status: t.status || 'Completada',
     })) : [
       {
         id: "1",
-        title: 'Adquisición de StartUp Tech Latam',
-        type: 'M&A',
-        value: '$45.0M',
-        date: '10 Jun 2026',
-        status: 'Completada',
+        title: 'Sin transacciones recientes',
+        type: 'N/A',
+        value: 'N/A',
+        date: 'N/A',
+        status: 'N/A',
       }
     ]
 

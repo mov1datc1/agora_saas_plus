@@ -22,7 +22,7 @@ export default async function TeamPage() {
     redirect('/dashboard') // Solo titulares corporativos pueden entrar
   }
 
-  const formattedChildren = dbUser.children.map(child => ({
+  const formattedChildren = dbUser.children.map((child: any) => ({
     id: child.id,
     name: child.name || 'Sin nombre',
     email: child.email,

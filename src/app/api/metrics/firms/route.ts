@@ -30,7 +30,7 @@ export async function GET() {
       }
     })
 
-    const tableData = rawAdvisors.map(adv => {
+    const tableData = rawAdvisors.map((adv: any) => {
       const tx = adv.transaction
       return {
         id: adv.id,
@@ -39,9 +39,9 @@ export async function GET() {
         volumen: tx.value ? Number(tx.value) : null,
         tipoOperacion: tx.type || 'M&A',
         pais: tx.country || 'N/D',
-        abogados: tx.lawyers.map(l => l.lawyer.name).join(', ') || 'N/D',
+        abogados: tx.lawyers.map((l: any) => l.lawyer.name).join(', ') || 'N/D',
         industria: tx.industry?.name || 'Varios / Sin Clasificar',
-        empresa: tx.companies.map(c => c.company.name).join(', ') || 'N/D',
+        empresa: tx.companies.map((c: any) => c.company.name).join(', ') || 'N/D',
         fecha: tx.dateAnnounced ? tx.dateAnnounced.toISOString() : (tx.dateClosed ? tx.dateClosed.toISOString() : null),
         transactionId: tx.id
       }
