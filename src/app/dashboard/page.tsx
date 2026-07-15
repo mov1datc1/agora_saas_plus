@@ -31,21 +31,19 @@ export default async function DashboardPage() {
       }
     }
 
-    // Obtenemos cuentas reales de Prisma
-    const totalTransactionsCount = await prisma.transaction.count({
-      where: {
-        type: {
-          not: 'Operación General'
-        }
-      }
-    })
-    const activeFirmsCount = await prisma.firm.count()
-    const activeCompaniesCount = await prisma.company.count()
-    const activeLawyersCount = await prisma.lawyer.count()
+    // Obtenemos cuentas reales de Prisma (solo transacciones con fecha <= hoy)
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+    const txWhere = {
+      type: { in: ['M&A', 'Emisiones', 'Financiamientos'] as string[] },
+      dateAnnounced: { gte: new Date('1990-01-01'), lte: today },
+    }
+    const totalTransactionsCount = await prisma.transaction.count({ where: txWhere })
+    const activeFirmsCount = await prisma.firm.count({ where: { transactions: { some: { transaction: txWhere } } } })
+    const activeCompaniesCount = await prisma.company.count({ where: { transactions: { some: { transaction: txWhere } } } })
+    const activeLawyersCount = await prisma.lawyer.count({ where: { transactions: { some: { transaction: txWhere } } } })
 
     // Obtenemos todas las transacciones con fechas válidas para el chart
-    const today = new Date()
-    today.setHours(23, 59, 59, 999) // End of today
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {

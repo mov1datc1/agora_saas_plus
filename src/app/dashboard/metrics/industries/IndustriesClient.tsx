@@ -14,42 +14,57 @@ import useSWR from 'swr'
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 interface TableRow {
-  id: string
   industria: string
-  monto: number
   operaciones: number
-  paises: string[]
-  empresas: string[]
-  firmas: string[]
-  firmasRanking?: { name: string, count: number }[]
-  tiposOperacion: string[]
-  transacciones?: any[]
+  valorAcumulado: number
+  paises: number
+  id?: string
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [dv, setDv] = useState<T>(value)
+  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h) }, [value, delay])
+  return dv
 }
 
 export default function IndustriesClient() {
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 400)
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
-  
   const [selectedCountry, setSelectedCountry] = useState('Todos')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
-  
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [sortConfig, setSortConfig] = useState<{key: 'industria' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
-
   const [tooltipContent, setTooltipContent] = useState<{name: string, activeIndustries: string[], x: number, y: number} | null>(null)
-
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTitle, setPaywallTitle] = useState('')
   const [paywallMessage, setPaywallMessage] = useState('')
   const [isDataAllowed, setIsDataAllowed] = useState(true)
+
+  // Build server-side API URL
+  const apiUrl = useMemo(() => {
+    const p = new URLSearchParams()
+    p.set('page', String(currentPage))
+    p.set('limit', String(itemsPerPage))
+    if (filterType !== 'Todas') p.set('type', filterType)
+    if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim())
+    if (dateRange.start) p.set('dateStart', dateRange.start)
+    if (dateRange.end) p.set('dateEnd', dateRange.end)
+    return `/api/metrics/industries?${p.toString()}`
+  }, [currentPage, filterType, debouncedSearch, dateRange])
+
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
+  const tableData: TableRow[] = (apiData?.data || []).map((r: any) => ({ ...r, id: r.industria }))
+  const isLoading = isSwrLoading && !apiData
+  const totalCount = apiData?.metadata?.totalCount || 0
+  const totalPages = apiData?.metadata?.totalPages || 1
+  const serverStats = apiData?.stats || {}
+  const serverRanking: TableRow[] = (apiData?.ranking || []).map((r: any) => ({ ...r, id: r.industria }))
 
   useEffect(() => {
     const checkLimits = async () => {
@@ -57,12 +72,17 @@ export default function IndustriesClient() {
       if (!usageCheck.allowed) {
         setIsDataAllowed(false)
         setPaywallTitle('Límite Diario Alcanzado')
-        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
+        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias.')
         setShowPaywall(true)
       }
     }
     checkLimits()
   }, [])
+
+  useEffect(() => { setCurrentPage(1) }, [filterType, debouncedSearch, dateRange])
+
+  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
+  const uniqueCountries: string[] = []
 
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()
@@ -72,172 +92,24 @@ export default function IndustriesClient() {
       setShowPaywall(true)
       return
     }
-
-    exportToExcel(filteredData.map(row => ({
+    exportToExcel(tableData.map(row => ({
       Industria: row.industria,
       Operaciones: row.operaciones,
-      Monto_USD: row.monto
+      Valor_USD: row.valorAcumulado
     })), 'industrias_agora_plus')
   }
 
-  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/industries', fetcher)
+  // Server-side: data already filtered and paginated
+  const paginatedData = tableData
+  const filteredData = tableData
 
   useEffect(() => {
-    if (apiData) {
-      setTransactions(apiData)
-      setIsLoading(false)
-    }
-  }, [apiData])
-
-  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
-
-  const uniqueCountries = useMemo(() => {
-    const countries = new Set<string>()
-    transactions.forEach(tx => {
-      if (tx.country) {
-        tx.country.split(',').forEach((c: string) => countries.add(c.trim()))
-      }
-    })
-    return Array.from(countries).sort()
-  }, [transactions])
-
-  // Filtrado base de transacciones (Tipo, País, Fecha)
-  const baseFilteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
-      const matchesType = filterType === 'Todas' || tx.type === filterType
-      const matchesCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
-      
-      let matchesDate = true
-      if (dateRange.start || dateRange.end) {
-        const txDateStr = tx.dateAnnounced || tx.dateClosed
-        if (txDateStr) {
-          const txDate = new Date(txDateStr).getTime()
-          const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : 0
-          const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').getTime() + 86399999 : Infinity
-          matchesDate = txDate >= startDate && txDate <= endDate
-        } else {
-          matchesDate = false
-        }
-      }
-      
-      return matchesType && matchesCountry && matchesDate
-    })
-  }, [transactions, filterType, selectedCountry, dateRange])
-
-  // Agrupar por industria
-  const aggregatedIndustries = useMemo(() => {
-    const industryMap: Record<string, any> = {}
-
-    baseFilteredTransactions.forEach(tx => {
-      const indName = tx.industry?.name || 'Varios / Sin Clasificar'
-      
-      if (!industryMap[indName]) {
-        industryMap[indName] = {
-          id: indName,
-          industria: indName,
-          monto: 0,
-          operaciones: 0,
-          paises: new Set<string>(),
-          empresas: new Set<string>(),
-          firmas: new Set<string>(),
-          firmasCount: {} as Record<string, number>,
-          tiposOperacion: new Set<string>(),
-          transacciones: [] as any[]
-        }
-      }
-
-      industryMap[indName].operaciones += 1
-      if (tx.value) {
-        industryMap[indName].monto += Number(tx.value)
-      }
-      if (tx.country) {
-        tx.country.split(',').map((c: string) => c.trim()).forEach((c: string) => {
-          if (c) industryMap[indName].paises.add(c)
-        })
-      }
-      if (tx.type) {
-        industryMap[indName].tiposOperacion.add(tx.type)
-      }
-
-      tx.companies?.forEach((c: any) => {
-        if (c.company?.name) industryMap[indName].empresas.add(c.company.name)
-      })
-
-      tx.advisors?.forEach((a: any) => {
-        if (a.firm?.name) {
-          industryMap[indName].firmas.add(a.firm.name)
-          industryMap[indName].firmasCount[a.firm.name] = (industryMap[indName].firmasCount[a.firm.name] || 0) + 1
-        }
-      })
-
-      industryMap[indName].transacciones.push(tx)
-    })
-
-    const tableData = Object.values(industryMap).map((ind: any) => ({
-      ...ind,
-      paises: Array.from(ind.paises),
-      empresas: Array.from(ind.empresas),
-      firmas: Array.from(ind.firmas),
-      firmasRanking: Object.entries(ind.firmasCount)
-        .map(([name, count]) => ({ name, count: count as number }))
-        .sort((a, b) => b.count - a.count),
-      tiposOperacion: Array.from(ind.tiposOperacion)
-    }))
-
-    return tableData
-  }, [baseFilteredTransactions])
-
-  // Filtrado final para la tabla y KPIs (búsqueda de texto)
-  const filteredData = useMemo(() => {
-    let result = aggregatedIndustries.filter(row => {
-      return row.industria.toLowerCase().includes(searchQuery.toLowerCase())
-    })
-
-    if (sortConfig) {
-      result.sort((a, b) => {
-        if (sortConfig.key === 'industria') {
-          return sortConfig.direction === 'asc' 
-            ? a.industria.localeCompare(b.industria) 
-            : b.industria.localeCompare(a.industria)
-        } else if (sortConfig.key === 'monto') {
-          return sortConfig.direction === 'asc' ? a.monto - b.monto : b.monto - a.monto
-        } else if (sortConfig.key === 'operaciones') {
-          return sortConfig.direction === 'asc' ? a.operaciones - b.operaciones : b.operaciones - a.operaciones
-        }
-        return 0
-      })
-    } else {
-      result.sort((a, b) => b.operaciones - a.operaciones)
-    }
-    return result
-  }, [aggregatedIndustries, searchQuery, sortConfig])
-
-  const handleSort = (key: 'industria' | 'monto' | 'operaciones') => {
-    let direction: 'asc' | 'desc' = 'asc'
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
-    }
-    setSortConfig({ key, direction })
-  }
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filterType, searchQuery, sortConfig])
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredData.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredData, currentPage])
-
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-
-  useEffect(() => {
-    if (paginatedData.length > 0 && (!selectedRow || !paginatedData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(paginatedData[0])
-    } else if (paginatedData.length === 0) {
+    if (tableData.length > 0 && (!selectedRow || !tableData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(tableData[0])
+    } else if (tableData.length === 0) {
       setSelectedRow(null)
     }
-  }, [paginatedData])
+  }, [tableData])
 
   const formatCurrency = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
@@ -246,16 +118,13 @@ export default function IndustriesClient() {
     return `$${value.toLocaleString()}`
   }
 
-  const totalIndustries = filteredData.length
-  const totalVolume = filteredData.reduce((acc, row) => acc + (row.monto || 0), 0)
-
-  const topIndustriesList = useMemo(() => {
-    return [...filteredData].sort((a, b) => b.operaciones - a.operaciones)
-  }, [filteredData])
+  const totalIndustries = serverStats.totalIndustries || 0
+  const totalVolume = serverStats.totalValue || 0
+  const topIndustriesList = serverRanking
 
   const filteredRankingList = useMemo(() => {
     if (!rankingSearchQuery) return topIndustriesList
-    return topIndustriesList.filter(i => i.industria.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
+    return topIndustriesList.filter((i: any) => i.industria.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
   }, [topIndustriesList, rankingSearchQuery])
 
   // Render array tags as PRO chips instead of cluttered strings
@@ -322,24 +191,11 @@ export default function IndustriesClient() {
           onClose={() => setIsDetailModalOpen(false)}
           title={selectedRow.industria}
           subtitle="Análisis Sectorial"
-          amount={formatCurrency(selectedRow.monto)}
+          amount={formatCurrency(selectedRow.valorAcumulado)}
           iconType="industry"
           sections={[
-            {
-              label: 'Países Involucrados',
-              count: selectedRow.paises.length,
-              value: renderChipsArray(selectedRow.paises, false)
-            },
-            {
-              label: 'Empresas / Clientes',
-              count: selectedRow.empresas.length,
-              value: renderChipsArray(selectedRow.empresas, false)
-            },
-            {
-              label: 'Firmas Asesoras',
-              count: selectedRow.firmas.length,
-              value: renderChipsArray(selectedRow.firmas, false)
-            }
+            { label: 'Total Operaciones', value: String(selectedRow.operaciones) },
+            { label: 'Países Activos', value: String(selectedRow.paises) },
           ]}
         />
       )}
@@ -363,7 +219,7 @@ export default function IndustriesClient() {
               <Briefcase className="h-5 w-5" />
               <h3 className="text-sm font-semibold">Industrias Registradas</h3>
             </div>
-            <p className="text-3xl font-bold text-foreground">{topIndustriesList.length.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-foreground">{totalIndustries.toLocaleString()}</p>
             <p className="text-sm text-muted-foreground mt-2">Sectores activos analizados</p>
           </div>
           <button onClick={() => setIsRankingModalOpen(true)} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
@@ -456,23 +312,14 @@ export default function IndustriesClient() {
             <table className="w-full text-left border-collapse min-w-[500px]">
               <thead className="bg-muted">
                 <tr>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('industria')}
-                  >
-                    Industria {sortConfig?.key === 'industria' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Industria
                   </th>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('monto')}
-                  >
-                    Valor Acumulado (USD) {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Valor Acumulado (USD)
                   </th>
-                  <th 
-                    className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('operaciones')}
-                  >
-                    Operaciones {sortConfig?.key === 'operaciones' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Operaciones
                   </th>
                 </tr>
               </thead>
@@ -514,7 +361,7 @@ export default function IndustriesClient() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-foreground">{formatCurrency(row.monto)}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-foreground">{formatCurrency(row.valorAcumulado)}</td>
                         <td className="px-6 py-4 text-sm text-muted-foreground text-right">{row.operaciones} ops</td>
                       </tr>
                     ))}
@@ -534,7 +381,7 @@ export default function IndustriesClient() {
           {filteredData.length > 0 && (
             <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} de {filteredData.length}
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount.toLocaleString()}
               </span>
               <div className="flex gap-2">
                 <button 
@@ -591,61 +438,25 @@ export default function IndustriesClient() {
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
                     <div className="flex items-center gap-2 text-white/60 mb-1">
                       <Globe className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Países Involucrados ({selectedRow.paises.length})</span>
+                      <span className="text-xs font-semibold">Países Activos</span>
                     </div>
-                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                      {renderChipsArray(selectedRow.paises, true)}
-                    </div>
-                  </div>
-
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center gap-2 text-white/60 mb-1">
-                      <Building2 className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Empresas / Clientes ({selectedRow.empresas.length})</span>
-                    </div>
-                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                      {renderChipsArray(selectedRow.empresas, true)}
-                    </div>
-                  </div>
-
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center gap-2 text-white/60 mb-1">
-                      <Users className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Ranking Firmas Asesoras</span>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-2 mt-2">
-                      {(selectedRow.firmasRanking && selectedRow.firmasRanking.length > 0) ? (
-                        selectedRow.firmasRanking.slice(0, 10).map((firma: any, idx: number) => (
-                          <div key={firma.name} className="flex justify-between items-center text-xs">
-                            <div className="flex items-center gap-2 text-white">
-                              <span className="text-white/40 font-mono w-4">{idx + 1}.</span>
-                              <span className="truncate max-w-[150px]">{firma.name}</span>
-                            </div>
-                            <span className="bg-white/10 px-2 py-0.5 rounded text-white/80">{firma.count} ops</span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-white/40 italic">Sin firmas registradas</p>
-                      )}
-                    </div>
+                    <p className="text-2xl font-bold text-white">{selectedRow.paises}</p>
                   </div>
 
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
                     <div className="flex items-center gap-2 text-white/60 mb-1">
                       <FileText className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Operaciones Recientes ({selectedRow.transacciones?.length})</span>
+                      <span className="text-xs font-semibold">Valor Acumulado</span>
                     </div>
-                    <div className="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-3 mt-2">
-                      {selectedRow.transacciones?.slice(0, 10).map((tx: any) => (
-                        <div key={tx.id} className="text-xs border-b border-white/10 pb-2 last:border-0 last:pb-0">
-                          <p className="font-semibold text-white leading-tight mb-1">{tx.title}</p>
-                          <div className="flex justify-between text-white/60">
-                            <span>{tx.date}</span>
-                            <span className="font-mono text-[#E05C50]">{tx.amount !== 'Por definir' ? `USD ${tx.amount}` : tx.amount}</span>
-                          </div>
-                        </div>
-                      ))}
+                    <p className="text-2xl font-bold text-white">{formatCurrency(selectedRow.valorAcumulado)}</p>
+                  </div>
+
+                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Briefcase className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Total Operaciones</span>
                     </div>
+                    <p className="text-2xl font-bold text-white">{selectedRow.operaciones.toLocaleString()}</p>
                   </div>
                 </div>
               </>

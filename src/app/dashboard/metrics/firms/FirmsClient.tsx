@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Building2, Users, FileText, ArrowUpRight, X, Globe, Gavel, Calendar, Search, Filter, ChevronRight, ChevronLeft, Loader2, Download, Lock, ExternalLink, ChevronDown } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
@@ -27,20 +27,24 @@ interface TableRow {
   transactionId: string
 }
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [dv, setDv] = useState<T>(value)
+  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h) }, [value, delay])
+  return dv
+}
+
 export default function FirmsClient() {
-  const [tableData, setTableData] = useState<TableRow[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 400)
   const [selectedCountry, setSelectedCountry] = useState('Todos')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
   
-  // Nuevos estados para UX
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [sortConfig, setSortConfig] = useState<{key: 'firma' | 'monto' | 'volumen', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
@@ -50,28 +54,43 @@ export default function FirmsClient() {
   const [paywallMessage, setPaywallMessage] = useState('')
   const [isDataAllowed, setIsDataAllowed] = useState(true)
 
-  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/firms', fetcher)
+  // Build server-side API URL
+  const apiUrl = useMemo(() => {
+    const p = new URLSearchParams()
+    p.set('page', String(currentPage))
+    p.set('limit', String(itemsPerPage))
+    if (filterType !== 'Todas') p.set('type', filterType)
+    if (selectedCountry !== 'Todos') p.set('country', selectedCountry)
+    if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim())
+    if (dateRange.start) p.set('dateStart', dateRange.start)
+    if (dateRange.end) p.set('dateEnd', dateRange.end)
+    return `/api/metrics/firms?${p.toString()}`
+  }, [currentPage, filterType, selectedCountry, debouncedSearch, dateRange])
 
-  // Fetch initial data & Check Limits
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
+  const tableData: TableRow[] = apiData?.data || []
+  const isLoading = isSwrLoading && !apiData
+  const totalCount = apiData?.metadata?.totalCount || 0
+  const totalPages = apiData?.metadata?.totalPages || 1
+  const serverStats = apiData?.stats || {}
+  const serverRanking = apiData?.ranking || []
+  const serverCountries: string[] = apiData?.countries || []
+
   useEffect(() => {
     const checkLimits = async () => {
       const usageCheck = await checkTrialRestrictions()
       if (!usageCheck.allowed) {
         setIsDataAllowed(false)
         setPaywallTitle('Límite Diario Alcanzado')
-        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
+        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias.')
         setShowPaywall(true)
       }
     }
     checkLimits()
   }, [])
 
-  useEffect(() => {
-    if (apiData) {
-      setTableData(apiData)
-      setIsLoading(false)
-    }
-  }, [apiData])
+  // Reset page on filter change
+  useEffect(() => { setCurrentPage(1) }, [filterType, selectedCountry, debouncedSearch, dateRange])
 
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()
@@ -91,114 +110,28 @@ export default function FirmsClient() {
 
   // Opciones de filtro
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
+  const uniqueCountries = serverCountries
 
-  const uniqueCountries = useMemo(() => {
-    const countries = new Set<string>()
-    tableData.forEach(row => {
-      if (row.pais && row.pais !== 'N/D') {
-        row.pais.split(',').forEach(c => countries.add(c.trim()))
-      }
-    })
-    return Array.from(countries).sort()
-  }, [tableData])
+  // Server-side: data is already filtered, sorted, and paginated
+  const paginatedData = tableData
+  const filteredData = tableData
 
-  // Filtrado base (Tipo, País, Fecha) para calcular las estadísticas globales y el ranking
-  const baseFilteredData = useMemo(() => {
-    return tableData.filter(row => {
-      const matchesType = filterType === 'Todas' || row.tipoOperacion === filterType
-      const matchesCountry = selectedCountry === 'Todos' || (row.pais || '').includes(selectedCountry)
-      
-      let matchesDate = true
-      if (dateRange.start || dateRange.end) {
-        if (row.fecha) {
-          const txDate = new Date(row.fecha).getTime()
-          const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : 0
-          const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').getTime() + 86399999 : Infinity
-          matchesDate = txDate >= startDate && txDate <= endDate
-        } else {
-          matchesDate = false
-        }
-      }
-      
-      return matchesType && matchesCountry && matchesDate
-    })
-  }, [tableData, filterType, selectedCountry, dateRange])
-
-  // Filtrado final para la tabla (agrega búsqueda en texto)
-  const filteredData = useMemo(() => {
-    let result = baseFilteredData.filter(row => {
-      const matchesSearch = row.firma.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            row.monto.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesSearch
-    })
-
-    if (sortConfig) {
-      result.sort((a, b) => {
-        if (sortConfig.key === 'firma') {
-          return sortConfig.direction === 'asc' 
-            ? a.firma.localeCompare(b.firma) 
-            : b.firma.localeCompare(a.firma)
-        } else if (sortConfig.key === 'monto') {
-          const numA = parseFloat(a.monto.replace(/[^0-9.-]+/g, "")) || 0
-          const numB = parseFloat(b.monto.replace(/[^0-9.-]+/g, "")) || 0
-          return sortConfig.direction === 'asc' ? numA - numB : numB - numA
-        } else if (sortConfig.key === 'volumen') {
-          const numA = a.volumen || 0
-          const numB = b.volumen || 0
-          return sortConfig.direction === 'asc' ? numA - numB : numB - numA
-        }
-        return 0
-      })
-    }
-    return result
-  }, [baseFilteredData, searchQuery, sortConfig])
-
-  const handleSort = (key: 'firma' | 'monto' | 'volumen') => {
-    let direction: 'asc' | 'desc' = 'asc'
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
-    }
-    setSortConfig({ key, direction })
-  }
-
-  // Resetear la paginación cuando cambia algún filtro o búsqueda
+  // Select first row when data changes
   useEffect(() => {
-    setCurrentPage(1)
-  }, [filterType, searchQuery, sortConfig])
-
-  // Paginación
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredData.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredData, currentPage])
-
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-
-  // Seleccionar la primera fila por defecto al cambiar filtros si hay datos
-  useEffect(() => {
-    if (filteredData.length > 0 && (!selectedRow || !filteredData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(filteredData[0])
-    } else if (filteredData.length === 0) {
+    if (tableData.length > 0 && (!selectedRow || !tableData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(tableData[0])
+    } else if (tableData.length === 0) {
       setSelectedRow(null)
     }
-  }, [filteredData])
+  }, [tableData])
 
-  const totalFirms = baseFilteredData.length
-  const totalVolume = baseFilteredData.reduce((acc, row) => acc + (row.volumen || 0), 0)
-  const topFirmsList = useMemo(() => {
-    const firmCounts: Record<string, number> = {}
-    baseFilteredData.forEach(row => {
-      firmCounts[row.firma] = (firmCounts[row.firma] || 0) + 1
-    })
-    return Object.entries(firmCounts)
-      .map(([name, count]) => ({ name, deals: count }))
-      .sort((a, b) => b.deals - a.deals)
-  }, [baseFilteredData])
+  const totalFirms = serverStats.totalFirms || 0
+  const totalVolume = serverStats.totalValue || 0
+  const topFirmsList = serverRanking
 
-  // Filtro para el Ranking Modal
   const filteredRankingList = useMemo(() => {
     if (!rankingSearchQuery) return topFirmsList
-    return topFirmsList.filter(f => f.name.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
+    return topFirmsList.filter((f: any) => f.name.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
   }, [topFirmsList, rankingSearchQuery])
 
   const formatCurrency = (value: number | null | undefined) => {
@@ -332,7 +265,7 @@ export default function FirmsClient() {
             )}
           </div>
           <div className="mt-4 space-y-2">
-            {topFirmsList.slice(0, 3).map((firm, i) => (
+            {topFirmsList.slice(0, 3).map((firm: any, i: number) => (
               <div key={i} className="flex justify-between items-center bg-muted p-2 rounded-lg">
                 <span className="text-xs font-semibold truncate max-w-[120px]">{firm.name}</span>
                 <span className="text-xs bg-surface px-2 py-1 rounded">{formatCurrency(firm.deals)}</span>
@@ -406,23 +339,14 @@ export default function FirmsClient() {
             <table className="w-full text-left border-collapse min-w-[500px]">
               <thead className="bg-muted">
                 <tr>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('firma')}
-                  >
-                    Firma {sortConfig?.key === 'firma' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Firma
                   </th>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('monto')}
-                  >
-                    Monto (USD) {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Monto (USD)
                   </th>
-                  <th 
-                    className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('volumen')}
-                  >
-                    Valor Acumulado (USD) {sortConfig?.key === 'volumen' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Valor Acumulado (USD)
                   </th>
                 </tr>
               </thead>
@@ -482,10 +406,10 @@ export default function FirmsClient() {
           </div>
           
           {/* Pagination Controls */}
-          {filteredData.length > 0 && (
+          {totalCount > 0 && (
             <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} de {filteredData.length}
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount.toLocaleString()}
               </span>
               <div className="flex gap-2">
                 <button 
@@ -642,8 +566,8 @@ export default function FirmsClient() {
             </div>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
-              {filteredRankingList.map((firm) => {
-                const i = topFirmsList.findIndex(f => f.name === firm.name)
+              {filteredRankingList.map((firm: any) => {
+                const i = topFirmsList.findIndex((f: any) => f.name === firm.name)
                 return (
                   <Link 
                     href={`/dashboard/operations?search=${encodeURIComponent(firm.name)}`}
