@@ -11,17 +11,25 @@ export async function GET(request: Request) {
     // const { data: { session } } = await supabase.auth.getSession()
     // if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // 2. Extraer parámetros de paginación (Preparado para Infinite Scroll en RN)
+    // 2. Extraer parámetros de paginación
     const { searchParams } = new URL(request.url)
     const limitParam = searchParams.get('limit')
     const limit = limitParam === 'all' ? undefined : parseInt(limitParam || '500')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    // 3. Consulta de Base de Datos Eficiente
+    // 3. Date boundary: exclude future dates and invalid dates
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+
+    // 4. Consulta de Base de Datos Eficiente
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {
           in: ['M&A', 'Emisiones', 'Financiamientos']
+        },
+        dateAnnounced: {
+          gte: new Date('1990-01-01'),
+          lte: today,
         }
       },
       select: {
@@ -92,19 +100,27 @@ export async function GET(request: Request) {
       type: tx.type,
       amount: formatValue(tx.value, tx.valueString),
       amountRaw: tx.value ? Number(tx.value) : 0,
-      status: tx.status || 'Completada',
-      industry: tx.industry?.name || 'Varios',
-      country: tx.country || 'Latinoamérica',
-      firm: tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean).join(', ') || 'Sin firmas listadas', 
-      lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'Sin abogados listados',
-      company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'Sin empresas listadas',
-      link: tx.link || '#'
+      industry: tx.industry?.name || '',
+      country: tx.country || '',
+      firm: tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean).join(', ') || '', 
+      lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || '',
+      company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || '',
+      link: tx.link || ''
     }))
+
+    // Get total count for summary (fast separate query)
+    const totalCount = await prisma.transaction.count({
+      where: {
+        type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
+        dateAnnounced: { gte: new Date('1990-01-01'), lte: today }
+      }
+    })
 
     return NextResponse.json({ 
       data: mappedTransactions,
       metadata: {
         count: mappedTransactions.length,
+        totalCount,
         offset,
         limit
       }
