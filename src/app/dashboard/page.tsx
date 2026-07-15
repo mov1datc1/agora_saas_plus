@@ -44,6 +44,8 @@ export default async function DashboardPage() {
     const activeLawyersCount = await prisma.lawyer.count()
 
     // Obtenemos todas las transacciones con fechas válidas para el chart
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // End of today
     const dbTransactions = await prisma.transaction.findMany({
       where: {
         type: {
@@ -51,7 +53,7 @@ export default async function DashboardPage() {
         },
         dateAnnounced: {
           gte: new Date('1990-01-01'),
-          lte: new Date('2030-12-31'),
+          lte: today,
         }
       },
       orderBy: { dateAnnounced: 'asc' },
@@ -132,9 +134,8 @@ export default async function DashboardPage() {
       .sort((a: any, b: any) => b.count - a.count)
       .slice(0, 10) // Mostrar Top 10 para evitar saturación del gráfico
 
-    // 3. Las 5 transacciones más recientes (con fechas válidas, ordenadas por fecha)
+    // 3. Las 5 transacciones más recientes (ya filtered by valid dates in query)
     const recentList = [...dbTransactions]
-      .filter(t => t.dateAnnounced && t.dateAnnounced.getFullYear() >= 1990 && t.dateAnnounced.getFullYear() <= 2030)
       .sort((a: any, b: any) => (b.dateAnnounced?.getTime() || 0) - (a.dateAnnounced?.getTime() || 0))
       .slice(0, 5)
 
