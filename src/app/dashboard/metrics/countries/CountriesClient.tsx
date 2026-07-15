@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Gavel, Briefcase, ChevronUp, ChevronDown, Download, Lock, ExternalLink } from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
@@ -49,241 +49,103 @@ const mapGeoToSpanish: Record<string, string[]> = {
 }
 
 interface TableRow {
-  id: string
+  id?: string
   pais: string
-  monto: number
   operaciones: number
-  firmas: string[]
-  industrias: string[]
-  empresas: string[]
-  abogados: string[]
-  tiposOperacion: string[]
+  valorAcumulado: number
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [dv, setDv] = useState<T>(value)
+  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h) }, [value, delay])
+  return dv
 }
 
 export default function CountriesClient() {
-  const [transactions, setTransactions] = useState<any[]>([])
-  // Render array tags as PRO chips instead of cluttered strings
-  const renderChipsArray = (items: string[], isDark: boolean = false) => {
-    if (!items || items.length === 0) {
-      return <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-foreground/80'}`}>No especificadas</p>
-    }
-    
-    return (
-      <div className="flex flex-wrap gap-1.5 mt-1">
-        {items.map((item, i) => (
-          <span 
-            key={i} 
-            className={`inline-flex items-center px-2 py-1 rounded-md text-[11px] font-semibold leading-none border transition-colors ${
-              isDark 
-                ? 'bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:text-white' 
-                : 'bg-brand/5 border-brand/20 text-brand hover:bg-brand/10'
-            }`}
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    )
-  }
-
-  const [isLoading, setIsLoading] = useState(true)
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
+  const debouncedSearch = useDebounce(searchQuery, 400)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
-  
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => setIsMounted(true), [])
   const [isMapExpanded, setIsMapExpanded] = useState(true)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  
   const [isPanelExpanded, setIsPanelExpanded] = useState(true)
-  const [sortConfig, setSortConfig] = useState<{key: 'pais' | 'monto' | 'operaciones', direction: 'asc' | 'desc'} | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [rankingSearchQuery, setRankingSearchQuery] = useState('')
   const itemsPerPage = 50
-
   const [tooltipContent, setTooltipContent] = useState<{name: string, operaciones: number, monto: number, x: number, y: number} | null>(null)
-
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTitle, setPaywallTitle] = useState('')
   const [paywallMessage, setPaywallMessage] = useState('')
   const [isDataAllowed, setIsDataAllowed] = useState(true)
+
+  // Build server-side API URL
+  const apiUrl = useMemo(() => {
+    const p = new URLSearchParams()
+    p.set('page', String(currentPage))
+    p.set('limit', String(itemsPerPage))
+    if (filterType !== 'Todas') p.set('type', filterType)
+    if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim())
+    if (dateRange.start) p.set('dateStart', dateRange.start)
+    if (dateRange.end) p.set('dateEnd', dateRange.end)
+    return `/api/metrics/countries?${p.toString()}`
+  }, [currentPage, filterType, debouncedSearch, dateRange])
+
+  const { data: apiData, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
+  const tableData: TableRow[] = (apiData?.data || []).map((r: any) => ({ ...r, id: r.pais }))
+  const isLoading = isSwrLoading && !apiData
+  const totalCount = apiData?.metadata?.totalCount || 0
+  const totalPages = apiData?.metadata?.totalPages || 1
+  const serverStats = apiData?.stats || {}
+  const serverRanking: TableRow[] = (apiData?.ranking || []).map((r: any) => ({ ...r, id: r.pais }))
 
   useEffect(() => {
     const checkLimits = async () => {
       const usageCheck = await checkTrialRestrictions()
       if (!usageCheck.allowed) {
         setIsDataAllowed(false)
-        setPaywallTitle('Límite Diario Alcanzado')
-        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias, en 24hrs. tendrás una nueva oportunidad o suscríbete.')
+        setPaywallTitle('L\u00edmite Diario Alcanzado')
+        setPaywallMessage(usageCheck.message || 'Has llegado al m\u00e1ximo de consultas diarias.')
         setShowPaywall(true)
       }
     }
     checkLimits()
   }, [])
 
+  useEffect(() => { setCurrentPage(1) }, [filterType, debouncedSearch, dateRange])
+
+  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
+
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()
     if (!downloadCheck.allowed) {
       setPaywallTitle('Descarga Bloqueada')
-      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripci\u00f3n activa.')
       setShowPaywall(true)
       return
     }
-
-    exportToExcel(filteredData.map(row => ({
+    exportToExcel(tableData.map(row => ({
       Pais: row.pais,
       Operaciones: row.operaciones,
-      Monto_USD: row.monto
+      Valor_USD: row.valorAcumulado
     })), 'paises_agora_plus')
   }
 
-  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
-
-  const { data: apiData, error, isLoading: isSwrLoading } = useSWR('/api/metrics/countries', fetcher)
-
-  useEffect(() => {
-    if (apiData) {
-      setTransactions(apiData)
-      setIsLoading(false)
-    }
-  }, [apiData])
-
-  // Filtrado base de transacciones (Tipo, Fecha) - no filtramos por pais aquí ya que la tabla muestra paises
-  const baseFilteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
-      const matchesType = filterType === 'Todas' || tx.type === filterType
-      
-      let matchesDate = true
-      if (dateRange.start || dateRange.end) {
-        const txDateStr = tx.dateAnnounced || tx.dateClosed
-        if (txDateStr) {
-          const txDate = new Date(txDateStr).getTime()
-          const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : 0
-          const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00').getTime() + 86399999 : Infinity
-          matchesDate = txDate >= startDate && txDate <= endDate
-        } else {
-          matchesDate = false
-        }
-      }
-      
-      return matchesType && matchesDate
-    })
-  }, [transactions, filterType, dateRange])
-
-  // Agrupar por país
-  const aggregatedCountries = useMemo(() => {
-    const countryMap: Record<string, any> = {}
-
-    baseFilteredTransactions.forEach(tx => {
-      if (!tx.country) return
-      const countriesList = tx.country.split(',').map((c: string) => c.trim()).filter(Boolean)
-      
-      countriesList.forEach((cName: string) => {
-        if (!countryMap[cName]) {
-          countryMap[cName] = {
-            id: cName,
-            pais: cName,
-            monto: 0,
-            operaciones: 0,
-            firmas: new Set<string>(),
-            industrias: new Set<string>(),
-            empresas: new Set<string>(),
-            abogados: new Set<string>(),
-            tiposOperacion: new Set<string>(),
-          }
-        }
-
-        countryMap[cName].operaciones += 1
-        if (tx.value) {
-          countryMap[cName].monto += Number(tx.value)
-        }
-        if (tx.type) {
-          countryMap[cName].tiposOperacion.add(tx.type)
-        }
-        if (tx.industry?.name) {
-          countryMap[cName].industrias.add(tx.industry.name)
-        }
-        tx.companies?.forEach((c: any) => {
-          if (c.company?.name) countryMap[cName].empresas.add(c.company.name)
-        })
-        tx.advisors?.forEach((a: any) => {
-          if (a.firm?.name) countryMap[cName].firmas.add(a.firm.name)
-        })
-        tx.lawyers?.forEach((l: any) => {
-          if (l.lawyer?.name) countryMap[cName].abogados.add(l.lawyer.name)
-        })
-      })
-    })
-
-    const tableData = Object.values(countryMap).map((c: any) => ({
-      ...c,
-      firmas: Array.from(c.firmas),
-      industrias: Array.from(c.industrias),
-      empresas: Array.from(c.empresas),
-      abogados: Array.from(c.abogados),
-      tiposOperacion: Array.from(c.tiposOperacion)
-    }))
-
-    return tableData
-  }, [baseFilteredTransactions])
-
-  const filteredData = useMemo(() => {
-    let result = aggregatedCountries.filter(row => {
-      const matchesSearch = row.pais.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesSearch
-    })
-
-    if (sortConfig) {
-      result.sort((a, b) => {
-        if (sortConfig.key === 'pais') {
-          return sortConfig.direction === 'asc' 
-            ? a.pais.localeCompare(b.pais) 
-            : b.pais.localeCompare(a.pais)
-        } else if (sortConfig.key === 'monto') {
-          return sortConfig.direction === 'asc' ? a.monto - b.monto : b.monto - a.monto
-        } else if (sortConfig.key === 'operaciones') {
-          return sortConfig.direction === 'asc' ? a.operaciones - b.operaciones : b.operaciones - a.operaciones
-        }
-        return 0
-      })
-    } else {
-      result.sort((a, b) => b.operaciones - a.operaciones)
-    }
-    return result
-  }, [aggregatedCountries, searchQuery, sortConfig])
-  
-  const totalVolume = filteredData.reduce((acc, row) => acc + (row.monto || 0), 0)
-
-
-  const handleSort = (key: 'pais' | 'monto' | 'operaciones') => {
-    let direction: 'asc' | 'desc' = 'asc'
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc'
-    }
-    setSortConfig({ key, direction })
-  }
+  // Server-side data
+  const paginatedData = tableData
+  const filteredData = tableData
+  const aggregatedCountries = serverRanking
 
   useEffect(() => {
-    setCurrentPage(1)
-  }, [filterType, searchQuery, sortConfig])
-
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredData.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredData, currentPage])
-
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-
-  useEffect(() => {
-    if (paginatedData.length > 0 && (!selectedRow || !paginatedData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(paginatedData[0])
-    } else if (paginatedData.length === 0) {
+    if (tableData.length > 0 && (!selectedRow || !tableData.find(r => r.id === selectedRow.id))) {
+      setSelectedRow(tableData[0])
+    } else if (tableData.length === 0) {
       setSelectedRow(null)
     }
-  }, [paginatedData])
+  }, [tableData])
 
   const formatCurrency = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
@@ -292,17 +154,16 @@ export default function CountriesClient() {
     return `$${value.toLocaleString()}`
   }
 
-  const topCountriesList = useMemo(() => {
-    return [...filteredData].sort((a, b) => b.operaciones - a.operaciones)
-  }, [filteredData])
+  const totalVolume = serverStats.totalValue || 0
+  const topCountriesList = serverRanking
 
   const filteredRankingList = useMemo(() => {
     if (!rankingSearchQuery) return topCountriesList
-    return topCountriesList.filter(c => c.pais.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
+    return topCountriesList.filter((c: any) => c.pais.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
   }, [topCountriesList, rankingSearchQuery])
 
   const getCountryStats = (spanishNames: string[]) => {
-    const active = aggregatedCountries.find(ind => spanishNames.includes(ind.pais))
+    const active = serverRanking.find((ind: any) => spanishNames.includes(ind.pais))
     return active || null
   }
 
@@ -336,29 +197,11 @@ export default function CountriesClient() {
           onClose={() => setIsDetailModalOpen(false)}
           title={selectedRow.pais}
           subtitle="Radiografía Nacional"
-          amount={formatCurrency(selectedRow.monto)}
+          amount={formatCurrency(selectedRow.valorAcumulado)}
           iconType="country"
-                    sections={[
-            {
-              label: 'Top Firmas Asesoras',
-              count: selectedRow.firmas.length,
-              value: renderChipsArray(selectedRow.firmas, false)
-            },
-            {
-              label: 'Sectores Activos',
-              count: selectedRow.industrias.length,
-              value: renderChipsArray(selectedRow.industrias, false)
-            },
-            {
-              label: 'Empresas',
-              count: selectedRow.empresas.length,
-              value: renderChipsArray(selectedRow.empresas, false)
-            },
-            {
-              label: 'Abogados Involucrados',
-              count: selectedRow.abogados.length,
-              value: renderChipsArray(selectedRow.abogados, false)
-            }
+          sections={[
+            { label: 'Total Operaciones', value: String(selectedRow.operaciones) },
+            { label: 'Valor Acumulado', value: formatCurrency(selectedRow.valorAcumulado) },
           ]}
         />
       )}
@@ -466,7 +309,7 @@ export default function CountriesClient() {
                           setTooltipContent({
                             name: activeStats.pais,
                             operaciones: activeStats.operaciones,
-                            monto: activeStats.monto,
+                            monto: activeStats.valorAcumulado,
                             x: e.clientX,
                             y: e.clientY
                           })
@@ -565,23 +408,14 @@ export default function CountriesClient() {
             <table className="w-full text-left border-collapse min-w-[500px]">
               <thead className="bg-muted">
                 <tr>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('pais')}
-                  >
-                    País {sortConfig?.key === 'pais' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    País
                   </th>
-                  <th 
-                    className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('monto')}
-                  >
-                    Monto (USD) {sortConfig?.key === 'monto' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Monto (USD)
                   </th>
-                  <th 
-                    className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => handleSort('operaciones')}
-                  >
-                    Operaciones {sortConfig?.key === 'operaciones' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Operaciones
                   </th>
                 </tr>
               </thead>
@@ -623,7 +457,7 @@ export default function CountriesClient() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-foreground">{formatCurrency(row.monto)}</td>
+                        <td className="px-6 py-4 text-sm font-semibold text-foreground">{formatCurrency(row.valorAcumulado)}</td>
                         <td className="px-6 py-4 text-sm text-muted-foreground text-right">{row.operaciones} ops</td>
                       </tr>
                     ))}
@@ -643,7 +477,7 @@ export default function CountriesClient() {
           {filteredData.length > 0 && (
             <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} de {filteredData.length}
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount.toLocaleString()}
               </span>
               <div className="flex gap-2">
                 <button 
@@ -685,7 +519,7 @@ export default function CountriesClient() {
                   <p className="text-lg font-bold leading-tight line-clamp-2">{selectedRow.pais}</p>
                   <div className="flex items-center gap-2 mt-3">
                     <span className="inline-block px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
-                      {formatCurrency(selectedRow.monto)} USD
+                      {formatCurrency(selectedRow.valorAcumulado)} USD
                     </span>
                     <button 
                       onClick={() => setIsDetailModalOpen(true)}
@@ -697,55 +531,21 @@ export default function CountriesClient() {
                 </div>
 
                 <div className="space-y-4 flex-1 overflow-y-auto z-10 custom-scrollbar pr-2 pb-6">
-                  
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 text-white/60">
-                        <Users className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Top Firmas Asesoras ({selectedRow.firmas.length})</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Valor Acumulado</span>
                     </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {renderChipsArray(selectedRow.firmas, true)}
-                    </p>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(selectedRow.valorAcumulado)}</p>
                   </div>
 
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 text-white/60">
-                        <Briefcase className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Sectores Activos ({selectedRow.industrias.length})</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-white/60 mb-1">
+                      <Briefcase className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Total Operaciones</span>
                     </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {renderChipsArray(selectedRow.industrias, true)}
-                    </p>
+                    <p className="text-2xl font-bold text-white">{selectedRow.operaciones.toLocaleString()}</p>
                   </div>
-
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 text-white/60">
-                        <Building2 className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Empresas ({selectedRow.empresas.length})</span>
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {renderChipsArray(selectedRow.empresas, true)}
-                    </p>
-                  </div>
-
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 text-white/60">
-                        <Gavel className="h-4 w-4" />
-                        <span className="text-xs font-semibold">Abogados ({selectedRow.abogados.length})</span>
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium text-white max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
-                      {renderChipsArray(selectedRow.abogados, true)}
-                    </p>
-                  </div>
-
                 </div>
               </>
             ) : (
@@ -816,7 +616,7 @@ export default function CountriesClient() {
                       <span className="text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1 rounded-md border border-[#E05C50]/20">
                         {c.operaciones} ops
                       </span>
-                      <span className="text-[10px] text-white/50">{formatCurrency(c.monto)}</span>
+                      <span className="text-[10px] text-white/50">{formatCurrency(c.valorAcumulado)}</span>
                     </div>
                   </Link>
                 )

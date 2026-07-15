@@ -52,11 +52,12 @@ export default function IndustriesClient() {
     p.set('page', String(currentPage))
     p.set('limit', String(itemsPerPage))
     if (filterType !== 'Todas') p.set('type', filterType)
+    if (selectedCountry !== 'Todos') p.set('country', selectedCountry)
     if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim())
     if (dateRange.start) p.set('dateStart', dateRange.start)
     if (dateRange.end) p.set('dateEnd', dateRange.end)
     return `/api/metrics/industries?${p.toString()}`
-  }, [currentPage, filterType, debouncedSearch, dateRange])
+  }, [currentPage, filterType, selectedCountry, debouncedSearch, dateRange])
 
   const { data: apiData, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
   const tableData: TableRow[] = (apiData?.data || []).map((r: any) => ({ ...r, id: r.industria }))
@@ -65,6 +66,7 @@ export default function IndustriesClient() {
   const totalPages = apiData?.metadata?.totalPages || 1
   const serverStats = apiData?.stats || {}
   const serverRanking: TableRow[] = (apiData?.ranking || []).map((r: any) => ({ ...r, id: r.industria }))
+  const serverCountries: string[] = apiData?.countries || []
 
   useEffect(() => {
     const checkLimits = async () => {
@@ -82,7 +84,7 @@ export default function IndustriesClient() {
   useEffect(() => { setCurrentPage(1) }, [filterType, debouncedSearch, dateRange])
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
-  const uniqueCountries: string[] = []
+  const uniqueCountries = serverCountries
 
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()

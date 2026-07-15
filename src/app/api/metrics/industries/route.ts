@@ -8,6 +8,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
 
     const type = searchParams.get('type')
+    const country = searchParams.get('country')
     const search = searchParams.get('search')
     const dateStart = searchParams.get('dateStart')
     const dateEnd = searchParams.get('dateEnd')
@@ -23,6 +24,9 @@ export async function GET(request: Request) {
       industryId: { not: null },
     }
     if (type && type !== 'Todas') txWhere.type = type
+    if (country && country !== 'Todos') {
+      txWhere.country = { contains: country, mode: 'insensitive' }
+    }
     if (dateStart) {
       txWhere.dateAnnounced = { ...txWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00') }
     }
@@ -75,11 +79,18 @@ export async function GET(request: Request) {
     // Paginate
     const paginatedData = tableData.slice((page - 1) * limit, page * limit)
 
+    // Collect unique countries
+    const allCountries = new Set<string>()
+    transactions.forEach((tx: any) => {
+      if (tx.country) tx.country.split(',').forEach((c: string) => allCountries.add(c.trim()))
+    })
+
     return NextResponse.json({
       data: paginatedData,
       metadata: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
       stats: { totalValue, totalIndustries: totalCount },
       ranking,
+      countries: Array.from(allCountries).sort(),
     })
 
   } catch (error: any) {
