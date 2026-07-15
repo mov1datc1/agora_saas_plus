@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2, RotateCcw, Bookmark, Trash2, Plus, Save } from 'lucide-react'
 import { checkTrialRestrictions, checkCanDownload } from '../actions'
@@ -11,6 +11,16 @@ import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
 import useSWR from 'swr'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
+
+// Debounce hook for search input
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  return debouncedValue
+}
 
 export type UITransaction = {
   id: string
@@ -31,8 +41,8 @@ export type UITransaction = {
 const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function OperationsClient() {
-  const { data: apiResponse, error, isLoading: isSwrLoading } = useSWR('/api/operations?limit=all', fetcher)
-  const transactions: UITransaction[] = apiResponse?.data || []
+  // Filter options from server (cached)
+  const { data: filterOptions } = useSWR('/api/operations/filters', fetcher)
   const [selectedTx, setSelectedTx] = useState<UITransaction | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [txDetails, setTxDetails] = useState<any>(null)
@@ -88,6 +98,7 @@ export default function OperationsClient() {
   const [selectedType, setSelectedType] = useState('Todos')
   const [selectedIndustry, setSelectedIndustry] = useState('Todas')
   const [searchQuery, setSearchQuery] = useState(initialSearch)
+  const debouncedSearch = useDebounce(searchQuery, 400)
   
   // Nuevos filtros PRO
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
@@ -183,9 +194,9 @@ export default function OperationsClient() {
   // Resetea a la página 1 cuando cambian los filtros
   useEffect(() => {
     setPage(1)
-  }, [selectedType, selectedIndustry, searchQuery, dateRange, selectedValueRange, selectedFirm, selectedCountry, selectedLawyer])
+  }, [selectedType, selectedIndustry, debouncedSearch, dateRange, selectedValueRange, selectedFirm, selectedCountry, selectedLawyer])
 
-  // Actualizar search query si cambia la URL (para volver atrás, etc.)
+  // Actualizar search query si cambia la URL
   useEffect(() => {
     const q = searchParams.get('search')
     if (q !== null) {
@@ -195,21 +206,39 @@ export default function OperationsClient() {
   }, [searchParams])
   const [sortConfig, setSortConfig] = useState<{ key: 'date' | 'amount' | null, direction: 'asc' | 'desc' }>({ key: 'date', direction: 'desc' })
 
-  // Extraer valores únicos para los selects (separando valores separados por coma)
-  const extractUnique = (key: 'type' | 'industry' | 'firm' | 'country' | 'lawyer') => {
-    const all = transactions.flatMap(tx => (tx[key] || '').split(',').map(s => s.trim()).filter(Boolean))
-    return Array.from(new Set(all)).sort()
-  }
+  // Build server-side API URL with all filters
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams()
+    params.set('page', String(page))
+    params.set('limit', String(ITEMS_PER_PAGE))
+    if (sortConfig.key) {
+      params.set('sortBy', sortConfig.key)
+      params.set('sortDir', sortConfig.direction)
+    }
+    if (selectedType !== 'Todos') params.set('type', selectedType)
+    if (selectedIndustry !== 'Todas') params.set('industry', selectedIndustry)
+    if (selectedCountry !== 'Todos') params.set('country', selectedCountry)
+    if (selectedFirm !== 'Todas') params.set('firm', selectedFirm)
+    if (selectedLawyer !== 'Todos') params.set('lawyer', selectedLawyer)
+    if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+    if (dateRange.start) params.set('dateStart', dateRange.start)
+    if (dateRange.end) params.set('dateEnd', dateRange.end)
+    if (selectedValueRange !== 'Todos') params.set('valueRange', selectedValueRange)
+    return `/api/operations?${params.toString()}`
+  }, [page, ITEMS_PER_PAGE, sortConfig, selectedType, selectedIndustry, selectedCountry, selectedFirm, selectedLawyer, debouncedSearch, dateRange, selectedValueRange])
+
+  // Server-side data fetch
+  const { data: apiResponse, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
+  const transactions: UITransaction[] = apiResponse?.data || []
+  const totalCount = apiResponse?.metadata?.totalCount || 0
+  const totalPages = apiResponse?.metadata?.totalPages || 1
+  const serverStats = apiResponse?.stats || {}
 
   const uniqueTypes = ['M&A', 'Emisiones', 'Financiamientos']
-  const { uniqueIndustries, uniqueFirms, uniqueCountries, uniqueLawyers } = useMemo(() => {
-    return {
-      uniqueIndustries: extractUnique('industry'),
-      uniqueFirms: extractUnique('firm'),
-      uniqueCountries: extractUnique('country'),
-      uniqueLawyers: extractUnique('lawyer')
-    }
-  }, [transactions])
+  const uniqueIndustries: string[] = filterOptions?.industries || []
+  const uniqueFirms: string[] = filterOptions?.firms || []
+  const uniqueCountries: string[] = filterOptions?.countries || []
+  const uniqueLawyers: string[] = []
 
   const valueRangeOptions = [
     'Todos',
@@ -220,107 +249,9 @@ export default function OperationsClient() {
     'Más de $500M'
   ]
 
-  // Lógica de filtrado
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
-      const matchType = selectedType === 'Todos' || (tx.type || '').trim() === selectedType.trim()
-      const matchIndustry = selectedIndustry === 'Todas' || (tx.industry || '').includes(selectedIndustry)
-      const matchFirm = selectedFirm === 'Todas' || (tx.firm || '').includes(selectedFirm)
-      const matchCountry = selectedCountry === 'Todos' || (tx.country || '').includes(selectedCountry)
-      const matchLawyer = selectedLawyer === 'Todos' || (tx.lawyer || '').includes(selectedLawyer)
-      
-      // Filtrado por Búsqueda de Texto
-      const searchLower = searchQuery.toLowerCase().trim()
-      const matchSearch = searchLower === '' || 
-                          (tx.title || '').toLowerCase().includes(searchLower) || 
-                          (tx.firm || '').toLowerCase().includes(searchLower) ||
-                          (tx.lawyer || '').toLowerCase().includes(searchLower) ||
-                          (tx.industry || '').toLowerCase().includes(searchLower) ||
-                          (tx.country || '').toLowerCase().includes(searchLower)
-
-      // Filtrado por Rango de Fecha
-      let matchDate = true
-      if (dateRange.start || dateRange.end) {
-        const parts = tx.date.split('/')
-        if (parts.length === 3) {
-          const txDateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]))
-          const txDate = txDateObj.getTime()
-          
-          // Al usar inputs type="date", el valor viene como "YYYY-MM-DD". 
-          // Agregamos "T00:00:00" para evitar el desfase de zona horaria (UTC vs Local)
-          const startDateObj = dateRange.start ? new Date(dateRange.start + 'T00:00:00') : new Date(0)
-          const startDate = startDateObj.getTime()
-          
-          const endDateObj = dateRange.end ? new Date(dateRange.end + 'T00:00:00') : new Date(8640000000000000)
-          const endDate = endDateObj.getTime() + 86399999 // Incluir hasta el final del día
-
-          matchDate = txDate >= startDate && txDate <= endDate
-        } else {
-          matchDate = false
-        }
-      }
-
-      // Filtrado por Valor Económico
-      let matchValue = true
-      if (selectedValueRange !== 'Todos') {
-        const num = tx.amountRaw || 0
-        // amountRaw is in USD (e.g. 150000000 = $150M)
-        const numM = num / 1000000 // Convert to millions for range comparison
-
-        if (num <= 0) {
-          matchValue = false
-        } else if (selectedValueRange === 'Menos de $10M') {
-          matchValue = numM < 10
-        } else if (selectedValueRange === '$10M - $50M') {
-          matchValue = numM >= 10 && numM < 50
-        } else if (selectedValueRange === '$50M - $100M') {
-          matchValue = numM >= 50 && numM < 100
-        } else if (selectedValueRange === '$100M - $500M') {
-          matchValue = numM >= 100 && numM < 500
-        } else if (selectedValueRange === 'Más de $500M') {
-          matchValue = numM >= 500
-        }
-      }
-      
-      return matchType && matchIndustry && matchFirm && matchCountry && matchLawyer && matchSearch && matchDate && matchValue
-    })
-  }, [transactions, selectedType, selectedIndustry, selectedFirm, selectedCountry, selectedLawyer, searchQuery, dateRange, selectedValueRange])
-
-  // Parseadores para ordenamiento
-  const parseDate = (dateStr: string) => {
-    const parts = dateStr.split('/')
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime()
-    }
-    return 0
-  }
-
-  const parseAmount = (amountStr: string) => {
-    if (!amountStr || amountStr === 'Por definir' || amountStr === 'Valor confidencial') return 0
-    let num = parseFloat(amountStr.replace(/[^0-9.-]/g, ''))
-    if (amountStr.includes('B')) num *= 1000
-    return isNaN(num) ? 0 : num
-  }
-
-  // Ordenar transacciones filtradas
-  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    if (!sortConfig.key) return 0
-    
-    let aValue = 0
-    let bValue = 0
-
-    if (sortConfig.key === 'date') {
-      aValue = parseDate(a.date)
-      bValue = parseDate(b.date)
-    } else if (sortConfig.key === 'amount') {
-      aValue = parseAmount(a.amount)
-      bValue = parseAmount(b.amount)
-    }
-
-    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
-    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
-    return 0
-  })
+  // Server-side: transactions are already filtered, sorted, and paginated
+  const filteredTransactions = transactions
+  const sortedTransactions = transactions
 
   const handleDownloadExcel = async () => {
     const downloadCheck = await checkCanDownload()
@@ -336,7 +267,6 @@ export default function OperationsClient() {
       Título: tx.title,
       Tipo: tx.type,
       Monto: tx.amount,
-      Estado: tx.status,
       Industria: tx.industry,
       Países: tx.country,
       Firmas: tx.firm,
@@ -377,55 +307,22 @@ export default function OperationsClient() {
     }))
   }
 
-  // Computed Stats for Search Summary
+  // Stats from server (no client computation needed)
   const searchStats = useMemo(() => {
-    let totalValue = 0
-    let txWithValue = 0
-    const firmsSet = new Set<string>()
-    const countriesSet = new Set<string>()
-    const companiesSet = new Set<string>()
-    const lawyersSet = new Set<string>()
-
-    filteredTransactions.forEach(tx => {
-      let num = parseFloat(tx.amount.replace(/[^0-9.-]/g, ''))
-      if (!isNaN(num) && tx.amount !== 'Por definir' && tx.amount !== 'Valor confidencial') {
-        if (tx.amount.includes('B')) num *= 1000
-        else if (num > 100000) num = num / 1000000 // Convert big numbers to M
-        totalValue += num
-        txWithValue++
-      }
-      
-      if (tx.firm && tx.firm !== 'Sin firmas listadas' && tx.firm !== 'N/D') {
-        tx.firm.split(',').forEach(f => firmsSet.add(f.trim()))
-      }
-      
-      if (tx.country && tx.country !== 'N/D') {
-        tx.country.split(',').forEach(c => countriesSet.add(c.trim()))
-      }
-      
-      if (tx.company && tx.company !== 'Sin empresas listadas' && tx.company !== 'N/D') {
-        tx.company.split(',').forEach(c => companiesSet.add(c.trim()))
-      }
-      
-      if (tx.lawyer && tx.lawyer !== 'Sin abogados listados' && tx.lawyer !== 'N/D') {
-        tx.lawyer.split(',').forEach(l => lawyersSet.add(l.trim()))
-      }
-    })
-
+    const tv = serverStats.totalValue ? Number(serverStats.totalValue) : 0
+    const at = serverStats.avgTicket ? Number(serverStats.avgTicket) : 0
     return {
-      totalValue,
-      avgTicket: txWithValue > 0 ? totalValue / txWithValue : 0,
-      uniqueFirms: firmsSet.size,
-      uniqueCountries: countriesSet.size,
-      uniqueCompanies: companiesSet.size,
-      uniqueLawyers: lawyersSet.size
+      totalValue: tv,
+      avgTicket: at,
     }
-  }, [filteredTransactions])
+  }, [serverStats])
 
-  const formatCurrencyStats = (valM: number) => {
-    if (valM === 0) return 'N/D'
-    if (valM >= 1000) return `$${(valM / 1000).toFixed(2)}B`
-    return `$${valM.toFixed(1)}M`
+  const formatCurrencyStats = (val: number) => {
+    if (val === 0) return 'N/D'
+    if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`
+    if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`
+    if (val >= 1e3) return `$${(val / 1e3).toFixed(0)}K`
+    return `$${val.toFixed(0)}`
   }
 
   return (
@@ -660,7 +557,7 @@ export default function OperationsClient() {
                   <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
                 </td></tr>
               ) : (
-                sortedTransactions.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((tx) => (
+                sortedTransactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleSelectTx(tx)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[200px] truncate" title={tx.title}>{tx.title}</td>
@@ -683,10 +580,10 @@ export default function OperationsClient() {
           </div>
           
           {/* Controles de Paginación */}
-          {!isSwrLoading && !error && isDataAllowed && sortedTransactions.length > 0 && (
+          {!isSwrLoading && !error && isDataAllowed && totalCount > 0 && (
             <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-surface sticky bottom-0">
               <span className="text-sm text-muted-foreground">
-                Mostrando {(page - 1) * ITEMS_PER_PAGE + 1} a {Math.min(page * ITEMS_PER_PAGE, sortedTransactions.length)} de {sortedTransactions.length} operaciones
+                Mostrando {(page - 1) * ITEMS_PER_PAGE + 1} a {Math.min(page * ITEMS_PER_PAGE, totalCount)} de {totalCount.toLocaleString()} operaciones
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -697,11 +594,11 @@ export default function OperationsClient() {
                   Anterior
                 </button>
                 <span className="text-sm font-medium text-foreground px-2">
-                  Página {page} de {Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE)}
+                  Página {page} de {totalPages}
                 </span>
                 <button
-                  onClick={() => setPage(p => Math.min(Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE), p + 1))}
-                  disabled={page >= Math.ceil(sortedTransactions.length / ITEMS_PER_PAGE)}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
                   className="px-3 py-1.5 text-sm font-medium border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
                 >
                   Siguiente
@@ -717,11 +614,11 @@ export default function OperationsClient() {
             <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border sticky top-0 flex flex-col gap-6">
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-4">Resumen de Búsqueda</h3>
-                <p className="text-4xl font-bold text-[#E05C50] tracking-tight mb-2">{filteredTransactions.length}</p>
+                <p className="text-4xl font-bold text-[#E05C50] tracking-tight mb-2">{totalCount.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">Operaciones coinciden con los filtros aplicados.</p>
               </div>
 
-              {filteredTransactions.length > 0 && (
+              {totalCount > 0 && (
                 <div className="space-y-4 pt-4 border-t border-border">
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Valor Agregado (USD)</p>
@@ -730,26 +627,6 @@ export default function OperationsClient() {
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Ticket Promedio (USD)</p>
                     <p className="text-xl font-bold text-foreground">{formatCurrencyStats(searchStats.avgTicket)}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Firmas</p>
-                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueFirms}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Empresas</p>
-                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueCompanies}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Abogados</p>
-                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueLawyers}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Países</p>
-                      <p className="text-lg font-bold text-foreground">{searchStats.uniqueCountries}</p>
-                    </div>
                   </div>
                 </div>
               )}
