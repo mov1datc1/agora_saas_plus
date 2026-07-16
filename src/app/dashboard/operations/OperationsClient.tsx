@@ -689,7 +689,7 @@ export default function OperationsClient() {
                     </div>
                     <div>
                       <span className="inline-block bg-[#10b981] text-white text-sm font-bold px-3 py-1 rounded">
-                        {(selectedTx.amount !== 'Por definir' && selectedTx.amount !== 'Valor confidencial') ? `USD ${selectedTx.amount}` : 'Valor confidencial'}
+                        {(selectedTx.amount !== 'Por definir' && selectedTx.amount !== 'Valor confidencial') ? selectedTx.amount : 'Valor confidencial'}
                       </span>
                     </div>
                   </div>
