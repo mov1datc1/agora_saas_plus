@@ -377,22 +377,26 @@ export async function POST(request: Request) {
             })
             
             // Link to Transaction
-            await prisma.transactionAdvisor.upsert({
-              where: {
-                transactionId_firmId_role: {
+            try {
+              await prisma.transactionAdvisor.upsert({
+                where: {
+                  transactionId_firmId_role: {
+                    transactionId: transactionId,
+                    firmId: upsertedFirm.id,
+                    role: 'Asesor Legal'
+                  }
+                },
+                create: {
+                  id: `${transactionId}-${upsertedFirm.id}-${Date.now()}`,
                   transactionId: transactionId,
                   firmId: upsertedFirm.id,
                   role: 'Asesor Legal'
-                }
-              },
-              create: {
-                id: `${transactionId}-${upsertedFirm.id}`,
-                transactionId: transactionId,
-                firmId: upsertedFirm.id,
-                role: 'Asesor Legal'
-              },
-              update: {}
-            })
+                },
+                update: {}
+              })
+            } catch (bridgeErr: any) {
+              if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
+            }
           }
         }
       }
@@ -437,24 +441,28 @@ export async function POST(request: Request) {
               })
               
               // Link to Transaction
-              await prisma.transactionCompany.upsert({
-                where: {
-                  transactionId_companyId_role: {
+              try {
+                await prisma.transactionCompany.upsert({
+                  where: {
+                    transactionId_companyId_role: {
+                      transactionId: transactionId,
+                      companyId: upsertedCompany.id,
+                      role: companyRole
+                    }
+                  },
+                  create: {
+                    id: `${transactionId}-${upsertedCompany.id}-${Date.now()}`,
                     transactionId: transactionId,
                     companyId: upsertedCompany.id,
                     role: companyRole
+                  },
+                  update: {
+                    role: companyRole
                   }
-                },
-                create: {
-                  id: `${transactionId}-${upsertedCompany.id}`,
-                  transactionId: transactionId,
-                  companyId: upsertedCompany.id,
-                  role: companyRole
-                },
-                update: {
-                  role: companyRole
-                }
-              })
+                })
+              } catch (bridgeErr: any) {
+                if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
+              }
             }
           }
         }
@@ -480,22 +488,26 @@ export async function POST(request: Request) {
             })
             
             // Link to Transaction
-            await prisma.transactionLawyer.upsert({
-              where: {
-                transactionId_lawyerId_role: {
+            try {
+              await prisma.transactionLawyer.upsert({
+                where: {
+                  transactionId_lawyerId_role: {
+                    transactionId: transactionId,
+                    lawyerId: upsertedLawyer.id,
+                    role: 'Abogado Involucrado'
+                  }
+                },
+                create: {
+                  id: `${transactionId}-${upsertedLawyer.id}-${Date.now()}`,
                   transactionId: transactionId,
                   lawyerId: upsertedLawyer.id,
                   role: 'Abogado Involucrado'
-                }
-              },
-              create: {
-                id: `${transactionId}-${upsertedLawyer.id}`,
-                transactionId: transactionId,
-                lawyerId: upsertedLawyer.id,
-                role: 'Abogado Involucrado'
-              },
-              update: {}
-            })
+                },
+                update: {}
+              })
+            } catch (bridgeErr: any) {
+              if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
+            }
           }
         }
       }
