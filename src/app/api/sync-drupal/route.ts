@@ -80,12 +80,15 @@ export async function POST(request: Request) {
     let batchNumber = 0
     let currentOffset = startOffset
     const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
+    const processedIds = new Set<string>() // Dedup: prevent processing same Drupal post twice across batches
 
     while (batchNumber < MAX_BATCHES) {
       batchNumber++
       
       // Fetch batch from Drupal
-      const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=${BATCH_SIZE}&page[offset]=${currentOffset}&sort=-created`
+      // sort=-changed ensures we pick up both NEW and RECENTLY EDITED posts
+      // (e.g. data entry team updates close date or status months after initial creation)
+      const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=${BATCH_SIZE}&page[offset]=${currentOffset}&sort=-changed`
       
       let posts: any[] = []
       let included: any[] = []
@@ -128,12 +131,21 @@ export async function POST(request: Request) {
         const relationships = post.relationships
       const transactionId = post.id // Using Drupal UUID as the Primary Key in Supabase
 
+      // Dedup: skip if already processed in a previous batch
+      if (processedIds.has(transactionId)) continue
+      processedIds.add(transactionId)
+
       // Extract attributes
       const title = attributes.title || 'Transacción sin título'
-      const status = attributes.field_estado_caso || 'Completada'
+      // Status: "Cerrado (Closed)" → "Cerrado", "En progreso (Ongoing)" → "En progreso", null → "Completada"
+      const rawStatus = attributes.field_estado_caso
+      const status = rawStatus
+        ? (rawStatus.toLowerCase().includes('cerrado') ? 'Cerrado' : rawStatus.toLowerCase().includes('progreso') ? 'En progreso' : rawStatus)
+        : 'Completada'
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
-      const excerpt = attributes.body?.value || null
+      // Excerpt: try multiple Drupal body fields (processed HTML preferred over raw value)
+      const excerpt = attributes.body?.processed || attributes.body?.value || attributes.field_lead?.processed || attributes.field_lead?.value || attributes.field_resumen?.value || null
 
       // ── PUBLICATION STATUS ──
       // "Caso no publicado" = transactions exclusive to Ágora (not published on LexLatin portal)

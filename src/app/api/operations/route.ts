@@ -123,15 +123,18 @@ export async function GET(request: Request) {
           id: true,
           title: true,
           type: true,
+          status: true,
           value: true,
           country: true,
+          isPublished: true,
+          excerpt: true,
           dateAnnounced: true,
           dateClosed: true,
           link: true,
           industry: { select: { name: true } },
-          advisors: { select: { firm: { select: { name: true } } } },
-          lawyers: { select: { lawyer: { select: { name: true } } } },
-          companies: { select: { company: { select: { name: true } } } }
+          advisors: { select: { role: true, firm: { select: { name: true } } } },
+          lawyers: { select: { role: true, lawyer: { select: { name: true } } } },
+          companies: { select: { role: true, company: { select: { name: true } } } }
         },
         orderBy,
         take: limit,
@@ -170,6 +173,8 @@ export async function GET(request: Request) {
       date: fmtDate(tx.dateClosed || tx.dateAnnounced),
       title: tx.title,
       type: tx.type,
+      status: tx.status || 'Completada',
+      isPublished: tx.isPublished,
       amount: fmtVal(tx.value),
       amountRaw: tx.value ? Number(tx.value) : 0,
       industry: tx.industry?.name || '',
@@ -177,7 +182,8 @@ export async function GET(request: Request) {
       firm: tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean).join(', ') || '',
       lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || '',
       company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || '',
-      link: tx.link || ''
+      link: tx.link || '',
+      excerpt: tx.excerpt || null,
     }))
 
     // Stats

@@ -666,12 +666,12 @@ export default function OperationsClient() {
                 <div className="space-y-8 mt-4">
                   
                   {/* Resumen (Excerpt) */}
-                  {txDetails.excerpt && (
+                  {(txDetails.excerpt || (selectedTx as any).excerpt) && (
                     <div className="border-b border-border pb-6">
                       <p className="text-sm font-semibold text-foreground/80 mb-4">Resumen</p>
                       <div 
-                        className="text-sm text-muted-foreground leading-relaxed space-y-4"
-                        dangerouslySetInnerHTML={{ __html: txDetails.excerpt }}
+                        className="text-sm text-muted-foreground leading-relaxed space-y-4 [&_a]:text-[#E05C50] [&_a]:underline [&_img]:hidden"
+                        dangerouslySetInnerHTML={{ __html: txDetails.excerpt || (selectedTx as any).excerpt }}
                       />
                     </div>
                   )}
@@ -679,7 +679,13 @@ export default function OperationsClient() {
                   {/* Valor */}
                   <div className="border-b border-border pb-6 space-y-4">
                     <div>
-                      <p className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">Valor <span className="text-xs bg-[#10b981] text-white px-2 py-0.5 rounded">{selectedTx.status}</span></p>
+                      <p className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">Valor
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                          selectedTx.status === 'Cerrado' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                          selectedTx.status === 'En progreso' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>{selectedTx.status || 'Sin estado'}</span>
+                      </p>
                     </div>
                     <div>
                       <span className="inline-block bg-[#10b981] text-white text-sm font-bold px-3 py-1 rounded">
@@ -732,10 +738,7 @@ export default function OperationsClient() {
                         {txDetails.lawyers.map((l: any) => (
                           <div key={l.id} className="flex items-start gap-2 text-sm text-foreground">
                             <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
-                            <div>
-                              <span className="block">{l.lawyer?.name}</span>
-                              <span className="text-xs text-muted-foreground">{l.lawyer?.firm?.name}</span>
-                            </div>
+                            <span>{l.lawyer?.name}</span>
                           </div>
                         ))}
                       </div>
