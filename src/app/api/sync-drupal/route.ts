@@ -129,7 +129,11 @@ export async function POST(request: Request) {
       for (const post of posts) {
         const attributes = post.attributes
         const relationships = post.relationships
-      const transactionId = post.id // Using Drupal UUID as the Primary Key in Supabase
+      // CRITICAL: Use drupal-{nid} format to match MySQL migration IDs
+      // Before this fix, JSON:API used Drupal's UUID (e.g., "883cf94c-...") while MySQL migration 
+      // used "drupal-134006", causing duplicate records for the same post
+      const drupalNid = attributes.drupal_internal__nid
+      const transactionId = drupalNid ? `drupal-${drupalNid}` : post.id
 
       // Dedup: skip if already processed in a previous batch
       if (processedIds.has(transactionId)) continue
