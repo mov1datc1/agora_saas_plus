@@ -98,13 +98,15 @@ async function main() {
   // ─── Build Lookup Maps ───
   const bodyMap = {};
   bodies.forEach(b => {
-    // Priority: bodySummary → bodyRaw (first 500 chars)
+    // PRIORITY: bodyRaw (full article, up to 2000 chars) → bodySummary (subtitle fallback)
+    // body_summary is the "Edit summary" in Drupal — just a subtitle, not the full article
+    // body_value contains the complete article body text
     let excerpt = null;
-    if (b.bodySummary && b.bodySummary.trim()) {
-      excerpt = stripHtml(b.bodySummary);
-    } else if (b.bodyRaw && b.bodyRaw.trim()) {
+    if (b.bodyRaw && b.bodyRaw.trim()) {
       const clean = stripHtml(b.bodyRaw);
-      excerpt = clean.length > 500 ? clean.substring(0, 500) + '...' : clean;
+      excerpt = clean.length > 2000 ? clean.substring(0, 2000) + '...' : clean;
+    } else if (b.bodySummary && b.bodySummary.trim()) {
+      excerpt = stripHtml(b.bodySummary);
     }
     if (excerpt) bodyMap[b.id] = excerpt;
   });
