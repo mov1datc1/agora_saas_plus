@@ -238,7 +238,7 @@ export default function OperationsClient() {
   const uniqueIndustries: string[] = filterOptions?.industries || []
   const uniqueFirms: string[] = filterOptions?.firms || []
   const uniqueCountries: string[] = filterOptions?.countries || []
-  const uniqueLawyers: string[] = []
+  const uniqueLawyers: string[] = filterOptions?.lawyers || []
 
   const valueRangeOptions = [
     'Todos',

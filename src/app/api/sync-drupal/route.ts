@@ -440,19 +440,36 @@ export async function POST(request: Request) {
             if (empresaNode && (empresaNode.attributes.name || empresaNode.attributes.title)) {
               const companyName = empresaNode.attributes.name || empresaNode.attributes.title
               
-              let companyRole = 'Parte Involucrada';
+              let companyRole = 'Participante';
               if (paragraphNode.attributes) {
                 const attrs = paragraphNode.attributes;
-                companyRole = attrs.field_rol_fusiones_y_adquisicion || 
-                              attrs.field_rol_emisiones || 
+                // Drupal field machine names for roles (from paragraph entity)
+                const rawRole = attrs.field_rol_fusiones_y_adquisicion || 
+                              attrs.field_rol_em ||
+                              attrs.field_rol_emisiones_otro ||
                               attrs.field_rol_financiamiento || 
+                              attrs.field_rol_financiamiento_otro ||
                               attrs.field_rol_litigios || 
                               attrs.field_rol_reestructuraciones || 
+                              attrs.field_rol_reestructuraciones_otr ||
                               attrs.field_rol_arrendamientos || 
-                              'Parte Involucrada';
-                // Capitalize first letter of role if it exists
-                if (typeof companyRole === 'string' && companyRole !== 'Parte Involucrada') {
-                  companyRole = companyRole.charAt(0).toUpperCase() + companyRole.slice(1).replace(/-/g, ' ');
+                              null;
+                if (rawRole) {
+                  // Humanize slug roles to display names
+                  const roleMap: Record<string, string> = {
+                    'emisor':'Emisor','colocador-estructurador':'Colocador/Estructurador',
+                    'comprador-inicial':'Comprador Inicial','suscriptor-lider':'Suscriptor Líder',
+                    'suscriptor':'Suscriptor','lead-arranger':'Lead Arranger',
+                    'trustee':'Trustee','fideicomitente':'Fideicomitente',
+                    'agente-fiduciario':'Agente Fiduciario','prestamista':'Prestamista',
+                    'prestatario':'Prestatario','asegurador':'Asegurador',
+                    'lider-sindicato-bancos':'Líder Sindicato Bancos',
+                    'miembro-sindicato-bancos':'Miembro Sindicato Bancos',
+                    'comprador':'Comprador','vendedor':'Vendedor','target':'Target',
+                    'demandado':'Demandado','demandante':'Demandante',
+                    'deudor':'Deudor','entidad-financiera':'Entidad Financiera','otro':'Otro'
+                  };
+                  companyRole = roleMap[rawRole] || rawRole.charAt(0).toUpperCase() + rawRole.slice(1).replace(/-/g, ' ');
                 }
               }
 

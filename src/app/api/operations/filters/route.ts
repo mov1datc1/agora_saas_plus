@@ -15,7 +15,7 @@ export async function GET() {
     }
 
     // Parallel queries for filter options
-    const [industries, countries, firms] = await Promise.all([
+    const [industries, countries, firms, lawyers] = await Promise.all([
       // Unique industries
       prisma.industry.findMany({
         where: { transactions: { some: baseWhere } },
@@ -29,12 +29,17 @@ export async function GET() {
         distinct: ['country'],
         orderBy: { country: 'asc' },
       }),
-      // Top firms (limit to 200 most active)
+      // All firms with valid transactions (searchable dropdown handles large lists)
       prisma.firm.findMany({
         where: { transactions: { some: { transaction: baseWhere } } },
         select: { name: true },
         orderBy: { name: 'asc' },
-        take: 200,
+      }),
+      // All lawyers with valid transactions
+      prisma.lawyer.findMany({
+        where: { transactions: { some: { transaction: baseWhere } } },
+        select: { name: true },
+        orderBy: { name: 'asc' },
       }),
     ])
 
@@ -42,6 +47,7 @@ export async function GET() {
       industries: industries.map((i: any) => i.name).filter(Boolean),
       countries: countries.map((c: any) => c.country).filter(Boolean).sort(),
       firms: firms.map((f: any) => f.name).filter(Boolean),
+      lawyers: lawyers.map((l: any) => l.name).filter(Boolean),
     })
   } catch (error: any) {
     console.error('[API_FILTERS_ERROR]', error)
