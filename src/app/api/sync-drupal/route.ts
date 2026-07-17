@@ -141,10 +141,12 @@ export async function POST(request: Request) {
 
       // Extract attributes
       const title = attributes.title || 'Transacción sin título'
-      // Status: "Cerrado (Closed)" → "Cerrado", "En progreso (Ongoing)" → "En progreso", null → "Completada"
+      // Status: "Cerrado (Closed)" / "closed" → "Cerrado", "En progreso (Ongoing)" / "ongoing" → "En progreso", null → "Completada"
       const rawStatus = attributes.field_estado_caso
       const status = rawStatus
-        ? (rawStatus.toLowerCase().includes('cerrado') ? 'Cerrado' : rawStatus.toLowerCase().includes('progreso') ? 'En progreso' : rawStatus)
+        ? (rawStatus.toLowerCase().includes('cerrad') || rawStatus.toLowerCase().includes('closed') ? 'Cerrado' 
+          : rawStatus.toLowerCase().includes('progres') || rawStatus.toLowerCase().includes('ongoing') || rawStatus.toLowerCase().includes('on-going') ? 'En progreso' 
+          : rawStatus)
         : 'Completada'
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
