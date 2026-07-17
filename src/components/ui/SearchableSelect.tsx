@@ -28,10 +28,17 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const filteredOptions = options.filter(opt => {
-    if (typeof opt !== 'string') return false;
-    return opt.toLowerCase().includes(searchTerm.toLowerCase())
-  })
+  // Deduplicate options
+  const uniqueOptions = [...new Set(options.filter(opt => typeof opt === 'string'))]
+  
+  const filteredOptions = uniqueOptions.filter(opt =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+  
+  // Limit rendered options for performance (44k+ lawyers/firms)
+  const MAX_VISIBLE = 50
+  const displayOptions = filteredOptions.slice(0, MAX_VISIBLE)
+  const hasMore = filteredOptions.length > MAX_VISIBLE
 
   const handleSelect = (opt: string) => {
     onChange(opt)
@@ -80,22 +87,29 @@ export default function SearchableSelect({ options, value, onChange, placeholder
 
             {/* Options List */}
             <div className="max-h-60 overflow-y-auto p-1 custom-scrollbar">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((opt) => (
-                  <div
-                    key={opt}
-                    onClick={() => handleSelect(opt)}
-                    className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors
-                      ${value === opt 
-                        ? 'bg-[#EB3159]/10 text-[#EB3159] font-medium' 
-                        : 'text-foreground hover:bg-muted'
-                      }
-                    `}
-                  >
-                    <span className="truncate">{opt}</span>
-                    {value === opt && <Check className="w-4 h-4" />}
-                  </div>
-                ))
+              {displayOptions.length > 0 ? (
+                <>
+                  {displayOptions.map((opt, idx) => (
+                    <div
+                      key={`${opt}-${idx}`}
+                      onClick={() => handleSelect(opt)}
+                      className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors
+                        ${value === opt 
+                          ? 'bg-[#EB3159]/10 text-[#EB3159] font-medium' 
+                          : 'text-foreground hover:bg-muted'
+                        }
+                      `}
+                    >
+                      <span className="truncate">{opt}</span>
+                      {value === opt && <Check className="w-4 h-4" />}
+                    </div>
+                  ))}
+                  {hasMore && (
+                    <div className="p-2 text-center text-xs text-muted-foreground border-t border-border mt-1">
+                      Mostrando {MAX_VISIBLE} de {filteredOptions.length} — escribe para refinar
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   No se encontraron resultados
