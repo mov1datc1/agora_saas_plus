@@ -1,7 +1,7 @@
 # 📘 Arquitectura Híbrida ETL — Ágora Plus
 
-> **Versión:** 3.0  
-> **Última actualización:** 16 de julio de 2026  
+> **Versión:** 3.1  
+> **Última actualización:** 17 de julio de 2026  
 > **Autor:** Equipo de Ingeniería  
 > **Propósito:** Documentación operativa para retomar trabajo en nuevas sesiones
 
@@ -91,8 +91,9 @@ El formulario de Data Entry en `lexlatin.com/node/add/post` tiene:
 - **Título** → `node_field_data.title`
 - **Subtítulo** → campo separado (no se migra)
 - **Cuerpo (Body)** → `node__body.body_value` (HTML completo)
-- **Edit summary** → `node__body.body_summary` (resumen, a veces vacío)
-- El "lead" o extracto se toma de `body_summary` si existe, sino de los primeros 500 chars de `body_value`
+- **Edit summary** → `node__body.body_summary` (subtítulo corto, a veces vacío)
+- ⚠️ El excerpt se toma SIEMPRE de `body_value` (hasta 2000 chars). `body_summary` es SOLO fallback.
+  - **Bug v3.0:** Se priorizaba `body_summary` → causaba excerpts de 1 línea en ~4,700 registros. Corregido en v3.1.
 
 ---
 
@@ -333,7 +334,8 @@ Cron 3:00 AM CST → POST /api/sync-drupal
 - `processedIds` Set — dedup entre batches del mismo cron
 - `sort=-changed` — captura posts editados (no solo nuevos)
 - Try/catch en bridge table upserts — maneja colisiones de IDs legacy
-- Status normalizado: "Cerrado (Closed)" → "Cerrado", "On-going" → "En progreso"
+- **ID Format:** `drupal-{nid}` — garantiza match con migración MySQL (⚠️ Bug v3.0: usaba UUID de Drupal)
+- Status normalizado: "Cerrado"/"closed" → "Cerrado", "En progreso"/"ongoing" → "En progreso"
 
 ### En la migración MySQL
 - Skip `field_tipo_de_noticia` ≠ 'Transacción' (Movimientos, Acciones judiciales)
@@ -357,6 +359,9 @@ Cron 3:00 AM CST → POST /api/sync-drupal
 - Verificar `processedIds` Set en sync-drupal (dedup)
 - Posts con múltiples fechas (firma + cierre) no deben crear registros duplicados
 - ID es `drupal-{nid}` — mismo post siempre tiene mismo ID
+- ⚠️ **Bug v3.0:** El sync usaba el UUID de Drupal (ej: `883cf94c-...`) en vez de `drupal-{nid}`.
+  Esto causó 92 registros duplicados. Se limpió en v3.1 con DELETE de bridge tables + transacciones.
+- Si aparecen duplicados nuevos: verificar que `attributes.drupal_internal__nid` existe en la respuesta JSON:API
 
 ### "El build falla"
 - `npx prisma generate` — regenerar Prisma client
@@ -378,7 +383,7 @@ model Transaction {
   type          String                 // M&A | Emisiones | Financiamientos | Operación General
   value         Decimal?               // Monto USD (null = confidencial)
   valueString   String?                // "Valor confidencial" o null
-  status        String                 // Cerrado | En progreso | Cerrada (legacy)
+  status        String                 // Cerrado | En progreso (normalizado en v3.1)
   country       String?                // País principal
   isPublished   Boolean   @default(true)  // false = despublicado en Drupal
   practiceArea  String?                // Audit trail: áreas originales de Drupal
