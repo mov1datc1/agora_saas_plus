@@ -151,7 +151,24 @@ export async function POST(request: Request) {
       const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
       const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
       // Excerpt: try multiple Drupal body fields (processed HTML preferred over raw value)
-      const excerpt = attributes.body?.processed || attributes.body?.value || attributes.field_lead?.processed || attributes.field_lead?.value || attributes.field_resumen?.value || null
+      const rawExcerpt = attributes.body?.processed || attributes.body?.value || attributes.field_lead?.processed || attributes.field_lead?.value || attributes.field_resumen?.value || null
+      // Clean HTML tags for plain-text storage (max 2000 chars)
+      let excerpt: string | null = null
+      if (rawExcerpt) {
+        const cleaned = rawExcerpt
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]*>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\n{3,}/g, '\n\n')
+          .trim()
+        excerpt = cleaned.length > 2000 ? cleaned.substring(0, 2000) + '...' : cleaned
+      }
 
       // ── PUBLICATION STATUS ──
       // "Caso no publicado" = transactions exclusive to Ágora (not published on LexLatin portal)
