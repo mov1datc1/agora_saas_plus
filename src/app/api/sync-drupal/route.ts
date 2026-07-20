@@ -455,6 +455,12 @@ export async function POST(request: Request) {
                               attrs.field_rol_arrendamientos || 
                               null;
                 if (rawRole) {
+                  // SAFETY: Reject operation type slugs — these are NOT roles
+                  // (field_tipo_de_operacion values that must never be stored as roles)
+                  const OPERATION_TYPE_SLUGS = ['emisiones', 'financiamiento', 'fusiones-y-adquisiciones', 'reestructuraciones', 'litigios', 'arrendamientos'];
+                  if (OPERATION_TYPE_SLUGS.includes(rawRole.toLowerCase())) {
+                    // Skip — this is an operation type, not a role
+                  } else {
                   // Humanize slug roles to display names
                   const roleMap: Record<string, string> = {
                     'emisor':'Emisor','colocador-estructurador':'Colocador/Estructurador',
@@ -470,6 +476,7 @@ export async function POST(request: Request) {
                     'deudor':'Deudor','entidad-financiera':'Entidad Financiera','otro':'Otro'
                   };
                   companyRole = roleMap[rawRole] || rawRole.charAt(0).toUpperCase() + rawRole.slice(1).replace(/-/g, ' ');
+                  } // end else (not operation type)
                 }
               }
 
