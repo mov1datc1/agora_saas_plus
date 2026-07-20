@@ -138,3 +138,32 @@ export async function toggleUserActiveStatus(userId: string, isActive: boolean) 
     return { success: false, error: err.message || 'Error interno del servidor' }
   }
 }
+
+export async function resetUserPassword(userId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) return { success: false, error: 'No autorizado' }
+
+    const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
+    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN')) return { success: false, error: 'Acceso denegado' }
+
+    // Generate a secure temporary password
+    const tempPassword = 'Agora' + Math.random().toString(36).slice(-6).toUpperCase() + '!'
+
+    // Update password via Supabase Admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: tempPassword
+    })
+
+    if (updateError) {
+      return { success: false, error: updateError.message }
+    }
+
+    revalidatePath('/dashboard/admin/users')
+    return { success: true, tempPassword }
+  } catch (err: any) {
+    console.error('Error in resetUserPassword:', err)
+    return { success: false, error: err.message || 'Error interno del servidor' }
+  }
+}

@@ -49,7 +49,7 @@ export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL',
     
     if (isConfiguracionSmtp && userRole !== 'SUPERADMIN') return false;
     if (adminOnlyModules.includes(item.name) && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
-    if (isTeamModule && (accountType !== 'CORPORATE' || parentId !== null)) return false;
+    if (isTeamModule && (accountType !== 'CORPORATE' && accountType !== 'CORPORATE_3' || parentId !== null)) return false;
     if (isCopilot && !copilotEnabled && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     if (isBilling && parentId !== null) return false;
     

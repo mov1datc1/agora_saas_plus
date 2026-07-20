@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, Loader2, UserPlus, Power, PowerOff, Calendar, ChevronDown, ChevronRight, Users, User } from 'lucide-react'
-import { toggleUserActiveStatus, updateManualSubscription } from '../user-actions'
+import { Search, Loader2, UserPlus, Power, PowerOff, Calendar, ChevronDown, ChevronRight, Users, User, KeyRound, Copy, Check } from 'lucide-react'
+import { toggleUserActiveStatus, updateManualSubscription, resetUserPassword } from '../user-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import CreateManualUserModal from './CreateManualUserModal'
 
@@ -52,12 +52,14 @@ function UserRow({
   onToggle, 
   onRenew,
   isChild = false,
-  isLast = false
+  isLast = false,
+  onResetPassword
 }: { 
   user: UIUser
   loadingId: string | null
   onToggle: (id: string, activate: boolean) => void
   onRenew: (user: UIUser) => void
+  onResetPassword: (userId: string) => void
   isChild?: boolean
   isLast?: boolean
 }) {
@@ -111,6 +113,13 @@ function UserRow({
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground inline-block" />
         ) : (
           <>
+            <button
+              onClick={() => onResetPassword(user.id)}
+              className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+              title="Resetear contraseña"
+            >
+              <KeyRound className="h-4 w-4" /> Reset
+            </button>
             <button
               onClick={() => onRenew(user)}
               className="text-brand hover:text-brand-hover flex items-center gap-1"
@@ -246,6 +255,35 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
     setRenewModalOpen(true)
   }
 
+  // Password reset
+  const [resetResult, setResetResult] = useState<{ userName: string, tempPassword: string } | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const onResetPassword = async (userId: string) => {
+    const targetUser = users.find(u => u.id === userId)
+    if (!targetUser) return
+    if (!confirm(`¿Resetear la contraseña de ${targetUser.name}? Se generará una contraseña temporal.`)) return
+
+    setLoadingId(userId)
+    const res = await resetUserPassword(userId)
+    setLoadingId(null)
+
+    if (res.success && res.tempPassword) {
+      setResetResult({ userName: targetUser.name, tempPassword: res.tempPassword })
+      setCopied(false)
+    } else {
+      alert(res.error || 'Error al resetear contraseña')
+    }
+  }
+
+  const copyTempPassword = () => {
+    if (resetResult) {
+      navigator.clipboard.writeText(`Contraseña temporal para ${resetResult.userName}:\n${resetResult.tempPassword}\n\nIngresa en: https://agora-lexlatin.com/login`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-surface rounded-2xl shadow-sm border border-border overflow-hidden mt-4">
       <div className="p-4 border-b border-border bg-muted/30 flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -360,6 +398,13 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
                       ) : (
                         <>
                           <button
+                            onClick={() => onResetPassword(parent.id)}
+                            className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                            title="Resetear contraseña"
+                          >
+                            <KeyRound className="h-4 w-4" /> Reset
+                          </button>
+                          <button
                             onClick={() => onRenew(parent)}
                             className="text-brand hover:text-brand-hover flex items-center gap-1"
                             title="Cambiar fecha de vencimiento"
@@ -396,6 +441,7 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
                       loadingId={loadingId} 
                       onToggle={onToggle} 
                       onRenew={onRenew} 
+                      onResetPassword={onResetPassword}
                       isChild={true}
                       isLast={idx === children.length - 1}
                     />
@@ -406,7 +452,7 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
 
             {/* Standalone individual users */}
             {filteredStandalone.map((user) => (
-              <UserRow key={user.id} user={user} loadingId={loadingId} onToggle={onToggle} onRenew={onRenew} />
+              <UserRow key={user.id} user={user} loadingId={loadingId} onToggle={onToggle} onRenew={onRenew} onResetPassword={onResetPassword} />
             ))}
 
             {filteredParents.length === 0 && filteredStandalone.length === 0 && (
@@ -471,6 +517,48 @@ export default function LegacyUsersClient({ initialUsers }: { initialUsers: UIUs
                 className="px-4 py-2 text-sm font-semibold bg-brand text-white hover:bg-brand-hover rounded-lg transition-colors disabled:opacity-50"
               >
                 Actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal resultado de Reset Password */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm bg-surface rounded-2xl shadow-2xl p-6 border border-border animate-in zoom-in-95">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <KeyRound className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Contraseña Reseteada</h3>
+                <p className="text-xs text-muted-foreground">{resetResult.userName}</p>
+              </div>
+            </div>
+            
+            <div className="bg-muted/50 rounded-lg p-3 border border-border mb-4">
+              <p className="text-xs text-muted-foreground mb-1">Contraseña Temporal</p>
+              <p className="text-lg font-mono font-bold text-foreground tracking-wider">{resetResult.tempPassword}</p>
+            </div>
+
+            <p className="text-xs text-muted-foreground mb-4">
+              Copia esta contraseña y envíasela al usuario de forma segura. Deberá cambiarla al ingresar.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={copyTempPassword}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copiado' : 'Copiar'}
+              </button>
+              <button
+                onClick={() => setResetResult(null)}
+                className="px-4 py-2 text-sm font-semibold bg-brand text-white hover:bg-brand-hover rounded-lg transition-colors"
+              >
+                Cerrar
               </button>
             </div>
           </div>

@@ -63,7 +63,7 @@ export default async function DashboardLayout({
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DunningBanner status={subscriptionStatus} />
-        <Header userName={userName} />
+        <Header userName={userName} userEmail={user?.email || ''} isChild={!!parentId} />
         <main className="flex-1 overflow-y-auto bg-background p-6">
           {children}
         </main>
