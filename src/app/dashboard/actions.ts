@@ -115,3 +115,42 @@ export async function checkCanDownload() {
 
   return { allowed: true }
 }
+
+export async function getUserExportPermission() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { canExport: false }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { subscription: true }
+  })
+
+  if (!user) return { canExport: false }
+
+  // Admin and SuperAdmin always can export
+  if (user.role === 'ADMIN' || user.role === 'SUPERADMIN') {
+    return { canExport: true }
+  }
+
+  // Legacy users (active subscription, no stripe customer) can export
+  const isLegacy = user.subscription?.status === 'ACTIVE' && !user.stripeCustomerId
+  if (isLegacy) {
+    return { canExport: true }
+  }
+
+  // SaaS users cannot export
+  return { canExport: false }
+}

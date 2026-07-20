@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2, RotateCcw, Bookmark, Trash2, Plus, Save } from 'lucide-react'
-import { checkTrialRestrictions, checkCanDownload } from '../actions'
+import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Lock, Loader2, RotateCcw, Bookmark, Trash2, Plus, Save, FileSpreadsheet } from 'lucide-react'
+import { checkTrialRestrictions, checkCanDownload, getUserExportPermission } from '../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import AlertModal from '@/components/ui/AlertModal'
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
@@ -66,6 +66,18 @@ export default function OperationsClient() {
       }
     }
     checkLimits()
+  }, [])
+
+  // Check export permission for Excel button
+  const [canExportExcel, setCanExportExcel] = useState(false)
+  const [isExportingAll, setIsExportingAll] = useState(false)
+
+  useEffect(() => {
+    const checkExport = async () => {
+      const res = await getUserExportPermission()
+      setCanExportExcel(res.canExport)
+    }
+    checkExport()
   }, [])
 
   const handleSelectTx = async (tx: UITransaction) => {
@@ -325,6 +337,72 @@ export default function OperationsClient() {
     return `$${val.toFixed(0)}`
   }
 
+  // Detect if any filter is active (not default values)
+  const hasActiveFilters = useMemo(() => {
+    return (
+      selectedType !== 'Todos' ||
+      selectedIndustry !== 'Todas' ||
+      debouncedSearch.trim() !== '' ||
+      dateRange.start !== '' ||
+      dateRange.end !== '' ||
+      selectedValueRange !== 'Todos' ||
+      selectedFirm !== 'Todas' ||
+      selectedCountry !== 'Todos' ||
+      selectedLawyer !== 'Todos'
+    )
+  }, [selectedType, selectedIndustry, debouncedSearch, dateRange, selectedValueRange, selectedFirm, selectedCountry, selectedLawyer])
+
+  // Export ALL filtered results to Excel (not just current page)
+  const handleExportAllExcel = async () => {
+    if (!hasActiveFilters) return
+    setIsExportingAll(true)
+
+    try {
+      // Build URL with same filters but request all data (large limit)
+      const params = new URLSearchParams()
+      params.set('page', '1')
+      params.set('limit', '10000') // Fetch up to 10k rows
+      if (sortConfig.key) {
+        params.set('sortBy', sortConfig.key)
+        params.set('sortDir', sortConfig.direction)
+      }
+      if (selectedType !== 'Todos') params.set('type', selectedType)
+      if (selectedIndustry !== 'Todas') params.set('industry', selectedIndustry)
+      if (selectedCountry !== 'Todos') params.set('country', selectedCountry)
+      if (selectedFirm !== 'Todas') params.set('firm', selectedFirm)
+      if (selectedLawyer !== 'Todos') params.set('lawyer', selectedLawyer)
+      if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim())
+      if (dateRange.start) params.set('dateStart', dateRange.start)
+      if (dateRange.end) params.set('dateEnd', dateRange.end)
+      if (selectedValueRange !== 'Todos') params.set('valueRange', selectedValueRange)
+
+      const res = await fetch(`/api/operations?${params.toString()}`)
+      const data = await res.json()
+      const allTx: UITransaction[] = data?.data || []
+
+      if (allTx.length === 0) {
+        setAlertConfig({ isOpen: true, title: 'Sin Resultados', message: 'No hay operaciones que coincidan con los filtros aplicados.' })
+        return
+      }
+
+      exportToExcel(allTx.map(tx => ({
+        Fecha: tx.date,
+        Título: tx.title,
+        Tipo: tx.type,
+        Monto: tx.amount,
+        Industria: tx.industry,
+        'País(es)': tx.country,
+        'Firma(s)': tx.firm,
+        'Abogado(s)': tx.lawyer
+      })), `operaciones_agora_${new Date().toISOString().split('T')[0]}`)
+    } catch (err) {
+      console.error('Export error:', err)
+      setAlertConfig({ isOpen: true, title: 'Error de Exportación', message: 'No se pudo generar el archivo Excel. Intenta de nuevo.' })
+    } finally {
+      setIsExportingAll(false)
+    }
+  }
+
   return (
     <>
       <PaywallModal 
@@ -489,25 +567,71 @@ export default function OperationsClient() {
           </div>
         </div>
       </div>
-      
-      <div className="flex justify-end mb-4">
-        <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface border border-border rounded-lg shadow-sm hover:bg-muted transition-colors"
-        >
-          {isSidebarOpen ? (
-            <>
-              <span className="hidden sm:inline">Ocultar Resumen</span>
-              <span className="text-[#E05C50]">→|</span>
-            </>
-          ) : (
-            <>
-              <span className="text-[#E05C50]">|←</span>
-              <span className="hidden sm:inline">Mostrar Resumen</span>
-            </>
-          )}
-        </button>
-      </div>
+
+      {/* Excel Export Bar — only for Admin/SuperAdmin/Legacy with active filters */}
+      {canExportExcel && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            {hasActiveFilters ? (
+              <button
+                onClick={handleExportAllExcel}
+                disabled={isExportingAll || isSwrLoading}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group"
+              >
+                {isExportingAll ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                )}
+                {isExportingAll ? 'Exportando...' : `Descargar Excel (${totalCount.toLocaleString()} ops)`}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground bg-muted/50 rounded-lg border border-border cursor-not-allowed">
+                <FileSpreadsheet className="h-4 w-4" />
+                Aplica un filtro para descargar Excel
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface border border-border rounded-lg shadow-sm hover:bg-muted transition-colors"
+          >
+            {isSidebarOpen ? (
+              <>
+                <span className="hidden sm:inline">Ocultar Resumen</span>
+                <span className="text-[#E05C50]">→|</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[#E05C50]">|←</span>
+                <span className="hidden sm:inline">Mostrar Resumen</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Original toggle for non-export users */}
+      {!canExportExcel && (
+        <div className="flex justify-end mb-4">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-surface border border-border rounded-lg shadow-sm hover:bg-muted transition-colors"
+          >
+            {isSidebarOpen ? (
+              <>
+                <span className="hidden sm:inline">Ocultar Resumen</span>
+                <span className="text-[#E05C50]">→|</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[#E05C50]">|←</span>
+                <span className="hidden sm:inline">Mostrar Resumen</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1">
         <div className={`${isSidebarOpen ? 'lg:col-span-3' : 'lg:col-span-4'} bg-surface rounded-2xl shadow-sm border border-border overflow-hidden flex flex-col h-[600px] transition-all duration-300`}>
