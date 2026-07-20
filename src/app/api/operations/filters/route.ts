@@ -15,19 +15,18 @@ export async function GET() {
     }
 
     // Parallel queries for filter options
-    const [industries, countries, firms, lawyers] = await Promise.all([
+    const [industries, countriesRaw, firms, lawyers] = await Promise.all([
       // Unique industries
       prisma.industry.findMany({
         where: { transactions: { some: baseWhere } },
         select: { name: true },
         orderBy: { name: 'asc' },
       }),
-      // Unique countries
+      // Country strings (may contain combined values like "Brasil, Chile")
       prisma.transaction.findMany({
         where: { ...baseWhere, country: { not: null } },
         select: { country: true },
         distinct: ['country'],
-        orderBy: { country: 'asc' },
       }),
       // All firms with valid transactions (searchable dropdown handles large lists)
       prisma.firm.findMany({
@@ -43,9 +42,21 @@ export async function GET() {
       }),
     ])
 
+    // Split combined country strings ("Brasil, Chile") into individual countries
+    // and deduplicate for clean dropdown options
+    const countrySet = new Set<string>()
+    for (const c of countriesRaw) {
+      if (!c.country) continue
+      const parts = c.country.split(',').map((p: string) => p.trim()).filter(Boolean)
+      for (const part of parts) {
+        countrySet.add(part)
+      }
+    }
+    const countries = [...countrySet].sort((a, b) => a.localeCompare(b, 'es'))
+
     return NextResponse.json({
       industries: industries.map((i: any) => i.name).filter(Boolean),
-      countries: countries.map((c: any) => c.country).filter(Boolean).sort(),
+      countries,
       firms: firms.map((f: any) => f.name).filter(Boolean),
       lawyers: lawyers.map((l: any) => l.name).filter(Boolean),
     })
