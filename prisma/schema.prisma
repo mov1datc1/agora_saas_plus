@@ -185,6 +185,7 @@ enum Role {
 enum AccountType {
   INDIVIDUAL
   CORPORATE
+  CORPORATE_3
 }
 
 enum SubscriptionStatus {

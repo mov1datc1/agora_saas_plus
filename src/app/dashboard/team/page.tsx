@@ -18,9 +18,12 @@ export default async function TeamPage() {
     }
   })
 
-  if (!dbUser || dbUser.accountType !== 'CORPORATE' || dbUser.parentId) {
+  if (!dbUser || (dbUser.accountType !== 'CORPORATE' && dbUser.accountType !== 'CORPORATE_3') || dbUser.parentId) {
     redirect('/dashboard') // Solo titulares corporativos pueden entrar
   }
+
+  const maxTotal = dbUser.accountType === 'CORPORATE_3' ? 3 : 5
+  const maxChildren = maxTotal - 1
 
   const formattedChildren = dbUser.children.map((child: any) => ({
     id: child.id,
@@ -35,13 +38,13 @@ export default async function TeamPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Mi Equipo</h1>
           <p className="mt-1 text-sm text-foreground/60">
-            Administra los accesos de tu firma. Tienes {5 - formattedChildren.length - 1} asientos disponibles de 5.
+            Administra los accesos de tu firma. Tienes {maxChildren - formattedChildren.length} asientos disponibles de {maxTotal}.
           </p>
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <TeamClient teamMembers={formattedChildren} />
+        <TeamClient teamMembers={formattedChildren} maxChildren={maxChildren} />
       </div>
     </div>
   )

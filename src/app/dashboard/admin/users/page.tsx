@@ -15,7 +15,8 @@ export default async function AdminUsersPage() {
 
   const users = await prisma.user.findMany({
     include: {
-      subscription: true
+      subscription: true,
+      children: true
     },
     orderBy: {
       createdAt: 'desc'
@@ -29,6 +30,7 @@ export default async function AdminUsersPage() {
     email: u.email,
     role: u.role,
     accountType: u.accountType,
+    parentId: u.parentId || null,
     status: u.subscription?.status || 'TRIAL',
     isActive: u.isActive,
     currentPeriodEnd: u.subscription?.currentPeriodEnd?.toISOString() || null,

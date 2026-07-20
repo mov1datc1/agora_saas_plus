@@ -17,12 +17,16 @@ export async function inviteTeamMember(data: { email: string, name: string, pass
       include: { children: true, subscription: true }
     })
 
-    if (!dbUser || dbUser.accountType !== 'CORPORATE' || dbUser.parentId) {
+    if (!dbUser || (dbUser.accountType !== 'CORPORATE' && dbUser.accountType !== 'CORPORATE_3') || dbUser.parentId) {
       return { success: false, error: 'Acceso denegado. Solo titulares de cuentas corporativas pueden invitar.' }
     }
 
-    if (dbUser.children.length >= 4) {
-      return { success: false, error: 'Has alcanzado el límite de 5 usuarios por cuenta (1 titular + 4 invitados).' }
+    // CORPORATE = 1 titular + 4 hijos (5 total), CORPORATE_3 = 1 titular + 2 hijos (3 total)
+    const maxChildren = dbUser.accountType === 'CORPORATE_3' ? 2 : 4
+    const maxTotal = maxChildren + 1
+
+    if (dbUser.children.length >= maxChildren) {
+      return { success: false, error: `Has alcanzado el límite de ${maxTotal} usuarios por cuenta (1 titular + ${maxChildren} invitados).` }
     }
 
     // Usar la contraseña provista o generar una aleatoria segura
@@ -54,7 +58,7 @@ export async function inviteTeamMember(data: { email: string, name: string, pass
         email: data.email,
         name: data.name,
         role: 'USER',
-        accountType: 'CORPORATE',
+        accountType: dbUser.accountType,
         parentId: dbUser.id,
         isActive: true
       }
@@ -87,7 +91,7 @@ export async function removeTeamMember(childId: string) {
     if (!currentUser) return { success: false, error: 'No autorizado' }
 
     const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
-    if (!dbUser || dbUser.accountType !== 'CORPORATE') return { success: false, error: 'Acceso denegado' }
+    if (!dbUser || (dbUser.accountType !== 'CORPORATE' && dbUser.accountType !== 'CORPORATE_3')) return { success: false, error: 'Acceso denegado' }
 
     const targetChild = await prisma.user.findUnique({ where: { id: childId } })
     if (!targetChild || targetChild.parentId !== dbUser.id) {

@@ -11,7 +11,7 @@ interface TeamMember {
   createdAt: string
 }
 
-export default function TeamClient({ teamMembers }: { teamMembers: TeamMember[] }) {
+export default function TeamClient({ teamMembers, maxChildren = 4 }: { teamMembers: TeamMember[], maxChildren?: number }) {
   const [isOpen, setIsOpen] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -21,7 +21,7 @@ export default function TeamClient({ teamMembers }: { teamMembers: TeamMember[] 
   const [successData, setSuccessData] = useState<{email: string, pass: string} | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const canInvite = teamMembers.length < 4
+  const canInvite = teamMembers.length < maxChildren
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,7 +113,7 @@ export default function TeamClient({ teamMembers }: { teamMembers: TeamMember[] 
             {teamMembers.length === 0 ? (
               <tr>
                 <td colSpan={4} className="py-8 text-center text-sm text-foreground/50">
-                  Aún no has invitado a nadie. Tienes 4 espacios disponibles.
+                  Aún no has invitado a nadie. Tienes {maxChildren} espacios disponibles.
                 </td>
               </tr>
             ) : (

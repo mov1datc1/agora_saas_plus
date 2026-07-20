@@ -2,7 +2,40 @@
 
 import { useState } from 'react'
 import { createManualUser } from '../user-actions'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, User, Users, Building2 } from 'lucide-react'
+
+const ACCOUNT_TYPES = [
+  {
+    value: 'INDIVIDUAL',
+    label: 'Individual',
+    description: '1 usuario único',
+    icon: User,
+    color: 'from-gray-500/20 to-gray-600/20',
+    borderColor: 'border-gray-400/30',
+    selectedBorder: 'ring-2 ring-gray-500 border-gray-500',
+    iconBg: 'bg-gray-500/10 text-gray-600',
+  },
+  {
+    value: 'CORPORATE_3',
+    label: 'Corporativo 3',
+    description: '1 titular + 2 miembros',
+    icon: Users,
+    color: 'from-blue-500/20 to-blue-600/20',
+    borderColor: 'border-blue-400/30',
+    selectedBorder: 'ring-2 ring-blue-500 border-blue-500',
+    iconBg: 'bg-blue-500/10 text-blue-600',
+  },
+  {
+    value: 'CORPORATE',
+    label: 'Corporativo 5',
+    description: '1 titular + 4 miembros',
+    icon: Building2,
+    color: 'from-violet-500/20 to-violet-600/20',
+    borderColor: 'border-violet-400/30',
+    selectedBorder: 'ring-2 ring-violet-500 border-violet-500',
+    iconBg: 'bg-violet-500/10 text-violet-600',
+  },
+]
 
 export default function CreateManualUserModal({ 
   isOpen, 
@@ -53,8 +86,8 @@ export default function CreateManualUserModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-md bg-surface rounded-2xl shadow-2xl p-6 border border-border animate-in zoom-in-95 relative">
-        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">
+      <div className="w-full max-w-lg bg-surface rounded-2xl shadow-2xl p-6 border border-border animate-in zoom-in-95 relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground z-10">
           <X className="h-5 w-5" />
         </button>
         
@@ -113,28 +146,56 @@ export default function CreateManualUserModal({
 
           {role === 'USER' && (
             <>
+              {/* PRO Account Type Selector */}
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1">Tipo de Cuenta Comercial</label>
-                <select 
-                  className="w-full rounded-lg border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-brand outline-none"
-                  value={formData.accountType}
-                  onChange={(e) => setFormData(p => ({...p, accountType: e.target.value}))}
-                >
-                  <option value="INDIVIDUAL">Individual</option>
-                  <option value="CORPORATE">Corporativo (Hasta 5 IPs)</option>
-                </select>
+                <label className="block text-xs font-semibold text-muted-foreground mb-2">Tipo de Cuenta Comercial</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {ACCOUNT_TYPES.map((type) => {
+                    const Icon = type.icon
+                    const isSelected = formData.accountType === type.value
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setFormData(p => ({...p, accountType: type.value}))}
+                        className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                          isSelected 
+                            ? `${type.selectedBorder} bg-gradient-to-b ${type.color} shadow-sm` 
+                            : `${type.borderColor} bg-background hover:bg-muted/50 hover:border-foreground/20`
+                        }`}
+                      >
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${type.iconBg}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className={`text-xs font-bold ${isSelected ? 'text-foreground' : 'text-foreground/70'}`}>
+                          {type.label}
+                        </span>
+                        <span className={`text-[10px] leading-tight text-center ${isSelected ? 'text-foreground/70' : 'text-muted-foreground'}`}>
+                          {type.description}
+                        </span>
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-foreground flex items-center justify-center">
+                            <svg className="h-2.5 w-2.5 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Fecha de Vencimiento del Acuerdo</label>
-              <input 
-                type="date" 
-                required
-                className="w-full rounded-lg border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-brand outline-none"
-                value={formData.expiryDate}
-                onChange={(e) => setFormData(p => ({...p, expiryDate: e.target.value}))}
-              />
-            </div>
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">Fecha de Vencimiento del Acuerdo</label>
+                <input 
+                  type="date" 
+                  required
+                  className="w-full rounded-lg border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-brand outline-none"
+                  value={formData.expiryDate}
+                  onChange={(e) => setFormData(p => ({...p, expiryDate: e.target.value}))}
+                />
+              </div>
             </>
           )}
 
