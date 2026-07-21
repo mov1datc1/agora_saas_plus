@@ -81,14 +81,20 @@ export async function GET(request: Request) {
     if (dateStart) {
       where.dateAnnounced = {
         ...where.dateAnnounced,
-        gte: new Date(dateStart + 'T00:00:00'),
+        gte: new Date(dateStart + 'T00:00:00.000Z'),
       }
     }
     if (dateEnd) {
-      const endDate = new Date(dateEnd + 'T23:59:59')
+      // Use the START of the NEXT day to include ALL timezone representations of the end date.
+      // e.g., dateEnd='2026-06-30' → nextDay='2026-07-01T00:00:00Z'
+      // A transaction stored as '2026-06-30T20:00:00-04:00' = '2026-07-01T00:00:00Z' in UTC
+      // would be missed with 'T23:59:59' but is caught with lt: nextDay
+      const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+      const upperBound = nextDay < today ? nextDay : today
       where.dateAnnounced = {
         ...where.dateAnnounced,
-        lte: endDate < today ? endDate : today,
+        lt: upperBound,
       }
     }
 

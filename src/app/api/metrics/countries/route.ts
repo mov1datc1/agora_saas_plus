@@ -24,11 +24,12 @@ export async function GET(request: Request) {
     }
     if (type && type !== 'Todas') txWhere.type = type
     if (dateStart) {
-      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00') }
+      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00.000Z') }
     }
     if (dateEnd) {
-      const end = new Date(dateEnd + 'T23:59:59')
-      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, lte: end < today ? end : today }
+      const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, lt: nextDay < today ? nextDay : today }
     }
 
     const transactions = await prisma.transaction.findMany({
