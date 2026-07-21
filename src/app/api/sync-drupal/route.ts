@@ -198,24 +198,25 @@ export async function POST(request: Request) {
       // Custom API returns practice_areas as an array of strings directly
       const practiceAreas: string[] = post.practice_areas || []
 
-      // ── PORTAL ORIGINAL FILTER (v3.1) ──
+      // ── PORTAL ORIGINAL FILTER (v3.2) ──
       // Data Entry methodology: when a real transaction spans multiple practice areas
       // (e.g., Financiamientos + Emisiones), they create CLONES — one per area —
-      // each marked as "caso no publicado" (unpublished), for Ágora to count correctly.
-      // The ORIGINAL post keeps all areas and stays published for the LexLatin.com portal.
+      // for Ágora to count correctly. The ORIGINAL keeps all areas.
       //
-      // Rule: If a post has 2+ practice areas AND is published → it's the portal original.
-      // We skip it because the individual clones (same title, 1 area each) are the
-      // authoritative records for Ágora analytics.
+      // This happens for BOTH published (portal) and unpublished posts.
+      // The clones always have exactly 1 practice area each.
       //
-      // This prevents double/triple counting and eliminates false "multi-area conflicts".
+      // Rule: If a post has 2+ MAPPED practice areas (that resolve to different
+      // operation types) → it's always the original → SKIP.
+      // The individual clones (same title, 1 area each) are the authoritative
+      // records for Ágora analytics.
       const mappedAreas = practiceAreas.map(a => {
         const lower = a.toLowerCase().trim()
         return Object.keys(PRACTICE_AREA_MAP).some(key => lower.includes(key) || key.includes(lower))
       }).filter(Boolean)
 
-      if (mappedAreas.length >= 2 && isPublished) {
-        // This is the portal original — skip it for Ágora
+      if (mappedAreas.length >= 2) {
+        // This is the multi-area original — skip it, the individual clones are canonical
         skippedPortalOriginals++
         processedCount++ // Count as "processed" so pagination advances
         continue
