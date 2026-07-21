@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { classifyOperationType, classifyIndustry } from '@/lib/classificationEngine'
 
-const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/jsonapi'
+// ── NEW: Custom Agora REST API (replaces JSON:API) ──
+// The custom Drupal module at /api/agora/transactions returns pre-joined data
+// with all relationships resolved: firms, lawyers, companies (with roles),
+// monetary data, practice areas, countries, and industries.
+// This eliminates JSON:API's complex ?include= parsing and paragraph resolution.
+const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/api/agora/transactions'
+const DRUPAL_AGORA_TOKEN = process.env.DRUPAL_AGORA_TOKEN || 'agora-etl-2026-secure-token'
 
 // ── Practice Area → Operation Type Mapping (Source of Truth from Data Entry team) ──
 // Only these 3 operation types exist. "Private Capital" was removed per owner specification.
@@ -60,10 +66,6 @@ export async function POST(request: Request) {
     const MAX_BATCHES = 10 // Safety cap: 50 posts max per cron run (~45s, within Vercel Pro 60s limit)
     const { searchParams } = new URL(request.url)
     const startOffset = parseInt(searchParams.get('offset') || '0', 10)
-    
-    const drupalUser = process.env.DRUPAL_API_USER || 'agora_api_user'
-    const drupalPass = process.env.DRUPAL_API_PASS || 'Agor4Lex!'
-    const authString = Buffer.from(`${drupalUser}:${drupalPass}`).toString('base64')
 
     // 3. Helpers (defined outside loop)
     const parseSafeDate = (dateString: string | null) => {
@@ -85,19 +87,18 @@ export async function POST(request: Request) {
     while (batchNumber < MAX_BATCHES) {
       batchNumber++
       
-      // Fetch batch from Drupal
-      // sort=-changed ensures we pick up both NEW and RECENTLY EDITED posts
-      // (e.g. data entry team updates close date or status months after initial creation)
-      const url = `${DRUPAL_API_BASE}/node/post?filter[field_tipo_de_noticia]=Transacci%C3%B3n&include=field_abogados_involucrados,field_firmas_involucradas,field_empresas_involucradas,field_empresas_involucradas.field_empresa,field_industrias_asociadas,field_paises_involucrados,field_operacion,field_operacion.field_datos_monetarios,field_ae&page[limit]=${BATCH_SIZE}&page[offset]=${currentOffset}&sort=-changed`
+      // ── NEW: Fetch from custom Agora REST API ──
+      // Uses token auth (X-Agora-Token) instead of Basic Auth
+      // Returns flat JSON with all relationships pre-resolved
+      const url = `${DRUPAL_API_BASE}?page=${Math.floor(currentOffset / BATCH_SIZE)}&limit=${BATCH_SIZE}&status=all`
       
       let posts: any[] = []
-      let included: any[] = []
       
       try {
         const response = await fetch(url, {
           headers: {
-            'Authorization': `Basic ${authString}`,
-            'Accept': 'application/vnd.api+json'
+            'X-Agora-Token': DRUPAL_AGORA_TOKEN,
+            'Accept': 'application/json'
           }
         })
 
@@ -108,7 +109,6 @@ export async function POST(request: Request) {
 
         const json = await response.json()
         posts = json.data || []
-        included = json.included || []
       } catch (fetchError) {
         console.error(`Drupal fetch error on batch ${batchNumber}:`, fetchError)
         break
@@ -118,44 +118,37 @@ export async function POST(request: Request) {
         break // No more posts to sync
       }
 
-      // Helper to parse 'included' data (scoped per batch since included changes)
-      const getIncludedResource = (type: string, id: string) => {
-        return included?.find((item: any) => item.type === type && item.id === id)
-      }
-
       // Process each post in this batch
       let processedCount = 0
       const multiAreaConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
       for (const post of posts) {
-        const attributes = post.attributes
-        const relationships = post.relationships
-      // CRITICAL: Use drupal-{nid} format to match MySQL migration IDs
-      // Before this fix, JSON:API used Drupal's UUID (e.g., "883cf94c-...") while MySQL migration 
-      // used "drupal-134006", causing duplicate records for the same post
-      const drupalNid = attributes.drupal_internal__nid
-      const transactionId = drupalNid ? `drupal-${drupalNid}` : post.id
+      // ── NEW: Custom API returns nid directly (no UUID indirection) ──
+      const drupalNid = post.nid
+      const transactionId = `drupal-${drupalNid}`
 
       // Dedup: skip if already processed in a previous batch
       if (processedIds.has(transactionId)) continue
       processedIds.add(transactionId)
 
-      // Extract attributes
-      const title = attributes.title || 'Transacción sin título'
-      // Status: "Cerrado (Closed)" / "closed" → "Cerrado", "En progreso (Ongoing)" / "ongoing" → "En progreso", null → "Completada"
-      const rawStatus = attributes.field_estado_caso
+      // Extract attributes — custom API returns flat structure
+      const title = post.title || 'Transacción sin título'
+      
+      // Status: field_estado_caso values from custom API
+      const rawStatus = post.field_estado_caso
       const status = rawStatus
         ? (rawStatus.toLowerCase().includes('cerrad') || rawStatus.toLowerCase().includes('closed') ? 'Cerrado' 
           : rawStatus.toLowerCase().includes('progres') || rawStatus.toLowerCase().includes('ongoing') || rawStatus.toLowerCase().includes('on-going') ? 'En progreso' 
           : rawStatus)
         : 'Completada'
-      const dateAnnouncedStr = attributes.field_fecha_de_la_firma || attributes.created
-      const dateClosedStr = attributes.field_fecha_de_cierre_de_la_emis || attributes.field_fecha_de_concrecion_del_ac
-      // Excerpt: try multiple Drupal body fields (processed HTML preferred over raw value)
-      const rawExcerpt = attributes.body?.processed || attributes.body?.value || attributes.field_lead?.processed || attributes.field_lead?.value || attributes.field_resumen?.value || null
-      // Clean HTML tags for plain-text storage (max 2000 chars)
-      let excerpt: string | null = null
-      if (rawExcerpt) {
-        const cleaned = rawExcerpt
+      
+      // Dates — custom API returns ISO dates directly
+      const dateAnnouncedStr = post.field_fecha_firma || post.created
+      const dateClosedStr = post.field_fecha_cierre
+      
+      // Excerpt — custom API returns pre-cleaned excerpt
+      let excerpt: string | null = post.excerpt || null
+      if (!excerpt && post.body) {
+        const cleaned = post.body
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]*>/g, '')
@@ -172,31 +165,12 @@ export async function POST(request: Request) {
 
       // ── PUBLICATION STATUS ──
       // "Caso no publicado" = transactions exclusive to Ágora (not published on LexLatin portal)
-      // These are valid transactions that count in analytics but are not public-facing
-      const casoNoPublicado = attributes.field_caso_no_publicado === true
+      const casoNoPublicado = post.field_caso_no_publicado === true
       const isPublished = !casoNoPublicado
 
-      // ── CLASSIFICATION v3.0: Deterministic by "Áreas de práctica" (field_ae) ──
-      // Source of truth: Data Entry team marks practice areas in the Drupal form
-      // Priority: field_ae (deterministic) → classifyOperationType (heuristic) → "Operación General"
-      
-      let practiceAreas: string[] = []
-      
-      if (relationships?.field_ae?.data) {
-        const aeData = Array.isArray(relationships.field_ae.data)
-          ? relationships.field_ae.data
-          : [relationships.field_ae.data]
-        
-        for (const ae of aeData) {
-          if (!ae) continue
-          const aeNode = getIncludedResource(ae.type, ae.id)
-          if (aeNode) {
-            // Practice area nodes use 'title' (they are node--areas_de_practica, not taxonomy terms)
-            const aeName = aeNode.attributes?.title || aeNode.attributes?.name
-            if (aeName) practiceAreas.push(aeName)
-          }
-        }
-      }
+      // ── CLASSIFICATION v3.0: Deterministic by "Áreas de práctica" ──
+      // Custom API returns practice_areas as an array of strings directly
+      const practiceAreas: string[] = post.practice_areas || []
 
       // Step 0: Check for manual override (persists through re-syncs)
       const existingTx = await prisma.transaction.findUnique({
@@ -214,7 +188,7 @@ export async function POST(request: Request) {
         multiAreaConflicts.push({
           id: transactionId,
           title,
-          link: `https://lexlatin.com/node/${attributes.drupal_internal__nid}`,
+          link: `https://lexlatin.com/node/${drupalNid}`,
           practiceAreas: practiceAreaRaw || '',
           assignedType: finalType,
           alternativeTypes: allMappedTypes.filter(t => t !== finalType)
@@ -222,29 +196,11 @@ export async function POST(request: Request) {
       }
 
       // Step 2: Heuristic fallback for posts without matching practice area
-      // This covers legacy posts or incomplete data entry
       if (finalType === 'Operación General') {
-        // Extract company roles for Phase 3 of heuristic engine
-        const companyRoles: string[] = []
-        if (relationships?.field_empresas_involucradas?.data) {
-          const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
-            ? relationships.field_empresas_involucradas.data
-            : [relationships.field_empresas_involucradas.data];
-          for (const c of empresasData) {
-            if (!c) continue;
-            const paragraphNode = getIncludedResource(c.type, c.id)
-            if (paragraphNode && paragraphNode.attributes) {
-              const attrs = paragraphNode.attributes;
-              const role = attrs.field_rol_fusiones_y_adquisicion || 
-                           attrs.field_rol_emisiones || 
-                           attrs.field_rol_financiamiento || 
-                           attrs.field_rol_litigios || 
-                           attrs.field_rol_reestructuraciones || 
-                           attrs.field_rol_arrendamientos
-              if (role) companyRoles.push(role)
-            }
-          }
-        }
+        // Custom API returns companies with roles directly
+        const companyRoles: string[] = (post.companies || [])
+          .map((c: any) => c.role)
+          .filter((r: string) => r && r !== 'participante')
 
         const classification = classifyOperationType(title, excerpt, companyRoles)
         if (classification.type !== 'Operación General') {
@@ -252,94 +208,50 @@ export async function POST(request: Request) {
         }
       }
 
-      const link = `https://lexlatin.com/node/${attributes.drupal_internal__nid}` // Constructing official link
+      const link = `https://lexlatin.com/node/${drupalNid}`
 
-      // Process Relationships (Industries)
+      // Process Relationships (Industries) — custom API returns industry names directly
       let prismaIndustryId = null
       let finalIndustryName = null
-      let originalIndId = null
 
-      if (relationships?.field_industrias_asociadas?.data) {
-        const indData = Array.isArray(relationships.field_industrias_asociadas.data) 
-          ? relationships.field_industrias_asociadas.data[0] 
-          : relationships.field_industrias_asociadas.data;
-          
-        if (indData) {
-          const industryNode = getIncludedResource(indData.type, indData.id)
-          if (industryNode) {
-            finalIndustryName = industryNode.attributes.name || industryNode.attributes.title
-            originalIndId = indData.id
-          }
-        }
+      if (post.industries && post.industries.length > 0) {
+        finalIndustryName = post.industries[0] // Take first industry
       }
 
       // If no industry was found in Drupal, use the weighted classifier
       if (!finalIndustryName) {
-        const textToAnalyze = `${title} ${attributes.body?.value || ''}`
+        const textToAnalyze = `${title} ${post.body || ''}`
         const guessed = classifyIndustry(textToAnalyze)
         if (guessed) {
           finalIndustryName = guessed
         }
       }
 
-      // Upsert the industry (either official or guessed)
+      // Upsert the industry
       if (finalIndustryName) {
-        const upsertData: any = { name: finalIndustryName }
-        if (originalIndId) {
-          upsertData.id = originalIndId
-        }
-        
         const upsertedIndustry = await prisma.industry.upsert({
           where: { name: finalIndustryName },
-          create: upsertData,
+          create: { name: finalIndustryName },
           update: { name: finalIndustryName }
         })
         prismaIndustryId = upsertedIndustry.id
       }
 
-      // Process Countries
-      let countryNames: string[] = []
-      if (relationships?.field_paises_involucrados?.data) {
-        const paisesData = Array.isArray(relationships.field_paises_involucrados.data)
-          ? relationships.field_paises_involucrados.data
-          : [relationships.field_paises_involucrados.data];
-          
-        for (const p of paisesData) {
-          if (!p) continue;
-          const paisNode = getIncludedResource(p.type, p.id)
-          if (paisNode && (paisNode.attributes.name || paisNode.attributes.title)) {
-            countryNames.push(paisNode.attributes.name || paisNode.attributes.title)
-          }
-        }
-      }
+      // Process Countries — custom API returns array of country names
+      const countryNames: string[] = post.countries || []
       const combinedCountries = countryNames.length > 0 ? countryNames.join(', ') : null
 
-      // Process Value String (Monto)
+      // Process Value String (Monto) — custom API returns monetary.total_usd directly
       let transactionValue = 'Valor confidencial'
       let transactionValueNumeric: number | null = null
-      if (relationships?.field_operacion?.data) {
-        const opDataArray = Array.isArray(relationships.field_operacion.data) ? relationships.field_operacion.data : [relationships.field_operacion.data]
-        for (const opData of opDataArray) {
-          if (!opData) continue
-          const opNode = getIncludedResource(opData.type, opData.id)
-          if (opNode && opNode.relationships?.field_datos_monetarios?.data) {
-            const moneyData = opNode.relationships.field_datos_monetarios.data
-            const moneyNode = getIncludedResource(moneyData.type, moneyData.id)
-            if (moneyNode && moneyNode.attributes?.field_monto_transaccion_en_dolar) {
-              const rawMonto = moneyNode.attributes.field_monto_transaccion_en_dolar
-              const num = parseFloat(rawMonto.toString().replace(/,/g, ''))
-              if (!isNaN(num) && num > 0) {
-                transactionValueNumeric = num
-                if (num >= 1000000) {
-                  transactionValue = `$${(num / 1000000).toFixed(1)}M`
-                } else {
-                  transactionValue = `$${num.toLocaleString('en-US')}`
-                }
-              } else {
-                transactionValue = `$${rawMonto}`
-              }
-              break
-            }
+      if (post.monetary && post.monetary.total_usd) {
+        const num = post.monetary.total_usd
+        if (num > 0) {
+          transactionValueNumeric = num
+          if (num >= 1000000) {
+            transactionValue = `$${(num / 1000000).toFixed(1)}M`
+          } else {
+            transactionValue = `$${num.toLocaleString('en-US')}`
           }
         }
       }
@@ -380,182 +292,138 @@ export async function POST(request: Request) {
         }
       })
 
-      // Process Firms
-      if (relationships?.field_firmas_involucradas?.data) {
-        const firmasData = Array.isArray(relationships.field_firmas_involucradas.data)
-          ? relationships.field_firmas_involucradas.data
-          : [relationships.field_firmas_involucradas.data];
-          
-        for (const f of firmasData) {
-          if (!f) continue;
-          const firmaNode = getIncludedResource(f.type, f.id)
-          if (firmaNode && (firmaNode.attributes.name || firmaNode.attributes.title)) {
-            const firmaName = firmaNode.attributes.name || firmaNode.attributes.title
-            
-            // Create or update Firm
-            const upsertedFirm = await prisma.firm.upsert({
-              where: { name: firmaName },
-              create: { id: f.id, name: firmaName },
-              update: { name: firmaName }
-            })
-            
-            // Link to Transaction
-            try {
-              await prisma.transactionAdvisor.upsert({
-                where: {
-                  transactionId_firmId_role: {
-                    transactionId: transactionId,
-                    firmId: upsertedFirm.id,
-                    role: 'Asesor Legal'
-                  }
-                },
-                create: {
-                  id: `${transactionId}-${upsertedFirm.id}-${Date.now()}`,
-                  transactionId: transactionId,
-                  firmId: upsertedFirm.id,
-                  role: 'Asesor Legal'
-                },
-                update: {}
-              })
-            } catch (bridgeErr: any) {
-              if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
-            }
-          }
+      // Process Firms — custom API returns array of firm name strings
+      const firmNames: string[] = post.firms || []
+      for (const firmaName of firmNames) {
+        if (!firmaName) continue
+        
+        // Create or update Firm
+        const upsertedFirm = await prisma.firm.upsert({
+          where: { name: firmaName },
+          create: { name: firmaName },
+          update: { name: firmaName }
+        })
+        
+        // Link to Transaction
+        try {
+          await prisma.transactionAdvisor.upsert({
+            where: {
+              transactionId_firmId_role: {
+                transactionId: transactionId,
+                firmId: upsertedFirm.id,
+                role: 'Asesor Legal'
+              }
+            },
+            create: {
+              id: `${transactionId}-${upsertedFirm.id}-${Date.now()}`,
+              transactionId: transactionId,
+              firmId: upsertedFirm.id,
+              role: 'Asesor Legal'
+            },
+            update: {}
+          })
+        } catch (bridgeErr: any) {
+          if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
         }
       }
 
-      // Process Companies
-      if (relationships?.field_empresas_involucradas?.data) {
-        const empresasData = Array.isArray(relationships.field_empresas_involucradas.data)
-          ? relationships.field_empresas_involucradas.data
-          : [relationships.field_empresas_involucradas.data];
-          
-        for (const c of empresasData) {
-          if (!c) continue;
-          const paragraphNode = getIncludedResource(c.type, c.id)
-
-          if (paragraphNode && paragraphNode.relationships?.field_empresa?.data) {
-            const empresaData = paragraphNode.relationships.field_empresa.data
-            const empresaNode = getIncludedResource(empresaData.type, empresaData.id)
-            if (empresaNode && (empresaNode.attributes.name || empresaNode.attributes.title)) {
-              const companyName = empresaNode.attributes.name || empresaNode.attributes.title
-              
-              let companyRole = 'Participante';
-              if (paragraphNode.attributes) {
-                const attrs = paragraphNode.attributes;
-                // Drupal field machine names for roles (from paragraph entity)
-                const rawRole = attrs.field_rol_fusiones_y_adquisicion || 
-                              attrs.field_rol_em ||
-                              attrs.field_rol_emisiones_otro ||
-                              attrs.field_rol_financiamiento || 
-                              attrs.field_rol_financiamiento_otro ||
-                              attrs.field_rol_litigios || 
-                              attrs.field_rol_reestructuraciones || 
-                              attrs.field_rol_reestructuraciones_otr ||
-                              attrs.field_rol_arrendamientos || 
-                              null;
-                if (rawRole) {
-                  // SAFETY: Reject operation type slugs — these are NOT roles
-                  // (field_tipo_de_operacion values that must never be stored as roles)
-                  const OPERATION_TYPE_SLUGS = ['emisiones', 'financiamiento', 'fusiones-y-adquisiciones', 'reestructuraciones', 'litigios', 'arrendamientos'];
-                  if (OPERATION_TYPE_SLUGS.includes(rawRole.toLowerCase())) {
-                    // Skip — this is an operation type, not a role
-                  } else {
-                  // Humanize slug roles to display names
-                  const roleMap: Record<string, string> = {
-                    'emisor':'Emisor','colocador-estructurador':'Colocador/Estructurador',
-                    'comprador-inicial':'Comprador Inicial','suscriptor-lider':'Suscriptor Líder',
-                    'suscriptor':'Suscriptor','lead-arranger':'Lead Arranger',
-                    'trustee':'Trustee','fideicomitente':'Fideicomitente',
-                    'agente-fiduciario':'Agente Fiduciario','prestamista':'Prestamista',
-                    'prestatario':'Prestatario','asegurador':'Asegurador',
-                    'lider-sindicato-bancos':'Líder Sindicato Bancos',
-                    'miembro-sindicato-bancos':'Miembro Sindicato Bancos',
-                    'comprador':'Comprador','vendedor':'Vendedor','target':'Target',
-                    'demandado':'Demandado','demandante':'Demandante',
-                    'deudor':'Deudor','entidad-financiera':'Entidad Financiera','otro':'Otro'
-                  };
-                  companyRole = roleMap[rawRole] || rawRole.charAt(0).toUpperCase() + rawRole.slice(1).replace(/-/g, ' ');
-                  } // end else (not operation type)
-                }
-              }
-
-              // Create or update Company
-              const upsertedCompany = await prisma.company.upsert({
-                where: { id: empresaData.id },
-                create: { id: empresaData.id, name: companyName },
-                update: { name: companyName }
-              })
-              
-              // Link to Transaction
-              try {
-                await prisma.transactionCompany.upsert({
-                  where: {
-                    transactionId_companyId_role: {
-                      transactionId: transactionId,
-                      companyId: upsertedCompany.id,
-                      role: companyRole
-                    }
-                  },
-                  create: {
-                    id: `${transactionId}-${upsertedCompany.id}-${Date.now()}`,
-                    transactionId: transactionId,
-                    companyId: upsertedCompany.id,
-                    role: companyRole
-                  },
-                  update: {
-                    role: companyRole
-                  }
-                })
-              } catch (bridgeErr: any) {
-                if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
-              }
+      // Process Companies — custom API returns [{name, nid, role}]
+      const companies: Array<{name: string; nid: number; role: string}> = post.companies || []
+      for (const company of companies) {
+        if (!company.name) continue
+        
+        let companyRole = 'Participante'
+        const rawRole = company.role
+        if (rawRole && rawRole !== 'participante') {
+          // SAFETY: Reject operation type slugs — these are NOT roles
+          const OPERATION_TYPE_SLUGS = ['emisiones', 'financiamiento', 'fusiones-y-adquisiciones', 'reestructuraciones', 'litigios', 'arrendamientos']
+          if (OPERATION_TYPE_SLUGS.includes(rawRole.toLowerCase())) {
+            // Skip — this is an operation type, not a role
+          } else {
+            // Humanize slug roles to display names
+            const roleMap: Record<string, string> = {
+              'emisor':'Emisor','colocador-estructurador':'Colocador/Estructurador',
+              'comprador-inicial':'Comprador Inicial','suscriptor-lider':'Suscriptor Líder',
+              'suscriptor':'Suscriptor','lead-arranger':'Lead Arranger',
+              'trustee':'Trustee','fideicomitente':'Fideicomitente',
+              'agente-fiduciario':'Agente Fiduciario','prestamista':'Prestamista',
+              'prestatario':'Prestatario','asegurador':'Asegurador',
+              'lider-sindicato-bancos':'Líder Sindicato Bancos',
+              'miembro-sindicato-bancos':'Miembro Sindicato Bancos',
+              'comprador':'Comprador','vendedor':'Vendedor','target':'Target',
+              'demandado':'Demandado','demandante':'Demandante',
+              'deudor':'Deudor','entidad-financiera':'Entidad Financiera','otro':'Otro'
             }
+            companyRole = roleMap[rawRole] || rawRole.charAt(0).toUpperCase() + rawRole.slice(1).replace(/-/g, ' ')
           }
+        }
+
+        // Create or update Company (use nid as stable ID)
+        const companyId = `drupal-company-${company.nid}`
+        const upsertedCompany = await prisma.company.upsert({
+          where: { id: companyId },
+          create: { id: companyId, name: company.name },
+          update: { name: company.name }
+        })
+        
+        // Link to Transaction
+        try {
+          await prisma.transactionCompany.upsert({
+            where: {
+              transactionId_companyId_role: {
+                transactionId: transactionId,
+                companyId: upsertedCompany.id,
+                role: companyRole
+              }
+            },
+            create: {
+              id: `${transactionId}-${upsertedCompany.id}-${Date.now()}`,
+              transactionId: transactionId,
+              companyId: upsertedCompany.id,
+              role: companyRole
+            },
+            update: {
+              role: companyRole
+            }
+          })
+        } catch (bridgeErr: any) {
+          if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
         }
       }
 
-      // Process Lawyers (Abogados)
-      if (relationships?.field_abogados_involucrados?.data) {
-        const abogadosData = Array.isArray(relationships.field_abogados_involucrados.data)
-          ? relationships.field_abogados_involucrados.data
-          : [relationships.field_abogados_involucrados.data];
-          
-        for (const a of abogadosData) {
-          if (!a) continue;
-          const abogadoNode = getIncludedResource(a.type, a.id)
-          if (abogadoNode && (abogadoNode.attributes.name || abogadoNode.attributes.title)) {
-            const abogadoName = abogadoNode.attributes.name || abogadoNode.attributes.title
-            
-            // Create or update Lawyer
-            const upsertedLawyer = await prisma.lawyer.upsert({
-              where: { id: a.id },
-              create: { id: a.id, name: abogadoName },
-              update: { name: abogadoName }
-            })
-            
-            // Link to Transaction
-            try {
-              await prisma.transactionLawyer.upsert({
-                where: {
-                  transactionId_lawyerId_role: {
-                    transactionId: transactionId,
-                    lawyerId: upsertedLawyer.id,
-                    role: 'Abogado Involucrado'
-                  }
-                },
-                create: {
-                  id: `${transactionId}-${upsertedLawyer.id}-${Date.now()}`,
-                  transactionId: transactionId,
-                  lawyerId: upsertedLawyer.id,
-                  role: 'Abogado Involucrado'
-                },
-                update: {}
-              })
-            } catch (bridgeErr: any) {
-              if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
-            }
-          }
+      // Process Lawyers — custom API returns array of lawyer name strings
+      const lawyerNames: string[] = post.lawyers || []
+      for (const abogadoName of lawyerNames) {
+        if (!abogadoName) continue
+        
+        // Create or update Lawyer (use name-based ID since custom API returns names)
+        const lawyerId = `drupal-lawyer-${abogadoName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 60)}`
+        const upsertedLawyer = await prisma.lawyer.upsert({
+          where: { id: lawyerId },
+          create: { id: lawyerId, name: abogadoName },
+          update: { name: abogadoName }
+        })
+        
+        // Link to Transaction
+        try {
+          await prisma.transactionLawyer.upsert({
+            where: {
+              transactionId_lawyerId_role: {
+                transactionId: transactionId,
+                lawyerId: upsertedLawyer.id,
+                role: 'Abogado Involucrado'
+              }
+            },
+            create: {
+              id: `${transactionId}-${upsertedLawyer.id}-${Date.now()}`,
+              transactionId: transactionId,
+              lawyerId: upsertedLawyer.id,
+              role: 'Abogado Involucrado'
+            },
+            update: {}
+          })
+        } catch (bridgeErr: any) {
+          if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
         }
       }
 

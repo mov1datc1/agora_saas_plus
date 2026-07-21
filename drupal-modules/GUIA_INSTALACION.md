@@ -90,6 +90,7 @@ cat > agora_api/agora_api.info.yml << 'EOF'
 name: 'Agora REST API'
 type: module
 description: 'Custom REST API for Agora SaaS — serves all transaction posts (published + unpublished) with full relationships.'
+core: 8.x
 core_version_requirement: ^8 || ^9 || ^10
 package: Custom
 EOF
@@ -102,9 +103,10 @@ cat > agora_api/agora_api.routing.yml << 'EOF'
 agora_api.transactions:
   path: '/api/agora/transactions'
   defaults:
-    _controller: '\Drupal\agora_api\Controller\TransactionsController::list'
+    _controller: '\Drupal\agora_api\Controller\TransactionsController::getList'
   requirements:
     _access: 'TRUE'
+  methods: [GET]
   options:
     no_cache: TRUE
 EOF

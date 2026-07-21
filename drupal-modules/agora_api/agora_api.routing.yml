@@ -1,8 +1,9 @@
 agora_api.transactions:
   path: '/api/agora/transactions'
   defaults:
-    _controller: '\Drupal\agora_api\Controller\TransactionsController::list'
+    _controller: '\Drupal\agora_api\Controller\TransactionsController::getList'
   requirements:
     _access: 'TRUE'
+  methods: [GET]
   options:
     no_cache: TRUE

@@ -38,14 +38,14 @@ export default async function SettingsPage() {
             Integración con Drupal
           </h2>
             <p className="mt-1 text-sm leading-6 text-foreground/60">
-            Define la URL base de la API de Drupal y la clave del Cronjob. Por la arquitectura Serverless, estos valores se configuran como Variables de Entorno en Vercel.
+            Conectado a la API REST custom de Drupal (<code>/api/agora/transactions</code>). La autenticación usa token seguro via header <code>X-Agora-Token</code>. Los valores se configuran como Variables de Entorno en Vercel.
           </p>
-          <div className="mt-4 rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 ring-1 ring-blue-400/30">
+          <div className="mt-4 rounded-md bg-emerald-50 dark:bg-emerald-900/20 p-4 ring-1 ring-emerald-400/30">
             <div className="flex">
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-500">¿Cómo cambiar a Producción?</h3>
-                <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
-                  <p>Para conectar al servidor oficial de LexLatin, ve a tu panel de Vercel (Project Settings {'>'} Environment Variables) y cambia la variable <code>DRUPAL_API_URL</code> a la nueva ruta, luego haz un Re-deploy.</p>
+                <h3 className="text-sm font-medium text-emerald-800 dark:text-emerald-500">✅ Modo Producción Activo</h3>
+                <div className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
+                  <p>La sincronización utiliza la API REST custom de Drupal en lugar de JSON:API. Esto permite acceso a contenido publicado y no publicado con relaciones completas pre-resueltas. Cron configurado diariamente a las 3:00 AM (Hora CDMX).</p>
                 </div>
               </div>
             </div>
@@ -57,7 +57,7 @@ export default async function SettingsPage() {
             <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
               <div className="sm:col-span-4">
                 <label htmlFor="drupal-api-url" className="block text-sm font-medium leading-6 text-foreground">
-                  URL Base de la API (JSON:API)
+                  Endpoint de la API Agora REST
                 </label>
                 <div className="mt-2">
                   <div className="flex rounded-md shadow-sm ring-1 ring-inset ring-border focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand sm:max-w-md">
@@ -67,7 +67,7 @@ export default async function SettingsPage() {
                       name="drupal-api-url"
                       id="drupal-api-url"
                       className="block flex-1 border-0 bg-transparent py-1.5 pl-1 text-foreground placeholder:text-foreground/40 focus:ring-0 sm:text-sm sm:leading-6"
-                      defaultValue={process.env.DRUPAL_API_URL || "https://phpstack-763726-5097902.cloudwaysapps.com/jsonapi"}
+                      defaultValue={process.env.DRUPAL_API_URL || "https://lexlatin.com/api/agora/transactions"}
                       disabled
                       title="Editable desde Vercel Env Variables"
                     />
@@ -90,12 +90,12 @@ export default async function SettingsPage() {
                     <label htmlFor="sync-enabled" className="font-medium text-foreground">
                       Sincronización Diaria Automática
                     </label>
-                    <p className="text-foreground/60">Activa o desactiva el Cronjob que trae datos nuevos todas las madrugadas.</p>
+                    <p className="text-foreground/60">Cronjob activo diariamente a las 3:00 AM (Hora CDMX). Sincroniza vía la API REST custom de Drupal.</p>
                   </div>
                 </div>
               </div>
             </div>
-            <MassiveSyncClient drupalUrl={process.env.DRUPAL_API_URL || "https://lexlatin.com/jsonapi"} />
+            <MassiveSyncClient drupalUrl={process.env.DRUPAL_API_URL || "https://lexlatin.com/api/agora/transactions"} />
           </div>
           <div className="flex items-center justify-end gap-x-6 border-t border-border px-4 py-4 sm:px-8">
             <button type="button" className="text-sm font-semibold leading-6 text-foreground hover:text-foreground/80">

@@ -34,7 +34,7 @@ class TransactionsController {
   /**
    * Main endpoint: list transaction posts with all relationships.
    */
-  public function list(Request $request) {
+  public function getList(Request $request) {
     // ── Auth ──
     $token = $request->headers->get('X-Agora-Token');
     if ($token !== self::API_TOKEN) {
@@ -75,9 +75,7 @@ class TransactionsController {
     }
 
     // Count total before pagination
-    $countQuery = clone $query;
-    $countQuery->addExpression('COUNT(*)');
-    $total = (int) $countQuery->execute()->fetchField();
+    $total = (int) $query->countQuery()->execute()->fetchField();
 
     // Fetch paginated NIDs
     $query->fields('n', ['nid', 'title', 'status', 'created', 'changed']);

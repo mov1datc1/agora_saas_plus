@@ -1,5 +1,6 @@
 name: 'Agora REST API'
 type: module
 description: 'Custom REST API for Agora SaaS — serves all transaction posts (published + unpublished) with full relationships.'
+core: 8.x
 core_version_requirement: ^8 || ^9 || ^10
 package: Custom
