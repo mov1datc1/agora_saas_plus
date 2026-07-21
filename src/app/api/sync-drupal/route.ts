@@ -93,6 +93,7 @@ export async function POST(request: Request) {
       const url = `${DRUPAL_API_BASE}?page=${Math.floor(currentOffset / BATCH_SIZE)}&limit=${BATCH_SIZE}&status=all`
       
       let posts: any[] = []
+      let debugInfo: any = null
       
       try {
         const response = await fetch(url, {
@@ -104,17 +105,41 @@ export async function POST(request: Request) {
 
         if (!response.ok) {
           console.error(`Drupal batch ${batchNumber} failed: ${response.status}`)
+          // Return diagnostic info instead of silently breaking
+          if (batchNumber === 1) {
+            debugInfo = { drupalStatus: response.status, url: url.replace(DRUPAL_AGORA_TOKEN, '***'), envUrl: DRUPAL_API_BASE }
+          }
           break // Stop pagination on error, return what we have
         }
 
         const json = await response.json()
         posts = json.data || []
-      } catch (fetchError) {
+        
+        // Capture debug on first empty batch
+        if (posts.length === 0 && batchNumber === 1) {
+          debugInfo = { drupalStatus: response.status, total: json.total, count: json.count, url: url.replace(DRUPAL_AGORA_TOKEN, '***'), envUrl: DRUPAL_API_BASE, responseKeys: Object.keys(json) }
+        }
+      } catch (fetchError: any) {
         console.error(`Drupal fetch error on batch ${batchNumber}:`, fetchError)
+        if (batchNumber === 1) {
+          debugInfo = { fetchError: fetchError.message, url: url.replace(DRUPAL_AGORA_TOKEN, '***'), envUrl: DRUPAL_API_BASE }
+        }
         break
       }
 
       if (!posts || posts.length === 0) {
+        // Include debug info in the final response when no posts found
+        if (debugInfo) {
+          return NextResponse.json({ 
+            success: true, 
+            message: `No posts returned from Drupal API.`,
+            processedCount: 0,
+            batchesProcessed: batchNumber,
+            finalOffset: currentOffset,
+            multiAreaConflictCount: 0,
+            _debug: debugInfo
+          })
+        }
         break // No more posts to sync
       }
 
