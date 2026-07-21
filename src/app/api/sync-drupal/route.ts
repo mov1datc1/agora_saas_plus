@@ -171,10 +171,13 @@ export async function POST(request: Request) {
       const dateAnnouncedStr = post.field_fecha_firma || post.created
       const dateClosedStr = post.field_fecha_cierre
       
-      // Excerpt — custom API returns pre-cleaned excerpt
-      let excerpt: string | null = post.excerpt || null
-      if (!excerpt && post.body) {
-        const cleaned = post.body
+      // Excerpt — always use the full body text, cleaned of HTML
+      // The API's "excerpt" field is just the lead/teaser (very short ~136 chars).
+      // Ágora needs the full article text for the transaction detail card.
+      let excerpt: string | null = null
+      const bodySource = post.body || ''
+      if (bodySource) {
+        const cleaned = bodySource
           .replace(/<br\s*\/?>/gi, '\n')
           .replace(/<\/p>/gi, '\n')
           .replace(/<[^>]*>/g, '')
@@ -187,6 +190,10 @@ export async function POST(request: Request) {
           .replace(/\n{3,}/g, '\n\n')
           .trim()
         excerpt = cleaned.length > 2000 ? cleaned.substring(0, 2000) + '...' : cleaned
+      }
+      // Fallback to API excerpt if body is empty
+      if (!excerpt && post.excerpt) {
+        excerpt = post.excerpt
       }
 
       // ── PUBLICATION STATUS ──
