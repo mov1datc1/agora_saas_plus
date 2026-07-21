@@ -79,6 +79,7 @@ export async function POST(request: Request) {
     }
 
     let totalProcessed = 0
+    let skippedPortalOriginals = 0
     let batchNumber = 0
     let currentOffset = startOffset
     const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
@@ -196,6 +197,29 @@ export async function POST(request: Request) {
       // ── CLASSIFICATION v3.0: Deterministic by "Áreas de práctica" ──
       // Custom API returns practice_areas as an array of strings directly
       const practiceAreas: string[] = post.practice_areas || []
+
+      // ── PORTAL ORIGINAL FILTER (v3.1) ──
+      // Data Entry methodology: when a real transaction spans multiple practice areas
+      // (e.g., Financiamientos + Emisiones), they create CLONES — one per area —
+      // each marked as "caso no publicado" (unpublished), for Ágora to count correctly.
+      // The ORIGINAL post keeps all areas and stays published for the LexLatin.com portal.
+      //
+      // Rule: If a post has 2+ practice areas AND is published → it's the portal original.
+      // We skip it because the individual clones (same title, 1 area each) are the
+      // authoritative records for Ágora analytics.
+      //
+      // This prevents double/triple counting and eliminates false "multi-area conflicts".
+      const mappedAreas = practiceAreas.map(a => {
+        const lower = a.toLowerCase().trim()
+        return Object.keys(PRACTICE_AREA_MAP).some(key => lower.includes(key) || key.includes(lower))
+      }).filter(Boolean)
+
+      if (mappedAreas.length >= 2 && isPublished) {
+        // This is the portal original — skip it for Ágora
+        skippedPortalOriginals++
+        processedCount++ // Count as "processed" so pagination advances
+        continue
+      }
 
       // Step 0: Check for manual override (persists through re-syncs)
       const existingTx = await prisma.transaction.findUnique({
@@ -470,10 +494,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synchronized ${totalProcessed} transactions from Drupal in ${batchNumber} batch(es).`,
+      message: `Successfully synchronized ${totalProcessed} transactions from Drupal in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals (multi-area duplicates).` : ''}`,
       processedCount: totalProcessed,
       batchesProcessed: batchNumber,
       finalOffset: currentOffset,
+      skippedPortalOriginals,
       multiAreaConflicts: allConflicts.length > 0 ? allConflicts : undefined,
       multiAreaConflictCount: allConflicts.length
     })
