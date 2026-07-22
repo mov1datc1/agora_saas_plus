@@ -398,8 +398,11 @@ export async function POST(request: Request) {
       for (const rel of (compByPost[p.id] || [])) {
         if (!rel.nombre) continue
         try {
+          const companyId = `drupal-company-${rel.idEmpresa || rel.nombre.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 60)}`
           const company = await prisma.company.upsert({
-            where: { name: rel.nombre }, create: { name: rel.nombre }, update: {}
+            where: { id: companyId },
+            create: { id: companyId, name: rel.nombre },
+            update: { name: rel.nombre }
           })
           const role = rel.rol || 'Participante'
           await prisma.transactionCompany.upsert({
