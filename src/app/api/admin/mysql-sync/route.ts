@@ -380,10 +380,11 @@ export async function POST(request: Request) {
             })
             firmId = firm.id
           }
+          const lawyerId = `drupal-lawyer-${lawyerInfo.nombre.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 60)}`
           const lawyer = await prisma.lawyer.upsert({
-            where: { name_firmId: { name: lawyerInfo.nombre, firmId: firmId || '' } },
-            create: { name: lawyerInfo.nombre, firmId: firmId || null },
-            update: {}
+            where: { id: lawyerId },
+            create: { id: lawyerId, name: lawyerInfo.nombre, firmId: firmId || null },
+            update: { name: lawyerInfo.nombre, firmId: firmId || undefined }
           })
           await prisma.transactionLawyer.upsert({
             where: { transactionId_lawyerId_role: { transactionId: txId, lawyerId: lawyer.id, role: 'Abogado Involucrado' } },
