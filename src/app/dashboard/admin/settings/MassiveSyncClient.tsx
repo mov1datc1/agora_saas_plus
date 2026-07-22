@@ -419,26 +419,26 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
             {renderTerminal(activeJob.logs)}
           </div>
         ) : (
-          <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h5 className="font-semibold text-foreground mb-1">Iniciar Nueva Sincronización</h5>
-              <p className="text-sm text-muted-foreground">Genera un nuevo SyncJob que recorrerá toda la base histórica.</p>
+          <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm">
+            <div className="mb-4">
+              <h5 className="font-semibold text-foreground mb-1">Herramientas de Sincronización</h5>
+              <p className="text-sm text-muted-foreground">Gestiona la sincronización de datos desde Drupal.</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <a
                 href="/api/sync-drupal/conflicts?format=csv"
                 target="_blank"
-                className="flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-600 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
               >
-                <Download className="w-4 h-4" /> Conflictos
+                <Download className="w-3.5 h-3.5" /> Conflictos
               </a>
               <button
                 type="button"
                 onClick={() => setIsWipeConfirmOpen(true)}
                 disabled={isWiping}
-                className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} {isWiping ? 'Borrando...' : 'Wipe Data'}
+                {isWiping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} {isWiping ? 'Borrando...' : 'Wipe Data'}
               </button>
               <button
                 type="button"
@@ -463,17 +463,17 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
                   alert(`✅ Reparación completada: ${totalUpdated} excerpts actualizados.`)
                 }}
                 disabled={isRepairing}
-                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
               >
-                {isRepairing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {isRepairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 {isRepairing ? `Reparando... (${repairProgress.updated})` : 'Reparar Excerpts'}
               </button>
               <button
                 type="button"
                 onClick={() => { conflictsRef.current = []; setConflicts([]); setIsConfirmOpen(true) }}
-                className="flex items-center justify-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-sm hover:bg-foreground/80 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background hover:bg-foreground/80 transition-colors"
               >
-                <Play className="w-4 h-4" /> Iniciar SyncJob
+                <Play className="w-3.5 h-3.5" /> Iniciar SyncJob
               </button>
             </div>
           </div>

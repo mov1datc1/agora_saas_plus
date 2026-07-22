@@ -189,7 +189,7 @@ export async function POST(request: Request) {
           .replace(/&#39;/g, "'")
           .replace(/\n{3,}/g, '\n\n')
           .trim()
-        excerpt = cleaned.length > 2000 ? cleaned.substring(0, 2000) + '...' : cleaned
+        excerpt = cleaned
       }
       // Fallback to API excerpt if body is empty
       if (!excerpt && post.excerpt) {

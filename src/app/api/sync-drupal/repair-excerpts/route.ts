@@ -74,7 +74,7 @@ export async function POST(request: Request) {
               .replace(/&#39;/g, "'")
               .replace(/\n{3,}/g, '\n\n')
               .trim()
-            newExcerpt = cleaned.length > 2000 ? cleaned.substring(0, 2000) + '...' : cleaned
+            newExcerpt = cleaned
           }
           if (!newExcerpt && post.excerpt) {
             newExcerpt = post.excerpt
