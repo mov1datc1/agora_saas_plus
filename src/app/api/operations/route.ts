@@ -25,16 +25,16 @@ export async function GET(request: Request) {
     const dateEnd = searchParams.get('dateEnd')
     const valueRange = searchParams.get('valueRange')
 
-    // Date boundary: exclude future dates and invalid dates
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
+    // Date boundary: exclude future dates and invalid dates (all in UTC)
+    const nowUTC = new Date()
+    const endOfTodayUTC = new Date(Date.UTC(nowUTC.getUTCFullYear(), nowUTC.getUTCMonth(), nowUTC.getUTCDate() + 1)) // Start of tomorrow UTC
 
     // Build WHERE clause
     const where: any = {
       type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
       dateAnnounced: {
-        gte: new Date('1990-01-01'),
-        lte: today,
+        gte: new Date('1990-01-01T00:00:00Z'),
+        lt: endOfTodayUTC, // Exclude future dates
       }
     }
 
@@ -86,15 +86,11 @@ export async function GET(request: Request) {
     }
     if (dateEnd) {
       // Use the START of the NEXT day to include ALL timezone representations of the end date.
-      // e.g., dateEnd='2026-06-30' → nextDay='2026-07-01T00:00:00Z'
-      // A transaction stored as '2026-06-30T20:00:00-04:00' = '2026-07-01T00:00:00Z' in UTC
-      // would be missed with 'T23:59:59' but is caught with lt: nextDay
       const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
       nextDay.setUTCDate(nextDay.getUTCDate() + 1)
-      const upperBound = nextDay < today ? nextDay : today
       where.dateAnnounced = {
         ...where.dateAnnounced,
-        lt: upperBound,
+        lt: nextDay, // No cap needed — base filter already restricts to endOfTodayUTC
       }
     }
 

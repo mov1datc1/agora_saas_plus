@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { classifyOperationType, classifyIndustry } from '@/lib/classificationEngine'
+import { classifyOperationType, classifyIndustry, isNonTransactional } from '@/lib/classificationEngine'
 
 // ── NEW: Custom Agora REST API (replaces JSON:API) ──
 // The custom Drupal module at /api/agora/transactions returns pre-joined data
@@ -101,6 +101,7 @@ export async function POST(request: Request) {
 
     let totalProcessed = 0
     let skippedPortalOriginals = 0
+    let totalSkippedNonTransactions = 0
     let batchNumber = 0
     let currentOffset = startOffset
     const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
@@ -167,6 +168,7 @@ export async function POST(request: Request) {
 
       // Process each post in this batch
       let processedCount = 0
+      let skippedNonTransactions = 0
       const multiAreaConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
       for (const post of posts) {
       // ── NEW: Custom API returns nid directly (no UUID indirection) ──
@@ -176,6 +178,22 @@ export async function POST(request: Request) {
       // Dedup: skip if already processed in a previous batch
       if (processedIds.has(transactionId)) continue
       processedIds.add(transactionId)
+
+      // ── PRIMARY FILTER: Content Type ("Tipo de Noticia") ──
+      // This is the MOST IMPORTANT filter — replicates the MySQL script logic:
+      // `if (p.tipo && p.tipo !== 'Transacción') { stats.skipped++; continue; }`
+      //
+      // In Drupal's DB: field_tipo_de_noticia_value
+      // The custom API should return this as `field_tipo_de_noticia`
+      //
+      // If the field exists AND is NOT "Transacción" → skip entirely.
+      // If the field is null/undefined → allow (some old posts don't have it set)
+      const tipoNoticia = post.field_tipo_de_noticia
+      if (tipoNoticia && tipoNoticia.toLowerCase() !== 'transacción' && tipoNoticia.toLowerCase() !== 'transaccion') {
+        skippedNonTransactions++
+        processedCount++
+        continue
+      }
 
       // Extract attributes — custom API returns flat structure
       const title = post.title || 'Transacción sin título'
@@ -279,9 +297,24 @@ export async function POST(request: Request) {
         select: { typeOverride: true }
       })
 
+      // ── PHASE 0: NOISE FILTER (runs BEFORE practice area mapping) ──
+      // Critical: editorial content (lateral hirings, firm promotions, law firm expansions)
+      // often has practice areas like "corporativo - adquisiciones" assigned in Drupal,
+      // which would incorrectly classify them as M&A transactions.
+      //
+      // The noise filter checks the title + body text for editorial signals
+      // (nombramientos, fichajes, refuerza equipo, etc.) and only allows
+      // classification if genuine transaction evidence is present.
+      const titleLower = title.toLowerCase()
+      const cleanText = (excerpt || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').toLowerCase()
+      const fullTextForNoise = `${titleLower} ${cleanText}`
+      
+      const isEditorialNoise = !existingTx?.typeOverride && isNonTransactional(titleLower, fullTextForNoise)
+
       // Step 1: Deterministic mapping from practice areas
       const { type: mappedType, matchedArea, allMappedTypes } = mapPracticeAreaToType(practiceAreas)
-      let finalType = existingTx?.typeOverride || mappedType // Override takes priority
+      // If editorial noise detected, force "Operación General" regardless of practice area mapping
+      let finalType = existingTx?.typeOverride || (isEditorialNoise ? 'Operación General' : mappedType)
       const practiceAreaRaw = practiceAreas.join(', ') || null
 
       // Track multi-area conflicts for Data Entry review
@@ -297,7 +330,8 @@ export async function POST(request: Request) {
       }
 
       // Step 2: Heuristic fallback for posts without matching practice area
-      if (finalType === 'Operación General') {
+      // (only if NOT already forced to Operación General by noise filter)
+      if (finalType === 'Operación General' && !isEditorialNoise) {
         // Custom API returns companies with roles directly
         const companyRoles: string[] = (post.companies || [])
           .map((c: any) => c.role)
@@ -534,6 +568,7 @@ export async function POST(request: Request) {
       // Track conflicts from this batch
       allConflicts.push(...multiAreaConflicts)
       totalProcessed += processedCount
+      totalSkippedNonTransactions += skippedNonTransactions
 
       // Advance offset for next batch
       currentOffset += BATCH_SIZE
@@ -554,7 +589,7 @@ export async function POST(request: Request) {
             completedAt: new Date(),
             durationMs: Date.now() - cronStartTime,
             recordsProcessed: totalProcessed,
-            recordsSkipped: skippedPortalOriginals,
+            recordsSkipped: skippedPortalOriginals + totalSkippedNonTransactions,
             details: JSON.stringify({
               batchesProcessed: batchNumber,
               finalOffset: currentOffset,
@@ -569,11 +604,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully synchronized ${totalProcessed} transactions from Drupal in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals (multi-area duplicates).` : ''}`,
+      message: `Synchronized ${totalProcessed} transactions in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals.` : ''}${totalSkippedNonTransactions > 0 ? ` Skipped ${totalSkippedNonTransactions} non-transaction posts.` : ''}`,
       processedCount: totalProcessed,
       batchesProcessed: batchNumber,
       finalOffset: currentOffset,
       skippedPortalOriginals,
+      skippedNonTransactions: totalSkippedNonTransactions,
       multiAreaConflicts: allConflicts.length > 0 ? allConflicts : undefined,
       multiAreaConflictCount: allConflicts.length
     })

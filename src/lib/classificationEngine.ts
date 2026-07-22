@@ -153,6 +153,13 @@ const CORPORATE_NEWS_SIGNALS: string[] = [
   'resultados financieros', 'resultados trimestrales', 'informe anual',
   'alianza estratégica', 'alianza comercial', 'convenio',
   'premio', 'reconocimiento', 'ranking', 'certificación',
+  // v3.1: Additional editorial noise signals (July 2026)
+  'se suma como', 'se suma a la práctica', 'refuerza su equipo',
+  'refuerza la práctica', 'se integra como', 'nuevo socio',
+  'nueva socia', 'fortalece su práctica', 'fortalece el equipo',
+  'expande equipo', 'amplía equipo', 'contratación',
+  'ficha a', 'ficha al', 'llega como', 'se une a',
+  'se unió a', 'designa como', 'designado',
 ]
 
 const LEGAL_NEWS_SIGNALS: string[] = [
@@ -164,7 +171,7 @@ const LEGAL_NEWS_SIGNALS: string[] = [
   'publicación', 'libro', 'guía jurídica',
 ]
 
-function isNonTransactional(titleLower: string, fullText: string): boolean {
+export function isNonTransactional(titleLower: string, fullText: string): boolean {
   // Count noise signals vs transaction signals
   let noiseScore = 0
   let transactionSignalFound = false
