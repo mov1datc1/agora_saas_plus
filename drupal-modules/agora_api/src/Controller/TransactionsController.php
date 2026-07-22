@@ -102,6 +102,7 @@ class TransactionsController {
     $fechasFirma = $this->loadFieldSingle($db, 'node__field_fecha_de_la_firma', 'field_fecha_de_la_firma_value', $nids);
     $fechasCierre = $this->loadFieldSingle($db, 'node__field_fecha_de_cierre_de_la_emis', 'field_fecha_de_cierre_de_la_emis_value', $nids);
     $fechasConcrecion = $this->loadFieldSingle($db, 'node__field_fecha_de_concrecion_del_ac', 'field_fecha_de_concrecion_del_ac_value', $nids);
+    $tiposNoticia = $this->loadFieldSingle($db, 'node__field_tipo_de_noticia', 'field_tipo_de_noticia_value', $nids);
 
     // Relationships (multi-value)
     $practiceAreas = $this->loadRelatedNames($db, 'node__field_ae', 'field_ae_target_id', $nids);
@@ -144,6 +145,7 @@ class TransactionsController {
         'lawyers' => $lawyers[$nid] ?? [],
         'companies' => $companies[$nid] ?? [],
         'monetary' => $monetary[$nid] ?? NULL,
+        'field_tipo_de_noticia' => $tiposNoticia[$nid] ?? NULL,
       ];
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle, Trash2 } from 'lucide-react'
-import { runSyncChunk, wipeAllData } from './sync-actions'
+import { runSyncChunk, wipeAllData, purgeMultiAreaOriginals } from './sync-actions'
 import { runRepairExcerptsChunk } from './repair-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -16,6 +16,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false)
   const [isWiping, setIsWiping] = useState(false)
   const [isRepairing, setIsRepairing] = useState(false)
+  const [isPurging, setIsPurging] = useState(false)
   const [repairProgress, setRepairProgress] = useState({ offset: 0, updated: 0, total: 24556 })
   const [isLoadingJobs, setIsLoadingJobs] = useState(true)
   
@@ -467,6 +468,29 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
               >
                 {isRepairing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 {isRepairing ? `Reparando... (${repairProgress.updated})` : 'Reparar Excerpts'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm('¿Purgar originales multi-área? Esto eliminará las operaciones duplicadas que tienen 2+ áreas de práctica (los originales del portal).')) return
+                  setIsPurging(true)
+                  try {
+                    const result = await purgeMultiAreaOriginals()
+                    if (result.success) {
+                      alert(`✅ ${result.message}\n\nEliminados:\n${(result.purgedList || []).join('\n')}`)
+                    } else {
+                      alert(`❌ Error: ${result.error}`)
+                    }
+                  } catch (e: any) {
+                    alert(`❌ Error: ${e.message}`)
+                  }
+                  setIsPurging(false)
+                }}
+                disabled={isPurging}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                {isPurging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                {isPurging ? 'Purgando...' : 'Purgar Duplicados'}
               </button>
               <button
                 type="button"
