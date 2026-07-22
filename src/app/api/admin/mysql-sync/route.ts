@@ -261,28 +261,61 @@ export async function POST(request: Request) {
     const moneyByPost: Record<number, any> = {}
     postMoney.forEach((m: any) => { if (!moneyByPost[m.idPost]) moneyByPost[m.idPost] = m })
 
+    // ── Helper: Delete transaction + cascade (bridge tables auto-delete) ──
+    const deleteIfExists = async (txId: string): Promise<boolean> => {
+      try {
+        await prisma.transaction.delete({ where: { id: txId } })
+        return true
+      } catch { return false } // Doesn't exist — that's fine
+    }
+
     // ── Process & Write to Supabase ──
     let processed = 0
     let skippedTipo = 0
     let skippedMultiArea = 0
     let skippedNoise = 0
+    let skippedOpGeneral = 0
+    let deletedTipo = 0
+    let deletedMultiArea = 0
+    let deletedNoise = 0
+    let deletedOpGeneral = 0
 
     for (const p of posts) {
+      const txId = `drupal-${p.id}`
+
       // FILTER 1: tipo_de_noticia
-      if (p.tipo && p.tipo !== 'Transacción') { skippedTipo++; continue }
+      if (p.tipo && p.tipo !== 'Transacción') {
+        skippedTipo++
+        if (await deleteIfExists(txId)) deletedTipo++
+        continue
+      }
 
       // FILTER 2: Portal Original (2+ mapped areas)
       const areas = (areasByPost[p.id] || []).map((a: any) => paMap[a.idArea]).filter(Boolean)
       const cls = classifyAreas(areas)
-      if (cls.isMultiArea) { skippedMultiArea++; continue }
+      if (cls.isMultiArea) {
+        skippedMultiArea++
+        if (await deleteIfExists(txId)) deletedMultiArea++
+        continue
+      }
 
       // FILTER 3: Noise filter
       const titleLower = (p.titulo || '').toLowerCase()
       const bodyClean = stripHtml(p.bodyRaw || '').toLowerCase()
-      if (isNonTransactional(titleLower, `${titleLower} ${bodyClean}`)) { skippedNoise++; continue }
+      if (isNonTransactional(titleLower, `${titleLower} ${bodyClean}`)) {
+        skippedNoise++
+        if (await deleteIfExists(txId)) deletedNoise++
+        continue
+      }
 
-      // ── Build data ──
-      const txId = `drupal-${p.id}`
+      // FILTER 4: Operación General (not a classifiable transaction)
+      if (cls.type === 'Operación General') {
+        skippedOpGeneral++
+        if (await deleteIfExists(txId)) deletedOpGeneral++
+        continue
+      }
+
+      // ── Build data (only M&A, Emisiones, Financiamientos reach here) ──
       const ctrs = (ctryByPost[p.id] || []).map((c: any) => countryMap[c.idPais]).filter(Boolean)
       const dateVal = safeDateISO(p.fechaConcrecion || p.fechaFirma || p.fechaCierre)
       const dateClose = safeDateISO(p.fechaCierre)
@@ -418,21 +451,28 @@ export async function POST(request: Request) {
 
     const hasMore = posts.length === CHUNK_SIZE
     const nextOffset = offset + posts.length
-    const skipped = skippedTipo + skippedMultiArea + skippedNoise
+    const skipped = skippedTipo + skippedMultiArea + skippedNoise + skippedOpGeneral
+    const deleted = deletedTipo + deletedMultiArea + deletedNoise + deletedOpGeneral
 
     return NextResponse.json({
       success: true,
       processed,
       skipped,
+      deleted,
       skippedTipo,
       skippedMultiArea,
       skippedNoise,
+      skippedOpGeneral,
+      deletedTipo,
+      deletedMultiArea,
+      deletedNoise,
+      deletedOpGeneral,
       offset: nextOffset,
       hasMore,
       total,
       chunkSize: posts.length,
       durationMs: Date.now() - startTime,
-      message: `Chunk procesado: ${processed} transacciones, ${skipped} filtradas. Offset: ${nextOffset}/${total}`,
+      message: `Chunk: ${processed} upserts, ${deleted} eliminados, ${skipped} filtrados. Offset: ${nextOffset}/${total}`,
     })
 
   } catch (error: any) {

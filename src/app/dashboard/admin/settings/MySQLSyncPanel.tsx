@@ -10,7 +10,7 @@ export default function MySQLSyncPanel() {
 
   const [isSyncing, setIsSyncing] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
-  const [syncProgress, setSyncProgress] = useState({ processed: 0, skipped: 0, total: 0, offset: 0, chunks: 0 })
+  const [syncProgress, setSyncProgress] = useState({ processed: 0, skipped: 0, deleted: 0, total: 0, offset: 0, chunks: 0 })
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [syncError, setSyncError] = useState<string | null>(null)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -108,7 +108,7 @@ export default function MySQLSyncPanel() {
     setIsSyncing(true)
     setIsComplete(false)
     keepSyncingRef.current = true
-    setSyncProgress({ processed: 0, skipped: 0, total: 0, offset: 0, chunks: 0 })
+    setSyncProgress({ processed: 0, skipped: 0, deleted: 0, total: 0, offset: 0, chunks: 0 })
     setSyncLog([])
     setSyncError(null)
     setElapsedTime(0)
@@ -119,6 +119,7 @@ export default function MySQLSyncPanel() {
     let offset = 0
     let totalProcessed = 0
     let totalSkipped = 0
+    let totalDeleted = 0
     let chunks = 0
 
     while (keepSyncingRef.current) {
@@ -143,22 +144,24 @@ export default function MySQLSyncPanel() {
 
         totalProcessed += data.processed
         totalSkipped += data.skipped
+        totalDeleted += (data.deleted || 0)
         chunks++
         offset = data.offset
 
         setSyncProgress({
           processed: totalProcessed,
           skipped: totalSkipped,
+          deleted: totalDeleted,
           total: data.total,
           offset: data.offset,
           chunks,
         })
 
-        addLog(`✅ Chunk #${chunks}: ${data.processed} procesados, ${data.skipped} filtrados (${data.durationMs}ms) — Offset: ${offset}/${data.total}`)
+        addLog(`✅ Chunk #${chunks}: ${data.processed} upserts, ${data.deleted || 0} eliminados, ${data.skipped} filtrados (${data.durationMs}ms) — ${offset}/${data.total}`)
 
         if (!data.hasMore) {
           addLog(`🎉 ¡Sincronización completada exitosamente!`)
-          addLog(`📊 Total: ${totalProcessed.toLocaleString()} transacciones procesadas, ${totalSkipped.toLocaleString()} filtradas en ${chunks} chunks`)
+          addLog(`📊 Total: ${totalProcessed.toLocaleString()} transacciones, ${totalDeleted.toLocaleString()} basura eliminada, ${totalSkipped.toLocaleString()} filtradas`)
           setIsComplete(true)
           notifyCompletion(totalProcessed, totalSkipped, true)
           break
@@ -219,8 +222,10 @@ export default function MySQLSyncPanel() {
             <PartyPopper className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-green-400">¡Sincronización exitosa!</p>
-              <p className="text-xs text-green-400/80 mt-1">
-                {syncProgress.processed.toLocaleString()} transacciones procesadas • {syncProgress.skipped.toLocaleString()} filtradas • {syncProgress.chunks} chunks • {formatTime(elapsedTime)}
+              <p className="text-xs text-green-400/80 mt-1 leading-relaxed">
+                ✅ {syncProgress.processed.toLocaleString()} transacciones válidas<br />
+                🗑️ {syncProgress.deleted.toLocaleString()} registros basura eliminados<br />
+                ⏭️ {syncProgress.skipped.toLocaleString()} filtrados • {syncProgress.chunks} chunks • {formatTime(elapsedTime)}
               </p>
             </div>
           </div>
@@ -298,7 +303,7 @@ export default function MySQLSyncPanel() {
         {(isSyncing || syncProgress.processed > 0) && (
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{syncProgress.processed.toLocaleString()} procesados • {syncProgress.skipped.toLocaleString()} filtrados</span>
+              <span>{syncProgress.processed.toLocaleString()} ✅ • {syncProgress.deleted.toLocaleString()} 🗑️ • {syncProgress.skipped.toLocaleString()} ⏭️</span>
               <span>{progress}% • Chunk #{syncProgress.chunks}</span>
             </div>
             <div className="w-full h-2.5 rounded-full bg-foreground/10 overflow-hidden">
