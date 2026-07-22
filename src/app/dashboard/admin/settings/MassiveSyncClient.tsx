@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle, Trash2 } from 'lucide-react'
 import { runSyncChunk, wipeAllData } from './sync-actions'
+import { runRepairExcerptsChunk } from './repair-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) {
@@ -14,6 +15,8 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isWipeConfirmOpen, setIsWipeConfirmOpen] = useState(false)
   const [isWiping, setIsWiping] = useState(false)
+  const [isRepairing, setIsRepairing] = useState(false)
+  const [repairProgress, setRepairProgress] = useState({ offset: 0, updated: 0, total: 24556 })
   const [isLoadingJobs, setIsLoadingJobs] = useState(true)
   
   // This ref acts as our "worker thread" memory so we can cancel loops
@@ -152,11 +155,13 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
             setConflicts([...conflictsRef.current])
           }
 
-          if (count < 5) {
-            // End of data reached — but don't mark complete yet, check for retry pass
+          // Use finalOffset from API response (accounts for actual batches processed)
+          const newOffset = result.finalOffset ?? (currentOffset + 5)
+          if (newOffset <= currentOffset || count === 0) {
+            // End of data reached
             keepSyncingRef.current = false
           } else {
-            currentOffset += 5
+            currentOffset = newOffset
             await patchJob(job.id, { currentOffset, totalProcessed, skippedBlocks })
           }
           
@@ -434,6 +439,34 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
                 className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition-colors shrink-0"
               >
                 {isWiping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} {isWiping ? 'Borrando...' : 'Wipe Data'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsRepairing(true)
+                  setRepairProgress({ offset: 0, updated: 0, total: 24556 })
+                  let offset = 0
+                  let totalUpdated = 0
+                  while (true) {
+                    try {
+                      const result = await runRepairExcerptsChunk(offset)
+                      if (!result.success) break
+                      totalUpdated += result.updatedCount || 0
+                      offset = result.finalOffset || (offset + 200)
+                      setRepairProgress({ offset, updated: totalUpdated, total: 24556 })
+                      if ((result.updatedCount || 0) + (result.skippedCount || 0) < 200) break
+                    } catch {
+                      break
+                    }
+                  }
+                  setIsRepairing(false)
+                  alert(`✅ Reparación completada: ${totalUpdated} excerpts actualizados.`)
+                }}
+                disabled={isRepairing}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 transition-colors shrink-0"
+              >
+                {isRepairing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {isRepairing ? `Reparando... (${repairProgress.updated})` : 'Reparar Excerpts'}
               </button>
               <button
                 type="button"
