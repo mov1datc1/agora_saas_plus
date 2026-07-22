@@ -2,6 +2,7 @@ import { Save, Server, CreditCard, ShieldAlert, ShieldCheck } from 'lucide-react
 import { getSystemConfig } from './actions'
 import SettingsClient from './SettingsClient'
 import MassiveSyncClient from './MassiveSyncClient'
+import MySQLSyncPanel from './MySQLSyncPanel'
 import CronLogsPanel from './CronLogsPanel'
 import ClearCacheClient from './ClearCacheClient'
 import MaintenanceClient from './MaintenanceClient'
@@ -97,6 +98,7 @@ export default async function SettingsPage() {
               </div>
             </div>
             <MassiveSyncClient drupalUrl={process.env.DRUPAL_API_URL || "https://lexlatin.com/api/agora/transactions"} />
+            <MySQLSyncPanel />
             <CronLogsPanel />
           </div>
           <div className="flex items-center justify-end gap-x-6 border-t border-border px-4 py-4 sm:px-8">
