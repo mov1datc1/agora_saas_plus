@@ -52,6 +52,9 @@ function mapPracticeAreaToType(practiceAreas: string[]): { type: string; matched
 }
 
 export async function POST(request: Request) {
+  const cronStartTime = Date.now()
+  let cronLogId: string | null = null
+
   try {
     const CRON_SECRET = process.env.CRON_SECRET || 'agora-secret-token'
     const authHeader = request.headers.get('authorization')
@@ -59,6 +62,24 @@ export async function POST(request: Request) {
       if (process.env.NODE_ENV === 'production') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
+    }
+
+    // Determine trigger source (cron = Vercel cron header, manual = bypass token)
+    const isCronTrigger = request.headers.get('x-vercel-cron') === '1' || (authHeader === `Bearer ${CRON_SECRET}` && authHeader !== 'Bearer agora-bypass-token')
+    const triggerSource = authHeader === 'Bearer agora-bypass-token' ? 'manual' : (isCronTrigger ? 'cron' : 'system')
+
+    // Create CronLog entry
+    try {
+      const cronLog = await prisma.cronLog.create({
+        data: {
+          jobName: 'sync-drupal',
+          status: 'RUNNING',
+          trigger: triggerSource,
+        }
+      })
+      cronLogId = cronLog.id
+    } catch (logErr) {
+      console.error('Failed to create CronLog:', logErr)
     }
 
     // 2. Pagination loop: process batches of 5 until no more new posts
@@ -523,6 +544,29 @@ export async function POST(request: Request) {
       }
     }
 
+    // Update CronLog with success
+    if (cronLogId) {
+      try {
+        await prisma.cronLog.update({
+          where: { id: cronLogId },
+          data: {
+            status: 'SUCCESS',
+            completedAt: new Date(),
+            durationMs: Date.now() - cronStartTime,
+            recordsProcessed: totalProcessed,
+            recordsSkipped: skippedPortalOriginals,
+            details: JSON.stringify({
+              batchesProcessed: batchNumber,
+              finalOffset: currentOffset,
+              conflicts: allConflicts.length,
+            })
+          }
+        })
+      } catch (logErr) {
+        console.error('Failed to update CronLog:', logErr)
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       message: `Successfully synchronized ${totalProcessed} transactions from Drupal in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals (multi-area duplicates).` : ''}`,
@@ -536,6 +580,24 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('ETL Sync Error:', error)
+
+    // Update CronLog with failure
+    if (cronLogId) {
+      try {
+        await prisma.cronLog.update({
+          where: { id: cronLogId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            durationMs: Date.now() - cronStartTime,
+            errorMessage: error.message || 'Unknown error',
+          }
+        })
+      } catch (logErr) {
+        console.error('Failed to update CronLog on error:', logErr)
+      }
+    }
+
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

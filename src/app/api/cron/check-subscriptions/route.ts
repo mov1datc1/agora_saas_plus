@@ -7,10 +7,23 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  const cronStartTime = Date.now()
+  let cronLogId: string | null = null
+
   try {
     const authHeader = request.headers.get('authorization')
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Create CronLog entry
+    try {
+      const cronLog = await prisma.cronLog.create({
+        data: { jobName: 'check-subscriptions', status: 'RUNNING', trigger: 'cron' }
+      })
+      cronLogId = cronLog.id
+    } catch (logErr) {
+      console.error('Failed to create CronLog:', logErr)
     }
 
     const today = new Date()
@@ -109,6 +122,25 @@ export async function GET(request: Request) {
       }
     }
 
+    // Update CronLog with success
+    if (cronLogId) {
+      try {
+        await prisma.cronLog.update({
+          where: { id: cronLogId },
+          data: {
+            status: 'SUCCESS',
+            completedAt: new Date(),
+            durationMs: Date.now() - cronStartTime,
+            recordsProcessed: notificationsSent.length,
+            recordsSkipped: deactivatedUsers.length,
+            details: JSON.stringify({ notificationsSent, deactivatedUsers })
+          }
+        })
+      } catch (logErr) {
+        console.error('Failed to update CronLog:', logErr)
+      }
+    }
+
     return NextResponse.json({ 
       success: true, 
       notificationsSent, 
@@ -116,6 +148,23 @@ export async function GET(request: Request) {
     })
   } catch (error: any) {
     console.error('CRON Error:', error)
+
+    if (cronLogId) {
+      try {
+        await prisma.cronLog.update({
+          where: { id: cronLogId },
+          data: {
+            status: 'FAILED',
+            completedAt: new Date(),
+            durationMs: Date.now() - cronStartTime,
+            errorMessage: error.message || 'Unknown error',
+          }
+        })
+      } catch (logErr) {
+        console.error('Failed to update CronLog on error:', logErr)
+      }
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

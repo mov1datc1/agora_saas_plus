@@ -208,3 +208,20 @@ model SyncJob {
   updatedAt       DateTime  @updatedAt
   completedAt     DateTime?
 }
+
+model CronLog {
+  id              String    @id @default(uuid())
+  jobName         String    // "sync-drupal", "check-subscriptions", "repair-excerpts"
+  status          String    @default("RUNNING") // RUNNING, SUCCESS, FAILED
+  trigger         String    @default("cron") // "cron", "manual", "system"
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  durationMs      Int?      // Execution time in milliseconds
+  recordsProcessed Int      @default(0)
+  recordsSkipped  Int       @default(0)
+  errorMessage    String?   @db.Text
+  details         String?   @db.Text // JSON with extra info (offset, conflicts, etc.)
+  createdAt       DateTime  @default(now())
+
+  @@index([jobName, startedAt])
+}
