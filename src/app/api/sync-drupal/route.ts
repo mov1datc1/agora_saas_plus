@@ -171,29 +171,52 @@ export async function POST(request: Request) {
       const dateAnnouncedStr = post.field_fecha_firma || post.created
       const dateClosedStr = post.field_fecha_cierre
       
-      // Excerpt — always use the full body text, cleaned of HTML
-      // The API's "excerpt" field is just the lead/teaser (very short ~136 chars).
-      // Ágora needs the full article text for the transaction detail card.
+      // Excerpt — preserve HTML formatting from Drupal's body field
+      // Keep structural/formatting tags (p, strong, b, em, h2-h4, ul, ol, li, br)
+      // Strip only dangerous/irrelevant tags (script, style, iframe, img, etc.)
       let excerpt: string | null = null
       const bodySource = post.body || ''
       if (bodySource) {
-        const cleaned = bodySource
-          .replace(/<br\s*\/?>/gi, '\n')
-          .replace(/<\/p>/gi, '\n')
-          .replace(/<[^>]*>/g, '')
+        const sanitized = bodySource
+          // Remove dangerous tags and their content
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+          .replace(/<object[\s\S]*?<\/object>/gi, '')
+          .replace(/<embed[\s\S]*?<\/embed>/gi, '')
+          .replace(/<form[\s\S]*?<\/form>/gi, '')
+          // Remove img, input, button tags (self-closing or not)
+          .replace(/<img[^>]*\/?>/gi, '')
+          .replace(/<input[^>]*\/?>/gi, '')
+          .replace(/<button[\s\S]*?<\/button>/gi, '')
+          // Remove class/style/id attributes from remaining tags for clean rendering
+          .replace(/<(\w+)\s+[^>]*>/g, (match: string, tag: string) => {
+            const safeTags = ['p', 'strong', 'b', 'em', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'hr', 'blockquote', 'a', 'span', 'div', 'sup', 'sub']
+            if (safeTags.includes(tag.toLowerCase())) {
+              // Keep href for anchor tags, strip everything else
+              if (tag.toLowerCase() === 'a') {
+                const hrefMatch = match.match(/href="([^"]*)"/i)
+                return hrefMatch ? `<a href="${hrefMatch[1]}" target="_blank" rel="noopener noreferrer">` : '<a>'
+              }
+              return `<${tag}>`
+            }
+            return '' // Remove unsupported tags
+          })
+          // Clean up closing tags for removed elements
+          .replace(/<\/(?!p|strong|b|em|i|h[1-6]|ul|ol|li|br|hr|blockquote|a|span|div|sup|sub)\w+>/gi, '')
+          // Decode HTML entities
           .replace(/&nbsp;/g, ' ')
           .replace(/&amp;/g, '&')
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'")
-          .replace(/\n{3,}/g, '\n\n')
           .trim()
-        excerpt = cleaned
+        excerpt = sanitized
       }
       // Fallback to API excerpt if body is empty
       if (!excerpt && post.excerpt) {
-        excerpt = post.excerpt
+        excerpt = `<p>${post.excerpt}</p>`
       }
 
       // ── PUBLICATION STATUS ──

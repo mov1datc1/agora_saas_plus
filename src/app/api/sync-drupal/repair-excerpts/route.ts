@@ -58,26 +58,43 @@ export async function POST(request: Request) {
         for (const post of posts) {
           const transactionId = `drupal-${post.nid}`
           
-          // Extract and clean body text
+          // Extract and sanitize body HTML — preserve formatting tags
           let newExcerpt: string | null = null
           const bodySource = post.body || ''
           if (bodySource) {
-            const cleaned = bodySource
-              .replace(/<br\s*\/?>/gi, '\n')
-              .replace(/<\/p>/gi, '\n')
-              .replace(/<[^>]*>/g, '')
+            const sanitized = bodySource
+              .replace(/<script[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[\s\S]*?<\/style>/gi, '')
+              .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+              .replace(/<object[\s\S]*?<\/object>/gi, '')
+              .replace(/<embed[\s\S]*?<\/embed>/gi, '')
+              .replace(/<form[\s\S]*?<\/form>/gi, '')
+              .replace(/<img[^>]*\/?>/gi, '')
+              .replace(/<input[^>]*\/?>/gi, '')
+              .replace(/<button[\s\S]*?<\/button>/gi, '')
+              .replace(/<(\w+)\s+[^>]*>/g, (match: string, tag: string) => {
+                const safeTags = ['p', 'strong', 'b', 'em', 'i', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'br', 'hr', 'blockquote', 'a', 'span', 'div', 'sup', 'sub']
+                if (safeTags.includes(tag.toLowerCase())) {
+                  if (tag.toLowerCase() === 'a') {
+                    const hrefMatch = match.match(/href="([^"]*)"/i)
+                    return hrefMatch ? `<a href="${hrefMatch[1]}" target="_blank" rel="noopener noreferrer">` : '<a>'
+                  }
+                  return `<${tag}>`
+                }
+                return ''
+              })
+              .replace(/<\/(?!p|strong|b|em|i|h[1-6]|ul|ol|li|br|hr|blockquote|a|span|div|sup|sub)\w+>/gi, '')
               .replace(/&nbsp;/g, ' ')
               .replace(/&amp;/g, '&')
               .replace(/&lt;/g, '<')
               .replace(/&gt;/g, '>')
               .replace(/&quot;/g, '"')
               .replace(/&#39;/g, "'")
-              .replace(/\n{3,}/g, '\n\n')
               .trim()
-            newExcerpt = cleaned
+            newExcerpt = sanitized
           }
           if (!newExcerpt && post.excerpt) {
-            newExcerpt = post.excerpt
+            newExcerpt = `<p>${post.excerpt}</p>`
           }
 
           if (!newExcerpt) {

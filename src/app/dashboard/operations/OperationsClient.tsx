@@ -794,7 +794,7 @@ export default function OperationsClient() {
                     <div className="border-b border-border pb-6">
                       <p className="text-sm font-semibold text-foreground/80 mb-4">Resumen</p>
                       <div 
-                        className="text-sm text-muted-foreground leading-relaxed space-y-4 [&_a]:text-[#E05C50] [&_a]:underline [&_img]:hidden"
+                        className="text-sm text-foreground/80 leading-relaxed [&_p]:mb-3 [&_strong]:font-bold [&_strong]:text-foreground [&_b]:font-bold [&_b]:text-foreground [&_em]:italic [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mt-5 [&_h1]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-foreground [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-foreground [&_h3]:mt-4 [&_h3]:mb-2 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-foreground [&_h4]:mt-3 [&_h4]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3 [&_li]:mb-1 [&_a]:text-[#E05C50] [&_a]:underline [&_a:hover]:text-[#D92B4F] [&_hr]:my-4 [&_hr]:border-border [&_blockquote]:border-l-2 [&_blockquote]:border-brand [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:my-3 [&_img]:hidden [&_br]:block [&_br]:mb-1 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"
                         dangerouslySetInnerHTML={{ __html: txDetails.excerpt || (selectedTx as any).excerpt }}
                       />
                     </div>
