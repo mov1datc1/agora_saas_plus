@@ -54,9 +54,11 @@ export async function GET(request: Request) {
     }
 
     // Firm filter (via advisors relation)
+    // Dropdown sends base name (without sede suffix), so startsWith matches all sedes
+    // e.g., "Philippi Prietocarrizosa" matches "Philippi - Chile", "Philippi - Colombia", etc.
     if (firm && firm !== 'Todas') {
       where.advisors = {
-        some: { firm: { name: { contains: firm, mode: 'insensitive' } } }
+        some: { firm: { name: { startsWith: firm, mode: 'insensitive' } } }
       }
     }
 

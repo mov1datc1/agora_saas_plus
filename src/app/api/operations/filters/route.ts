@@ -57,7 +57,21 @@ export async function GET() {
     return NextResponse.json({
       industries: industries.map((i: any) => i.name).filter(Boolean),
       countries,
-      firms: firms.map((f: any) => f.name).filter(Boolean),
+      // Group firms by base name — strip " - Sede" suffix so all sedes
+      // (e.g., "Philippi - Chile", "Philippi - Colombia") appear as one entry.
+      // Users combine with country filter to narrow by specific sede.
+      firms: (() => {
+        const baseNames = new Set<string>()
+        for (const f of firms) {
+          if (!f.name) continue
+          // Strip sede suffix: "Firm Name - Country/Region" → "Firm Name"
+          const baseName = f.name.includes(' - ')
+            ? f.name.substring(0, f.name.lastIndexOf(' - ')).trim()
+            : f.name
+          baseNames.add(baseName)
+        }
+        return [...baseNames].sort((a, b) => a.localeCompare(b, 'es'))
+      })(),
       lawyers: lawyers.map((l: any) => l.name).filter(Boolean),
     })
   } catch (error: any) {
