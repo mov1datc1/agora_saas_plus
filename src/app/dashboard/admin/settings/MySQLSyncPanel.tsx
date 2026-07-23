@@ -85,65 +85,101 @@ export default function MySQLSyncPanel() {
     let offset = 0, totalProcessed = 0, totalSkipped = 0, totalDeleted = 0, chunks = 0
 
     while (keepSyncingRef.current) {
-      try {
-        addLog(chunks === 0 ? '⏳ Leyendo primer chunk de datos...' : `⏳ Procesando chunk #${chunks + 1}...`)
+      let retries = 0
+      const MAX_RETRIES = 3
+      let success = false
 
-        const res = await fetch('/api/admin/mysql-sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ offset, chunkSize: 50 })
-        })
+      while (retries <= MAX_RETRIES && !success) {
+        try {
+          if (retries > 0) {
+            const waitSec = retries * 10
+            addLog(`🔄 Reintento #${retries} en ${waitSec}s (offset: ${offset})...`)
+            await new Promise(r => setTimeout(r, waitSec * 1000))
+          } else {
+            addLog(chunks === 0 ? '⏳ Leyendo primer chunk...' : `⏳ Chunk #${chunks + 1}...`)
+          }
 
-        setIsConnecting(false)
+          const res = await fetch('/api/admin/mysql-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ offset, chunkSize: 50 })
+          })
 
-        if (!res.ok) {
-          const errorText = await res.text()
-          let parsed: any = {}
-          try { parsed = JSON.parse(errorText) } catch {}
-          const errorMsg = parsed.error || `HTTP ${res.status}: ${errorText.substring(0, 200)}`
-          setSyncError(errorMsg)
-          addLog(`❌ ${errorMsg}`)
+          setIsConnecting(false)
+
+          if (!res.ok) {
+            const errorText = await res.text()
+            // Retry on 5xx errors (Cloudflare 524, server timeouts)
+            if (res.status >= 500 && retries < MAX_RETRIES) {
+              addLog(`⚠️ HTTP ${res.status} — reintentando...`)
+              retries++
+              continue
+            }
+            let parsed: any = {}
+            try { parsed = JSON.parse(errorText) } catch {}
+            const errorMsg = parsed.error || `HTTP ${res.status}: ${errorText.substring(0, 200)}`
+            setSyncError(errorMsg)
+            addLog(`❌ ${errorMsg}`)
+            notifyCompletion(totalProcessed, totalDeleted, false)
+            keepSyncingRef.current = false
+            break
+          }
+
+          const data = await res.json()
+
+          if (!data.success) {
+            if (retries < MAX_RETRIES) {
+              addLog(`⚠️ Error del servidor — reintentando...`)
+              retries++
+              continue
+            }
+            setSyncError(data.error)
+            addLog(`❌ ${data.error}`)
+            notifyCompletion(totalProcessed, totalDeleted, false)
+            keepSyncingRef.current = false
+            break
+          }
+
+          totalProcessed += data.processed
+          totalSkipped += data.skipped
+          totalDeleted += (data.deleted || 0)
+          chunks++
+          offset = data.offset
+
+          setSyncProgress({
+            processed: totalProcessed, skipped: totalSkipped, deleted: totalDeleted,
+            total: data.total, offset: data.offset, chunks,
+          })
+
+          const phpTime = data.phpDurationMs ? ` (PHP: ${data.phpDurationMs}ms)` : ''
+          addLog(`✅ #${chunks}: ${data.processed} upserts, ${data.deleted || 0} 🗑️, ${data.skipped} ⏭️ (${data.durationMs}ms${phpTime}) — ${offset}/${data.total}`)
+
+          if (!data.hasMore) {
+            addLog(`🎉 ¡Sincronización completada!`)
+            addLog(`📊 ${totalProcessed.toLocaleString()} válidas • ${totalDeleted.toLocaleString()} eliminadas • ${totalSkipped.toLocaleString()} filtradas • ${chunks} chunks`)
+            setIsComplete(true)
+            notifyCompletion(totalProcessed, totalDeleted, true)
+            keepSyncingRef.current = false
+          }
+          success = true
+
+          // Small pause between chunks to reduce server load
+          if (data.hasMore) await new Promise(r => setTimeout(r, 1500))
+
+        } catch (e: any) {
+          setIsConnecting(false)
+          if (retries < MAX_RETRIES) {
+            addLog(`⚠️ Error de red — reintentando... (${e.message})`)
+            retries++
+            continue
+          }
+          const msg = e.message || 'Error desconocido'
+          setSyncError(msg)
+          addLog(`❌ Error tras ${MAX_RETRIES} reintentos: ${msg}`)
           notifyCompletion(totalProcessed, totalDeleted, false)
+          keepSyncingRef.current = false
           break
         }
-
-        const data = await res.json()
-
-        if (!data.success) {
-          setSyncError(data.error)
-          addLog(`❌ ${data.error}`)
-          notifyCompletion(totalProcessed, totalDeleted, false)
-          break
-        }
-
-        totalProcessed += data.processed
-        totalSkipped += data.skipped
-        totalDeleted += (data.deleted || 0)
-        chunks++
-        offset = data.offset
-
-        setSyncProgress({
-          processed: totalProcessed, skipped: totalSkipped, deleted: totalDeleted,
-          total: data.total, offset: data.offset, chunks,
-        })
-
-        const phpTime = data.phpDurationMs ? ` (PHP: ${data.phpDurationMs}ms)` : ''
-        addLog(`✅ #${chunks}: ${data.processed} upserts, ${data.deleted || 0} eliminados, ${data.skipped} filtrados (${data.durationMs}ms${phpTime}) — ${offset}/${data.total}`)
-
-        if (!data.hasMore) {
-          addLog(`🎉 ¡Sincronización completada!`)
-          addLog(`📊 ${totalProcessed.toLocaleString()} válidas • ${totalDeleted.toLocaleString()} eliminadas • ${totalSkipped.toLocaleString()} filtradas • ${chunks} chunks`)
-          setIsComplete(true)
-          notifyCompletion(totalProcessed, totalDeleted, true)
-          break
-        }
-      } catch (e: any) {
-        setIsConnecting(false)
-        const msg = e.message || 'Error desconocido'
-        setSyncError(msg)
-        addLog(`❌ Error: ${msg}`)
-        notifyCompletion(totalProcessed, totalDeleted, false)
-        break
       }
     }
 
