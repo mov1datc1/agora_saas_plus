@@ -13,7 +13,7 @@ import prisma from '@/lib/prisma'
  */
 
 // ── Config ──
-const BULK_EXPORT_URL = process.env.BULK_EXPORT_URL || 'https://lexlatin.com/agora-bulk-export.php'
+const BULK_EXPORT_URL = process.env.BULK_EXPORT_URL || 'https://lexlatin.com/secdir/agora-bulk-export.php'
 const BULK_EXPORT_KEY = process.env.BULK_EXPORT_KEY || 'agora-sync-2026-k8xP9mQ2vR'
 
 // ── Practice Area Map ──
