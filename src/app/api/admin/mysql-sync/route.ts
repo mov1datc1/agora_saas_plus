@@ -307,6 +307,14 @@ export async function POST(request: Request) {
         }
       })
 
+      // ── CLEAR old relations before re-inserting current ones ──
+      // Ensures edits in Drupal (e.g., changing a firm) don't leave stale records
+      await Promise.all([
+        prisma.transactionAdvisor.deleteMany({ where: { transactionId: txId } }),
+        prisma.transactionLawyer.deleteMany({ where: { transactionId: txId } }),
+        prisma.transactionCompany.deleteMany({ where: { transactionId: txId } }),
+      ])
+
       // ── Firms (advisors) ──
       for (const rel of (firmsByPost[p.id] || [])) {
         const firmName = firmNamesMap[rel.idFirma]

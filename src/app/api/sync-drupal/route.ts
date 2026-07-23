@@ -427,6 +427,15 @@ export async function POST(request: Request) {
         }
       })
 
+      // ── CLEAR old relations before re-inserting current ones ──
+      // When Drupal edits a transaction (e.g., changes firm from Bogotá to Santiago),
+      // we must delete old bridge records first, then create fresh ones from current data.
+      await Promise.all([
+        prisma.transactionAdvisor.deleteMany({ where: { transactionId } }),
+        prisma.transactionLawyer.deleteMany({ where: { transactionId } }),
+        prisma.transactionCompany.deleteMany({ where: { transactionId } }),
+      ])
+
       // Process Firms — custom API returns array of firm name strings
       const firmNames: string[] = post.firms || []
       for (const firmaName of firmNames) {
