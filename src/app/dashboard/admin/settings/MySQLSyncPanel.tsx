@@ -1,13 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Database, Loader2, AlertTriangle, CheckCircle2, Copy, Server, Play, Square, Globe, PartyPopper } from 'lucide-react'
+import { Database, Loader2, CheckCircle2, Play, Square, PartyPopper } from 'lucide-react'
 
 export default function MySQLSyncPanel() {
-  const [serverIp, setServerIp] = useState<string | null>(null)
-  const [isDetectingIp, setIsDetectingIp] = useState(false)
-  const [ipCopied, setIpCopied] = useState(false)
-
   const [isSyncing, setIsSyncing] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
@@ -22,7 +18,6 @@ export default function MySQLSyncPanel() {
   const logRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // ── Keep-alive: prevents browser from throttling this tab ──
   const startKeepAlive = useCallback(() => {
     keepAliveRef.current = setInterval(() => {
       fetch('/api/admin/server-ip', { method: 'HEAD' }).catch(() => {})
@@ -39,23 +34,16 @@ export default function MySQLSyncPanel() {
   }, [])
 
   useEffect(() => () => stopKeepAlive(), [stopKeepAlive])
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight }, [syncLog])
 
-  // Auto-scroll log to bottom
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight
-    }
-  }, [syncLog])
-
-  // ── Browser notification when done ──
-  const notifyCompletion = useCallback((processed: number, skipped: number, success: boolean) => {
-    document.title = success 
-      ? `✅ Sync completada — ${processed} transacciones` 
-      : `❌ Sync MySQL falló`
+  const notifyCompletion = useCallback((processed: number, deleted: number, success: boolean) => {
+    document.title = success
+      ? `✅ Sync completada — ${processed} transacciones`
+      : `❌ Sync falló`
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Ágora Plus — Sync MySQL', {
+      new Notification('Ágora Plus — Sync', {
         body: success
-          ? `✅ Completada: ${processed.toLocaleString()} procesados, ${skipped.toLocaleString()} filtrados`
+          ? `✅ ${processed.toLocaleString()} procesados, 🗑️ ${deleted.toLocaleString()} eliminados`
           : `❌ Error en la sincronización`,
         icon: '/favicon.ico'
       })
@@ -63,37 +51,8 @@ export default function MySQLSyncPanel() {
   }, [])
 
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission()
   }, [])
-
-  // ── Detect Server IP ──
-  const detectIp = async () => {
-    setIsDetectingIp(true)
-    setSyncError(null)
-    try {
-      const res = await fetch('/api/admin/server-ip')
-      const data = await res.json()
-      if (data.success) {
-        setServerIp(data.ip)
-        addLog(`🌐 IP del servidor detectada: ${data.ip}`)
-      } else {
-        setSyncError(data.error)
-      }
-    } catch (e: any) {
-      setSyncError(`Error detectando IP: ${e.message}`)
-    }
-    setIsDetectingIp(false)
-  }
-
-  const copyIp = () => {
-    if (serverIp) {
-      navigator.clipboard.writeText(serverIp)
-      setIpCopied(true)
-      setTimeout(() => setIpCopied(false), 2000)
-    }
-  }
 
   const addLog = (msg: string) => {
     setSyncLog(prev => [...prev.slice(-100), `[${new Date().toLocaleTimeString()}] ${msg}`])
@@ -105,10 +64,10 @@ export default function MySQLSyncPanel() {
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
-  // ── MySQL Sync Loop ──
+  // ── Sync Loop ──
   const startSync = async () => {
-    if (!confirm('¿Iniciar sincronización MySQL directa?\n\nEsto importará data válida y eliminará registros basura.\nPuedes cambiar de pestaña — te notificará cuando termine.')) return
-    
+    if (!confirm('¿Iniciar sincronización?\n\nImporta transacciones válidas y elimina registros basura.\nPuedes cambiar de pestaña — te notificará al terminar.')) return
+
     setIsSyncing(true)
     setIsConnecting(true)
     setIsComplete(false)
@@ -118,26 +77,16 @@ export default function MySQLSyncPanel() {
     setSyncError(null)
     setElapsedTime(0)
     startKeepAlive()
-    
-    addLog('🚀 Iniciando sincronización MySQL directa...')
-    addLog('🔌 Conectando a MySQL Drupal (puede tomar 10-30 seg)...')
+    addLog('🚀 Iniciando sincronización...')
+    addLog('🔌 Conectando al endpoint PHP en Drupal...')
 
-    // Scroll panel into view
-    setTimeout(() => {
-      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 100)
+    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
 
-    let offset = 0
-    let totalProcessed = 0
-    let totalSkipped = 0
-    let totalDeleted = 0
-    let chunks = 0
+    let offset = 0, totalProcessed = 0, totalSkipped = 0, totalDeleted = 0, chunks = 0
 
     while (keepSyncingRef.current) {
       try {
-        addLog(chunks === 0 
-          ? '⏳ Leyendo datos de MySQL y procesando primer chunk...' 
-          : `⏳ Procesando chunk #${chunks + 1}...`)
+        addLog(chunks === 0 ? '⏳ Leyendo primer chunk de datos...' : `⏳ Procesando chunk #${chunks + 1}...`)
 
         const res = await fetch('/api/admin/mysql-sync', {
           method: 'POST',
@@ -145,26 +94,25 @@ export default function MySQLSyncPanel() {
           body: JSON.stringify({ offset, chunkSize: 50 })
         })
 
-        setIsConnecting(false) // First response received
+        setIsConnecting(false)
 
         if (!res.ok) {
           const errorText = await res.text()
-          setSyncError(`Error HTTP ${res.status}: ${errorText.substring(0, 200)}`)
-          addLog(`❌ Error HTTP ${res.status}`)
-          notifyCompletion(totalProcessed, totalSkipped, false)
+          let parsed: any = {}
+          try { parsed = JSON.parse(errorText) } catch {}
+          const errorMsg = parsed.error || `HTTP ${res.status}: ${errorText.substring(0, 200)}`
+          setSyncError(errorMsg)
+          addLog(`❌ ${errorMsg}`)
+          notifyCompletion(totalProcessed, totalDeleted, false)
           break
         }
 
         const data = await res.json()
 
         if (!data.success) {
-          if (data.needsWhitelist) {
-            setSyncError(`⚠️ La IP del servidor no está en el whitelist de Cloudways. Agrega la IP ${serverIp || '(detecta la IP primero)'} al whitelist y vuelve a intentar.`)
-          } else {
-            setSyncError(data.error)
-          }
-          addLog(`❌ Error: ${data.error}`)
-          notifyCompletion(totalProcessed, totalSkipped, false)
+          setSyncError(data.error)
+          addLog(`❌ ${data.error}`)
+          notifyCompletion(totalProcessed, totalDeleted, false)
           break
         }
 
@@ -175,29 +123,26 @@ export default function MySQLSyncPanel() {
         offset = data.offset
 
         setSyncProgress({
-          processed: totalProcessed,
-          skipped: totalSkipped,
-          deleted: totalDeleted,
-          total: data.total,
-          offset: data.offset,
-          chunks,
+          processed: totalProcessed, skipped: totalSkipped, deleted: totalDeleted,
+          total: data.total, offset: data.offset, chunks,
         })
 
-        addLog(`✅ Chunk #${chunks}: ${data.processed} upserts, ${data.deleted || 0} eliminados, ${data.skipped} filtrados (${data.durationMs}ms) — ${offset}/${data.total}`)
+        const phpTime = data.phpDurationMs ? ` (PHP: ${data.phpDurationMs}ms)` : ''
+        addLog(`✅ #${chunks}: ${data.processed} upserts, ${data.deleted || 0} eliminados, ${data.skipped} filtrados (${data.durationMs}ms${phpTime}) — ${offset}/${data.total}`)
 
         if (!data.hasMore) {
-          addLog(`🎉 ¡Sincronización completada exitosamente!`)
-          addLog(`📊 Total: ${totalProcessed.toLocaleString()} transacciones, ${totalDeleted.toLocaleString()} basura eliminada, ${totalSkipped.toLocaleString()} filtradas`)
+          addLog(`🎉 ¡Sincronización completada!`)
+          addLog(`📊 ${totalProcessed.toLocaleString()} válidas • ${totalDeleted.toLocaleString()} eliminadas • ${totalSkipped.toLocaleString()} filtradas • ${chunks} chunks`)
           setIsComplete(true)
-          notifyCompletion(totalProcessed, totalSkipped, true)
+          notifyCompletion(totalProcessed, totalDeleted, true)
           break
         }
       } catch (e: any) {
         setIsConnecting(false)
         const msg = e.message || 'Error desconocido'
-        setSyncError(msg.includes('fetch') ? `Error de red: ¿El servidor rechazó la conexión MySQL? Verifica el whitelist de Cloudways.` : msg)
-        addLog(`❌ Error fatal: ${msg}`)
-        notifyCompletion(totalProcessed, totalSkipped, false)
+        setSyncError(msg)
+        addLog(`❌ Error: ${msg}`)
+        notifyCompletion(totalProcessed, totalDeleted, false)
         break
       }
     }
@@ -211,7 +156,7 @@ export default function MySQLSyncPanel() {
   const stopSync = () => {
     keepSyncingRef.current = false
     stopKeepAlive()
-    addLog('⏹️ Sincronización detenida manualmente')
+    addLog('⏹️ Detenida manualmente')
   }
 
   const progress = syncProgress.total > 0 ? Math.round((syncProgress.offset / syncProgress.total) * 100) : 0
@@ -226,14 +171,14 @@ export default function MySQLSyncPanel() {
           </div>
           <div>
             <h3 className="text-sm font-bold text-foreground">
-              {isComplete ? '✅ Sincronización Completada' : isSyncing ? (isConnecting ? '🔌 Conectando a MySQL...' : '🔄 Sincronizando...') : 'Sincronización MySQL Directa'}
+              {isComplete ? '✅ Sincronización Completada' : isSyncing ? (isConnecting ? '🔌 Conectando...' : '🔄 Sincronizando...') : 'Sincronización Drupal → Ágora'}
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {isComplete 
-                ? `${syncProgress.processed.toLocaleString()} transacciones • ${syncProgress.deleted.toLocaleString()} eliminados • ${formatTime(elapsedTime)}`
+              {isComplete
+                ? `${syncProgress.processed.toLocaleString()} válidas • ${syncProgress.deleted.toLocaleString()} eliminadas • ${formatTime(elapsedTime)}`
                 : isSyncing
-                ? (isConnecting ? 'Conectando al servidor MySQL de Drupal, esto puede tomar 10-30 segundos...' : `Chunk #${syncProgress.chunks} • ${syncProgress.processed.toLocaleString()} procesados`)
-                : 'Conexión directa a Drupal MySQL para sync histórica total'
+                ? (isConnecting ? 'Conectando al servidor Drupal...' : `Chunk #${syncProgress.chunks} • ${syncProgress.processed.toLocaleString()} procesados`)
+                : 'Lee MySQL via proxy PHP en Drupal • Importa + limpia basura'
               }
             </p>
           </div>
@@ -253,11 +198,11 @@ export default function MySQLSyncPanel() {
             <Loader2 className={`w-5 h-5 animate-spin flex-shrink-0 ${isConnecting ? 'text-blue-400' : 'text-orange-400'}`} />
             <div>
               <p className={`text-sm font-semibold ${isConnecting ? 'text-blue-400' : 'text-orange-400'}`}>
-                {isConnecting ? 'Conectando a MySQL...' : `Procesando chunk #${syncProgress.chunks + 1}`}
+                {isConnecting ? 'Conectando al endpoint PHP...' : `Procesando chunk #${syncProgress.chunks + 1}`}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {isConnecting 
-                  ? 'Primera conexión toma 10-30 seg. Los siguientes chunks son más rápidos.'
+                {isConnecting
+                  ? 'Primera conexión puede tomar unos segundos.'
                   : `${syncProgress.processed.toLocaleString()} ✅ • ${syncProgress.deleted.toLocaleString()} 🗑️ • ${syncProgress.skipped.toLocaleString()} ⏭️`
                 }
               </p>
@@ -280,74 +225,26 @@ export default function MySQLSyncPanel() {
           </div>
         )}
 
-        {/* Step 1: IP Detection */}
+        {/* Action Buttons */}
         {!isSyncing && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <Globe className="w-3.5 h-3.5" />
-              Paso 1: Detectar IP del Servidor
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={detectIp}
-                disabled={isDetectingIp}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isDetectingIp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Server className="w-3.5 h-3.5" />}
-                {isDetectingIp ? 'Detectando...' : 'Detectar IP'}
-              </button>
-
-              {serverIp && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-foreground/5 border border-border/40">
-                  <code className="text-sm font-mono font-bold text-orange-400">{serverIp}</code>
-                  <button
-                    onClick={copyIp}
-                    className="p-1 rounded hover:bg-foreground/10 transition-colors"
-                    title="Copiar IP"
-                  >
-                    {ipCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
-                  </button>
-                </div>
-              )}
-            </div>
-            {serverIp && !isComplete && (
-              <p className="text-xs text-amber-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                Agrega esta IP al whitelist de Cloudways antes de sincronizar.
-              </p>
-            )}
+            <button
+              onClick={startSync}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-orange-700 transition-colors"
+            >
+              <Play className="w-4 h-4" />
+              {isComplete ? 'Ejecutar de nuevo' : 'Iniciar Sincronización'}
+            </button>
+            <p className="text-[10px] text-muted-foreground">
+              Requiere que el archivo <code className="text-orange-400">agora-bulk-export.php</code> esté instalado en el servidor Drupal.
+            </p>
           </div>
         )}
 
-        {/* Step 2: Run Sync */}
-        {!isSyncing && (
-          <div className="space-y-2 pt-2 border-t border-border/30">
-            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              <Database className="w-3.5 h-3.5" />
-              Paso 2: Ejecutar Sincronización
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={startSync}
-                disabled={!serverIp}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 disabled:opacity-40 transition-colors"
-              >
-                <Play className="w-3.5 h-3.5" />
-                {isComplete ? 'Ejecutar de nuevo' : 'Iniciar Sync MySQL'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Stop Button - visible during sync */}
         {isSyncing && (
           <div className="flex items-center gap-3">
-            <button
-              onClick={stopSync}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 transition-colors"
-            >
-              <Square className="w-3.5 h-3.5" />
-              Detener Sync
+            <button onClick={stopSync} className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 transition-colors">
+              <Square className="w-3.5 h-3.5" /> Detener
             </button>
             <span className="text-[10px] text-muted-foreground">Puedes cambiar de pestaña — seguirá en segundo plano</span>
           </div>
@@ -361,14 +258,9 @@ export default function MySQLSyncPanel() {
               <span>{progress}% • Chunk #{syncProgress.chunks}</span>
             </div>
             <div className="w-full h-2.5 rounded-full bg-foreground/10 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-orange-500 to-amber-400'}`}
-                style={{ width: `${progress}%` }}
-              />
+              <div className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-orange-500 to-amber-400'}`} style={{ width: `${progress}%` }} />
             </div>
-            <div className="text-xs text-muted-foreground">
-              {syncProgress.offset.toLocaleString()} / {syncProgress.total.toLocaleString()} posts revisados
-            </div>
+            <div className="text-xs text-muted-foreground">{syncProgress.offset.toLocaleString()} / {syncProgress.total.toLocaleString()} posts revisados</div>
           </div>
         )}
 
@@ -385,12 +277,11 @@ export default function MySQLSyncPanel() {
             <div className="space-y-0.5 font-mono text-[10px] text-muted-foreground">
               {syncLog.map((line, i) => (
                 <div key={i} className={
-                  line.includes('❌') ? 'text-red-400' : 
+                  line.includes('❌') ? 'text-red-400' :
                   line.includes('🎉') ? 'text-green-400 font-bold' :
-                  line.includes('✅') ? 'text-green-400' : 
+                  line.includes('✅') ? 'text-green-400' :
                   line.includes('⏳') ? 'text-yellow-400' :
-                  line.includes('🔌') ? 'text-blue-400' :
-                  line.includes('ℹ️') ? 'text-blue-400' : ''
+                  line.includes('🔌') ? 'text-blue-400' : ''
                 }>{line}</div>
               ))}
             </div>
