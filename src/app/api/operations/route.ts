@@ -77,20 +77,40 @@ export async function GET(request: Request) {
       ]
     }
 
-    // Date range filter
-    if (dateStart) {
-      where.dateAnnounced = {
-        ...where.dateAnnounced,
-        gte: new Date(dateStart + 'T00:00:00.000Z'),
+    // Date range filter — check BOTH dateAnnounced and dateClosed
+    // The UI shows dateClosed || dateAnnounced, so the filter must match either
+    if (dateStart || dateEnd) {
+      const dateGte = dateStart ? new Date(dateStart + 'T00:00:00.000Z') : new Date('1990-01-01T00:00:00Z')
+      let dateLt = endOfTodayUTC
+      if (dateEnd) {
+        dateLt = new Date(dateEnd + 'T00:00:00.000Z')
+        dateLt.setUTCDate(dateLt.getUTCDate() + 1)
       }
-    }
-    if (dateEnd) {
-      // Use the START of the NEXT day to include ALL timezone representations of the end date.
-      const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
-      where.dateAnnounced = {
-        ...where.dateAnnounced,
-        lt: nextDay, // No cap needed — base filter already restricts to endOfTodayUTC
+
+      // Remove the base dateAnnounced filter since we'll use OR logic
+      delete where.dateAnnounced
+
+      // Transaction matches if EITHER date falls in the range
+      const dateCondition = {
+        OR: [
+          { dateAnnounced: { gte: dateGte, lt: dateLt } },
+          { dateClosed: { gte: dateGte, lt: dateLt } },
+        ]
+      }
+
+      // Merge with existing AND conditions
+      if (where.AND) {
+        where.AND.push(dateCondition)
+      } else if (where.OR) {
+        // There's already an OR (from search), wrap everything properly
+        const existingOr = where.OR
+        delete where.OR
+        where.AND = [
+          { OR: existingOr },
+          dateCondition,
+        ]
+      } else {
+        where.AND = [dateCondition]
       }
     }
 
