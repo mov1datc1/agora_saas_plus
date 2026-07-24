@@ -33,6 +33,7 @@ export type UITransaction = {
   industry: string
   country: string
   firm: string
+  firmSede: string
   lawyer: string
   company: string
   link: string
@@ -282,6 +283,7 @@ export default function OperationsClient() {
       Industria: tx.industry,
       Países: tx.country,
       Firmas: tx.firm,
+      Sede: tx.firmSede,
       Abogados: tx.lawyer
     })), 'operaciones_agora_plus')
   }
@@ -393,6 +395,7 @@ export default function OperationsClient() {
         Industria: tx.industry,
         'País(es)': tx.country,
         'Firma(s)': tx.firm,
+        'Sede(s)': tx.firmSede,
         'Abogado(s)': tx.lawyer
       })), `operaciones_agora_${new Date().toISOString().split('T')[0]}`)
     } catch (err) {
@@ -647,6 +650,7 @@ export default function OperationsClient() {
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Título</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Firma(s)</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Sede(s)</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">País(es)</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Abogado(s)</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-foreground/70 uppercase tracking-wider">Tipo</th>
@@ -661,7 +665,7 @@ export default function OperationsClient() {
             <tbody className="divide-y divide-border bg-surface">
               {isSwrLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-brand mb-4" />
                       <span className="text-sm font-medium">Sincronizando operaciones desde el servidor...</span>
@@ -670,12 +674,12 @@ export default function OperationsClient() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-red-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-red-500">
                     <span className="text-sm font-medium">Error al cargar las operaciones. Por favor intenta de nuevo.</span>
                   </td>
                 </tr>
               ) : !isDataAllowed ? (
-                <tr><td colSpan={8} className="text-center p-12 text-muted-foreground bg-muted/20">
+                <tr><td colSpan={9} className="text-center p-12 text-muted-foreground bg-muted/20">
                   <Lock className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p className="font-semibold text-lg text-foreground mb-2">Datos Bloqueados</p>
                   <p>Has alcanzado el límite de visualizaciones. Suscríbete para continuar.</p>
@@ -686,6 +690,7 @@ export default function OperationsClient() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{tx.date}</td>
                   <td className="px-6 py-4 text-sm font-medium text-foreground max-w-[200px] truncate" title={tx.title}>{tx.title}</td>
                   <td className="px-6 py-4 text-sm text-foreground/80 max-w-[150px] truncate" title={tx.firm}>{tx.firm || 'N/D'}</td>
+                  <td className="px-6 py-4 text-sm text-foreground/80 max-w-[100px] truncate" title={tx.firmSede}>{tx.firmSede || '—'}</td>
                   <td className="px-6 py-4 text-sm text-foreground/80 max-w-[100px] truncate" title={tx.country}>{tx.country || 'N/D'}</td>
                   <td className="px-6 py-4 text-sm text-foreground/80 max-w-[150px] truncate" title={tx.lawyer}>{tx.lawyer || 'N/D'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">
@@ -697,7 +702,7 @@ export default function OperationsClient() {
                 </tr>
               )))}
               {isDataAllowed && sortedTransactions.length === 0 && !isSwrLoading && (
-                <tr><td colSpan={8} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
+                <tr><td colSpan={9} className="text-center p-8 text-muted-foreground">No hay operaciones que coincidan con los filtros.</td></tr>
               )}
             </tbody>
           </table>

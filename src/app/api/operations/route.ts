@@ -192,23 +192,45 @@ export async function GET(request: Request) {
       return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
     }
 
-    const data = dbTransactions.map((tx: any) => ({
-      id: tx.id,
-      date: fmtDate(tx.dateClosed || tx.dateAnnounced),
-      title: tx.title,
-      type: tx.type,
-      status: tx.status || 'Completada',
-      isPublished: tx.isPublished,
-      amount: fmtVal(tx.value),
-      amountRaw: tx.value ? Number(tx.value) : 0,
-      industry: tx.industry?.name || '',
-      country: tx.country || '',
-      firm: tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean).join(', ') || '',
-      lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || '',
-      company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || '',
-      link: tx.link || '',
-      excerpt: tx.excerpt || null,
-    }))
+    // Helper: extract base name and sede from firm name
+    const extractFirmSede = (fullName: string): { base: string; sede: string } => {
+      if (fullName.includes(' - ')) {
+        const lastDash = fullName.lastIndexOf(' - ')
+        return {
+          base: fullName.substring(0, lastDash).trim(),
+          sede: fullName.substring(lastDash + 3).trim(),
+        }
+      }
+      return { base: fullName, sede: '' }
+    }
+
+    const data = dbTransactions.map((tx: any) => {
+      const firmNames: string[] = tx.advisors?.map((a: any) => a.firm?.name).filter(Boolean) || []
+      const firmParts = firmNames.map(extractFirmSede)
+      // Base names (deduplicated)
+      const baseNames = [...new Set(firmParts.map(f => f.base))]
+      // Sedes (deduplicated, non-empty)
+      const sedes = [...new Set(firmParts.map(f => f.sede).filter(Boolean))]
+
+      return {
+        id: tx.id,
+        date: fmtDate(tx.dateClosed || tx.dateAnnounced),
+        title: tx.title,
+        type: tx.type,
+        status: tx.status || 'Completada',
+        isPublished: tx.isPublished,
+        amount: fmtVal(tx.value),
+        amountRaw: tx.value ? Number(tx.value) : 0,
+        industry: tx.industry?.name || '',
+        country: tx.country || '',
+        firm: baseNames.join(', ') || '',
+        firmSede: sedes.join(', ') || '',
+        lawyer: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || '',
+        company: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || '',
+        link: tx.link || '',
+        excerpt: tx.excerpt || null,
+      }
+    })
 
     // Stats
     const totalValue = aggregates._sum?.value ? Number(aggregates._sum.value) : 0
