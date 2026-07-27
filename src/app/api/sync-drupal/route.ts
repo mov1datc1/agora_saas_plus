@@ -180,16 +180,16 @@ export async function POST(request: Request) {
       processedIds.add(transactionId)
 
       // ── PRIMARY FILTER: Content Type ("Tipo de Noticia") ──
-      // This is the MOST IMPORTANT filter — replicates the MySQL script logic:
-      // `if (p.tipo && p.tipo !== 'Transacción') { stats.skipped++; continue; }`
+      // This is the MOST IMPORTANT filter. Drupal's form has:
+      //   "- None -", "Transacción", "Acción judicial o extrajudicial",
+      //   "Movimiento", "Eventos e iniciativas"
       //
-      // In Drupal's DB: field_tipo_de_noticia_value
-      // The custom API should return this as `field_tipo_de_noticia`
-      //
-      // If the field exists AND is NOT "Transacción" → skip entirely.
-      // If the field is null/undefined → allow (some old posts don't have it set)
+      // ONLY import posts explicitly marked as "Transacción".
+      // Posts with null/undefined (Drupal's "- None -") are NOT transactions
+      // and must be skipped — they were previously slipping through.
       const tipoNoticia = post.field_tipo_de_noticia
-      if (tipoNoticia && tipoNoticia.toLowerCase() !== 'transacción' && tipoNoticia.toLowerCase() !== 'transaccion') {
+      const tipoLower = (tipoNoticia || '').toLowerCase().trim()
+      if (tipoLower !== 'transacción' && tipoLower !== 'transaccion') {
         skippedNonTransactions++
         processedCount++
         continue
