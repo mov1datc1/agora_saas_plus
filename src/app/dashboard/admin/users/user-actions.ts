@@ -167,3 +167,52 @@ export async function resetUserPassword(userId: string) {
     return { success: false, error: err.message || 'Error interno del servidor' }
   }
 }
+
+export async function promoteUserToLegacy(userId: string, accountType: string, expiryDate: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) return { success: false, error: 'No autorizado' }
+
+    const dbUser = await prisma.user.findUnique({ where: { email: currentUser.email } })
+    if (!dbUser || dbUser.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Acceso denegado: Solo un SuperAdmin puede promover usuarios.' }
+    }
+
+    // Verify the target user exists
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } })
+    if (!targetUser) return { success: false, error: 'Usuario no encontrado.' }
+
+    // Update accountType and activate
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        accountType: accountType as any,
+        isActive: true,
+      }
+    })
+
+    // Create or update manual subscription (Legacy = ACTIVE without Stripe)
+    await prisma.subscription.upsert({
+      where: { userId },
+      create: {
+        userId,
+        status: 'ACTIVE',
+        currentPeriodEnd: new Date(expiryDate),
+        cancelAtPeriodEnd: false,
+      },
+      update: {
+        status: 'ACTIVE',
+        currentPeriodEnd: new Date(expiryDate),
+        cancelAtPeriodEnd: false,
+        stripeSubscriptionId: null,
+      }
+    })
+
+    revalidatePath('/dashboard/admin/users')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Error in promoteUserToLegacy:', err)
+    return { success: false, error: err.message || 'Error interno del servidor' }
+  }
+}

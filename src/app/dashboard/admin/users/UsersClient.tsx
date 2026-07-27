@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2 } from 'lucide-react'
+import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2, ArrowUpRight } from 'lucide-react'
 import { deactivateUser, reactivateUser } from './actions'
+import PromoteUserModal from './PromoteUserModal'
 
 type UIUser = {
   id: string
@@ -14,10 +15,16 @@ type UIUser = {
   createdAt: string
 }
 
-export default function UsersClient({ initialUsers }: { initialUsers: UIUser[] }) {
+export default function UsersClient({ initialUsers, currentUserRole }: { initialUsers: UIUser[], currentUserRole?: string }) {
   const [users, setUsers] = useState<UIUser[]>(initialUsers)
   const [searchQuery, setSearchQuery] = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [promoteUser, setPromoteUser] = useState<UIUser | null>(null)
+  const isSuperAdmin = currentUserRole === 'SUPERADMIN'
+
+  const handlePromoteSuccess = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId))
+  }
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
@@ -122,29 +129,40 @@ export default function UsersClient({ initialUsers }: { initialUsers: UIUser[] }
                   {new Date(user.createdAt).toLocaleDateString('es-ES')}
                 </td>
                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                  {loadingId === user.id ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground inline-block" />
-                  ) : (
-                    <>
-                      {user.status === 'CANCELED' ? (
-                        <button
-                          onClick={() => handleReactivate(user.id)}
-                          className="text-brand hover:text-brand-hover flex items-center justify-end gap-1.5 w-full"
-                          title="Reactivar Usuario"
-                        >
-                          <CheckCircle2 className="h-4 w-4" /> Reactivar
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleDeactivate(user.id)}
-                          className="text-[#E05C50] hover:text-[#E05C50]/80 flex items-center justify-end gap-1.5 w-full"
-                          title="Desactivar Usuario"
-                        >
-                          <XCircle className="h-4 w-4" /> Desactivar
-                        </button>
-                      )}
-                    </>
-                  )}
+                  <div className="flex items-center justify-end gap-3">
+                    {loadingId === user.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground inline-block" />
+                    ) : (
+                      <>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => setPromoteUser(user)}
+                            className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                            title="Promover a Legacy"
+                          >
+                            <ArrowUpRight className="h-4 w-4" /> Promover
+                          </button>
+                        )}
+                        {user.status === 'CANCELED' ? (
+                          <button
+                            onClick={() => handleReactivate(user.id)}
+                            className="text-brand hover:text-brand-hover flex items-center gap-1.5"
+                            title="Reactivar Usuario"
+                          >
+                            <CheckCircle2 className="h-4 w-4" /> Reactivar
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDeactivate(user.id)}
+                            className="text-[#E05C50] hover:text-[#E05C50]/80 flex items-center gap-1.5"
+                            title="Desactivar Usuario"
+                          >
+                            <XCircle className="h-4 w-4" /> Desactivar
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -158,6 +176,13 @@ export default function UsersClient({ initialUsers }: { initialUsers: UIUser[] }
           </tbody>
         </table>
       </div>
+
+      <PromoteUserModal
+        isOpen={!!promoteUser}
+        onClose={() => setPromoteUser(null)}
+        user={promoteUser}
+        onSuccess={handlePromoteSuccess}
+      />
     </div>
   )
 }

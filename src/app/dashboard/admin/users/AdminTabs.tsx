@@ -60,7 +60,7 @@ export default function AdminTabs({
       </div>
 
       <div className="flex-1 w-full relative">
-        {activeTab === 'saas' && <UsersClient initialUsers={saasUsers} />}
+        {activeTab === 'saas' && <UsersClient initialUsers={saasUsers} currentUserRole={currentUserRole} />}
         {activeTab === 'legacy' && <LegacyUsersClient initialUsers={legacyUsers} />}
         {activeTab === 'admins' && currentUserRole === 'SUPERADMIN' && <AdminsClient initialUsers={adminUsers} />}
       </div>
