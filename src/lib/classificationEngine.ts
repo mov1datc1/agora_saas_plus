@@ -160,6 +160,23 @@ const CORPORATE_NEWS_SIGNALS: string[] = [
   'expande equipo', 'amplía equipo', 'contratación',
   'ficha a', 'ficha al', 'llega como', 'se une a',
   'se unió a', 'designa como', 'designado',
+  // v3.2: Expanded verb-stem coverage (July 28 2026)
+  // These conjugation variants were causing false negatives:
+  'refuerzan', 'reforzar', 'reforzando',     // "ZADAL... refuerzan prácticas"
+  'fichan', 'ficharon', 'fichar',             // "fichan socios"
+  'suma socio', 'suman socio', 'sumó socio',  // "suma socio en Madrid"
+  'incorpora socio', 'incorporan socio',
+  'potencian prácticas', 'potencia prácticas', 'potenciar prácticas',
+  'prácticas estratégicas',                    // editorial headline pattern
+  'prácticas clave',                           // editorial headline pattern
+  'fortalecen', 'fortaleciendo',
+  'se integran', 'se incorpora', 'se incorporan',
+  'amplían', 'expanden',
+  'fichajes',                                  // plural noun form
+  'movimiento de socios', 'movimientos de socios',
+  'nombramientos',                             // plural noun form
+  'lateral move', 'lateral moves',
+  'partner hire', 'partner hiring',
 ]
 
 const LEGAL_NEWS_SIGNALS: string[] = [
@@ -169,6 +186,9 @@ const LEGAL_NEWS_SIGNALS: string[] = [
   'entrevista', 'opinión', 'columna',
   'evento', 'congreso', 'conferencia', 'foro', 'seminario',
   'publicación', 'libro', 'guía jurídica',
+  // v3.2: Additional legal/editorial noise (July 28 2026)
+  'mercados de predicción', 'crecimiento del negocio',
+  'análisis jurídico', 'panorama legal', 'tendencias legales',
 ]
 
 export function isNonTransactional(titleLower: string, fullText: string): boolean {

@@ -102,6 +102,7 @@ export async function POST(request: Request) {
     let totalProcessed = 0
     let skippedPortalOriginals = 0
     let totalSkippedNonTransactions = 0
+    let totalSkippedZeroEvidence = 0
     let batchNumber = 0
     let currentOffset = startOffset
     const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
@@ -191,6 +192,28 @@ export async function POST(request: Request) {
       const tipoLower = (tipoNoticia || '').toLowerCase().trim()
       if (tipoLower !== 'transacción' && tipoLower !== 'transaccion') {
         skippedNonTransactions++
+        processedCount++
+        continue
+      }
+
+      // ── ZERO-EVIDENCE GUARDRAIL (v3.2 — July 28 2026) ──
+      // Data Entry sometimes marks editorial posts (partner hirings, practice
+      // expansions) as "Transacción" in Drupal. These slip past the tipo check
+      // above. A REAL transaction always has at least ONE of:
+      //   - practice_areas (tells us what kind of deal)
+      //   - companies (parties to the transaction)
+      //   - monetary value (deal amount)
+      //   - firms (legal advisors)
+      // If ALL four are empty, it's virtually impossible for this to be a real
+      // transaction — skip it to prevent polluting Ágora's analytics.
+      const hasAnyEvidence = (
+        (post.practice_areas && post.practice_areas.length > 0) ||
+        (post.companies && post.companies.length > 0) ||
+        (post.monetary && post.monetary.total_usd > 0) ||
+        (post.firms && post.firms.length > 0)
+      )
+      if (!hasAnyEvidence) {
+        totalSkippedZeroEvidence++
         processedCount++
         continue
       }
@@ -598,11 +621,12 @@ export async function POST(request: Request) {
             completedAt: new Date(),
             durationMs: Date.now() - cronStartTime,
             recordsProcessed: totalProcessed,
-            recordsSkipped: skippedPortalOriginals + totalSkippedNonTransactions,
+            recordsSkipped: skippedPortalOriginals + totalSkippedNonTransactions + totalSkippedZeroEvidence,
             details: JSON.stringify({
               batchesProcessed: batchNumber,
               finalOffset: currentOffset,
               conflicts: allConflicts.length,
+              skippedZeroEvidence: totalSkippedZeroEvidence,
             })
           }
         })
@@ -613,12 +637,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Synchronized ${totalProcessed} transactions in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals.` : ''}${totalSkippedNonTransactions > 0 ? ` Skipped ${totalSkippedNonTransactions} non-transaction posts.` : ''}`,
+      message: `Synchronized ${totalProcessed} transactions in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals.` : ''}${totalSkippedNonTransactions > 0 ? ` Skipped ${totalSkippedNonTransactions} non-transaction posts.` : ''}${totalSkippedZeroEvidence > 0 ? ` Skipped ${totalSkippedZeroEvidence} zero-evidence posts.` : ''}`,
       processedCount: totalProcessed,
       batchesProcessed: batchNumber,
       finalOffset: currentOffset,
       skippedPortalOriginals,
       skippedNonTransactions: totalSkippedNonTransactions,
+      skippedZeroEvidence: totalSkippedZeroEvidence,
       multiAreaConflicts: allConflicts.length > 0 ? allConflicts : undefined,
       multiAreaConflictCount: allConflicts.length
     })
