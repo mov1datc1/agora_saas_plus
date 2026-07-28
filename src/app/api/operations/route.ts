@@ -79,8 +79,12 @@ export async function GET(request: Request) {
       ]
     }
 
-    // Date range filter — check BOTH dateAnnounced and dateClosed
-    // The UI shows dateClosed || dateAnnounced, so the filter must match either
+    // ── Date range filter (v3.2 — July 28 2026) ──
+    // The UI displays COALESCE(dateClosed, dateAnnounced) as the "effective date".
+    // The filter MUST use the same logic so results are consistent with what the
+    // user sees. Previously we used OR(dateAnnounced IN range, dateClosed IN range)
+    // which caused mismatches when dateAnnounced (from post.created fallback) was
+    // in range but dateClosed (the real date) was from a different year.
     if (dateStart || dateEnd) {
       const dateGte = dateStart ? new Date(dateStart + 'T00:00:00.000Z') : new Date('1990-01-01T00:00:00Z')
       let dateLt = endOfTodayUTC
@@ -89,14 +93,21 @@ export async function GET(request: Request) {
         dateLt.setUTCDate(dateLt.getUTCDate() + 1)
       }
 
-      // Remove the base dateAnnounced filter since we'll use OR logic
+      // Remove the base dateAnnounced filter since we'll use COALESCE logic
       delete where.dateAnnounced
 
-      // Transaction matches if EITHER date falls in the range
+      // Use the effective date: dateClosed if available, otherwise dateAnnounced
+      // This matches the UI display: fmtDate(tx.dateClosed || tx.dateAnnounced)
       const dateCondition = {
-        OR: [
-          { dateAnnounced: { gte: dateGte, lt: dateLt } },
-          { dateClosed: { gte: dateGte, lt: dateLt } },
+        AND: [
+          {
+            OR: [
+              // Case 1: dateClosed exists → filter by dateClosed
+              { dateClosed: { gte: dateGte, lt: dateLt } },
+              // Case 2: dateClosed is null → filter by dateAnnounced
+              { dateClosed: null, dateAnnounced: { gte: dateGte, lt: dateLt } },
+            ]
+          }
         ]
       }
 
