@@ -27,9 +27,10 @@ interface SidebarProps {
   accountType?: string;
   parentId?: string | null;
   copilotEnabled?: boolean;
+  rankingsEnabled?: boolean;
 }
 
-export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL', parentId = null, copilotEnabled = false }: SidebarProps) {
+export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL', parentId = null, copilotEnabled = false, rankingsEnabled = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -52,6 +53,9 @@ export default function Sidebar({ userRole = 'USER', accountType = 'INDIVIDUAL',
     if (isTeamModule && (accountType !== 'CORPORATE' && accountType !== 'CORPORATE_3' || parentId !== null)) return false;
     if (isCopilot && !copilotEnabled && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     if (isBilling && parentId !== null) return false;
+    
+    // Rankings Analíticos (sub-items): only visible to admins OR when toggle is enabled
+    if (item.isSubItem && !rankingsEnabled && userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') return false;
     
     return true;
   });

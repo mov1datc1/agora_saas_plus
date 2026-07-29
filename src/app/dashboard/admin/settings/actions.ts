@@ -56,6 +56,16 @@ export async function toggleGlobalMetrics(enabled: boolean) {
   revalidatePath('/dashboard/admin/settings')
 }
 
+export async function toggleRankingsVisibility(enabled: boolean) {
+  await prisma.systemConfig.upsert({
+    where: { id: 'global' },
+    update: { showRankingsToUsers: enabled },
+    create: { id: 'global', showRankingsToUsers: enabled }
+  })
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/admin/settings')
+}
+
 export async function saveLeadFormScript(script: string) {
   await prisma.systemConfig.upsert({
     where: { id: 'global' },

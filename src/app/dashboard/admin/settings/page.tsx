@@ -9,6 +9,7 @@ import MaintenanceClient from './MaintenanceClient'
 import LeadFormClient from './LeadFormClient'
 import CopilotToggleClient from './CopilotToggleClient'
 import MetricsToggleClient from './MetricsToggleClient'
+import RankingsToggleClient from './RankingsToggleClient'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -207,6 +208,7 @@ export default async function SettingsPage() {
                 <MaintenanceClient initialEnabled={config.maintenanceModeEnabled} />
                 <CopilotToggleClient initialEnabled={config.copilotEnabled} />
                 <MetricsToggleClient initialEnabled={config.showGlobalMetricsToUsers} />
+                <RankingsToggleClient initialEnabled={config.showRankingsToUsers} />
               </div>
             </div>
           </div>
