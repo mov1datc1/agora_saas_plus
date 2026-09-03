@@ -635,6 +635,43 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── 4. Reconciliation: check if recent Agora transactions were deleted in Drupal (HTTP 404) ──
+    try {
+      const recentTxs = await prisma.transaction.findMany({
+        where: { id: { startsWith: 'drupal-' } },
+        orderBy: { updatedAt: 'desc' },
+        take: 25,
+        select: { id: true }
+      })
+
+      await Promise.allSettled(
+        recentTxs.map(async (tx) => {
+          const nid = tx.id.replace('drupal-', '')
+          if (!/^\d+$/.test(nid)) return
+          try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 3000)
+            const res = await fetch(`https://lexlatin.com/node/${nid}`, {
+              method: 'HEAD',
+              redirect: 'manual',
+              signal: controller.signal
+            })
+            clearTimeout(timeoutId)
+            if (res.status === 404) {
+              if (await deleteIfExists(tx.id)) {
+                totalDeleted++
+                console.log(`[Cron] Purged deleted Drupal node (404): ${tx.id}`)
+              }
+            }
+          } catch {
+            // Ignore timeouts
+          }
+        })
+      )
+    } catch (recErr) {
+      console.error('[Cron] 404 Reconciliation error:', recErr)
+    }
+
     // Update CronLog with success
     if (cronLogId) {
       try {
