@@ -12,6 +12,7 @@ const KNOWN_DELETED_NIDS = [
   133004, // La Provincia del Chubut emite sus Letras del Tesoro Serie CXVIII Clase 2 (Eliminado en Drupal)
   133243, // El Banco de la Provincia de Buenos Aires emite sus ONs Clase V y VI (Eliminado en Drupal)
   133487, // El Banco Comafi emite sus ONs Clases XXIV y XXV (Eliminado en Drupal)
+  132489, // JHSF se hace con hotel de Enjoy en Punta del Este (Eliminado en Drupal)
 ]
 
 const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/api/agora/transactions'
