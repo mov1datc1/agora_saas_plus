@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Database, Loader2, CheckCircle2, AlertCircle, Play, Pause, Square, History, Terminal, Download, AlertTriangle, Trash2 } from 'lucide-react'
-import { runSyncChunk, wipeAllData, purgeMultiAreaOriginals } from './sync-actions'
+import { runSyncChunk, wipeAllData, purgeMultiAreaOriginals, purgeDeletedAndNoneTransactions } from './sync-actions'
 import { runRepairExcerptsChunk } from './repair-actions'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -17,6 +17,7 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
   const [isWiping, setIsWiping] = useState(false)
   const [isRepairing, setIsRepairing] = useState(false)
   const [isPurging, setIsPurging] = useState(false)
+  const [isPurgingNone, setIsPurgingNone] = useState(false)
   const [repairProgress, setRepairProgress] = useState({ offset: 0, updated: 0, total: 24556 })
   const [isLoadingJobs, setIsLoadingJobs] = useState(true)
   
@@ -491,6 +492,29 @@ export default function MassiveSyncClient({ drupalUrl }: { drupalUrl: string }) 
               >
                 {isPurging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                 {isPurging ? 'Purgando...' : 'Purgar Duplicados'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm('¿Purgar notas eliminadas en Drupal y notas marcadas en None? Esto eliminará registros obsoletos como 132999, 133004, 134458, etc.')) return
+                  setIsPurgingNone(true)
+                  try {
+                    const result = await purgeDeletedAndNoneTransactions()
+                    if (result.success) {
+                      alert(`✅ ${result.message}\n\n${(result.purged ?? 0) > 0 ? `Eliminados:\n${(result.purgedList || []).join('\n')}` : ''}`)
+                    } else {
+                      alert(`❌ Error: ${result.error}`)
+                    }
+                  } catch (e: any) {
+                    alert(`❌ Error: ${e.message}`)
+                  }
+                  setIsPurgingNone(false)
+                }}
+                disabled={isPurgingNone}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50 transition-colors"
+              >
+                {isPurgingNone ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {isPurgingNone ? 'Purgando...' : 'Purgar Eliminadas/None'}
               </button>
               <button
                 type="button"

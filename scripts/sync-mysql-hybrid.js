@@ -288,7 +288,8 @@ async function main() {
 
   for (const p of posts) {
     // ── FILTER 1: tipo_de_noticia (PRIMARY) ──
-    if (p.tipo && p.tipo !== 'Transacción') {
+    const tipoClean = (p.tipo || '').toLowerCase().trim();
+    if (tipoClean !== 'transacción' && tipoClean !== 'transaccion') {
       stats.skippedTipo++;
       continue;
     }

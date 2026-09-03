@@ -103,10 +103,31 @@ export async function POST(request: Request) {
     let skippedPortalOriginals = 0
     let totalSkippedNonTransactions = 0
     let totalSkippedZeroEvidence = 0
+    let totalDeleted = 0
     let batchNumber = 0
     let currentOffset = startOffset
     const allConflicts: Array<{ id: string; title: string; link: string; practiceAreas: string; assignedType: string; alternativeTypes: string[] }> = []
     const processedIds = new Set<string>() // Dedup: prevent processing same Drupal post twice across batches
+
+    const deleteIfExists = async (id: string): Promise<boolean> => {
+      try {
+        const existing = await prisma.transaction.findUnique({
+          where: { id },
+          select: { id: true }
+        })
+        if (!existing) return false
+
+        await Promise.all([
+          prisma.transactionAdvisor.deleteMany({ where: { transactionId: id } }),
+          prisma.transactionLawyer.deleteMany({ where: { transactionId: id } }),
+          prisma.transactionCompany.deleteMany({ where: { transactionId: id } }),
+        ])
+        await prisma.transaction.delete({ where: { id } })
+        return true
+      } catch {
+        return false
+      }
+    }
 
     while (batchNumber < MAX_BATCHES) {
       batchNumber++
@@ -192,6 +213,7 @@ export async function POST(request: Request) {
       const tipoLower = (tipoNoticia || '').toLowerCase().trim()
       if (tipoLower !== 'transacción' && tipoLower !== 'transaccion') {
         skippedNonTransactions++
+        if (await deleteIfExists(transactionId)) totalDeleted++
         processedCount++
         continue
       }
@@ -214,6 +236,7 @@ export async function POST(request: Request) {
       )
       if (!hasAnyEvidence) {
         totalSkippedZeroEvidence++
+        if (await deleteIfExists(transactionId)) totalDeleted++
         processedCount++
         continue
       }
@@ -310,6 +333,7 @@ export async function POST(request: Request) {
       if (mappedAreas.length >= 2) {
         // This is the multi-area original — skip it, the individual clones are canonical
         skippedPortalOriginals++
+        if (await deleteIfExists(transactionId)) totalDeleted++
         processedCount++ // Count as "processed" so pagination advances
         continue
       }
@@ -627,6 +651,7 @@ export async function POST(request: Request) {
               finalOffset: currentOffset,
               conflicts: allConflicts.length,
               skippedZeroEvidence: totalSkippedZeroEvidence,
+              recordsDeleted: totalDeleted,
             })
           }
         })
@@ -637,13 +662,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Synchronized ${totalProcessed} transactions in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals.` : ''}${totalSkippedNonTransactions > 0 ? ` Skipped ${totalSkippedNonTransactions} non-transaction posts.` : ''}${totalSkippedZeroEvidence > 0 ? ` Skipped ${totalSkippedZeroEvidence} zero-evidence posts.` : ''}`,
+      message: `Synchronized ${totalProcessed} transactions in ${batchNumber} batch(es).${skippedPortalOriginals > 0 ? ` Skipped ${skippedPortalOriginals} portal originals.` : ''}${totalSkippedNonTransactions > 0 ? ` Skipped ${totalSkippedNonTransactions} non-transaction posts.` : ''}${totalSkippedZeroEvidence > 0 ? ` Skipped ${totalSkippedZeroEvidence} zero-evidence posts.` : ''}${totalDeleted > 0 ? ` Deleted ${totalDeleted} obsolete/None records.` : ''}`,
       processedCount: totalProcessed,
       batchesProcessed: batchNumber,
       finalOffset: currentOffset,
       skippedPortalOriginals,
       skippedNonTransactions: totalSkippedNonTransactions,
       skippedZeroEvidence: totalSkippedZeroEvidence,
+      recordsDeleted: totalDeleted,
       multiAreaConflicts: allConflicts.length > 0 ? allConflicts : undefined,
       multiAreaConflictCount: allConflicts.length
     })

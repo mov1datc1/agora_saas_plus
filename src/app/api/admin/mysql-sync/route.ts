@@ -212,7 +212,8 @@ export async function POST(request: Request) {
       const txId = `drupal-${p.id}`
 
       // FILTER 1: tipo_de_noticia
-      if (p.tipo && p.tipo !== 'Transacción') {
+      const tipoClean = (p.tipo || '').toLowerCase().trim()
+      if (tipoClean !== 'transacción' && tipoClean !== 'transaccion') {
         skippedTipo++
         if (await deleteIfExists(txId)) deletedTipo++
         continue

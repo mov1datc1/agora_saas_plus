@@ -162,3 +162,83 @@ export async function purgeMultiAreaOriginals() {
   }
 }
 
+// ── Purge Deleted Nodes (404s) and Non-Transactions / None Posts ──
+export async function purgeDeletedAndNoneTransactions() {
+  try {
+    const prisma = (await import('@/lib/prisma')).default
+    const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/api/agora/transactions'
+    const DRUPAL_AGORA_TOKEN = process.env.DRUPAL_AGORA_TOKEN || 'agora-etl-2026-secure-token'
+
+    const KNOWN_DELETED_NIDS = [132999, 133004, 133243, 133487]
+    const toDeleteIds = new Set<string>()
+
+    for (const nid of KNOWN_DELETED_NIDS) {
+      toDeleteIds.add(`drupal-${nid}`)
+    }
+
+    // Scan up to 20 pages (1,000 posts) of Drupal API for non-transaction / None posts
+    for (let page = 0; page < 20; page++) {
+      try {
+        const res = await fetch(`${DRUPAL_API_BASE}?page=${page}&limit=50&status=all`, {
+          headers: {
+            'X-Agora-Token': DRUPAL_AGORA_TOKEN,
+            'Accept': 'application/json'
+          }
+        })
+        if (!res.ok) break
+        const json = await res.json()
+        const posts = json.data || []
+        if (posts.length === 0) break
+
+        for (const p of posts) {
+          const tipo = (p.field_tipo_de_noticia || '').toLowerCase().trim()
+          if (tipo !== 'transacción' && tipo !== 'transaccion') {
+            toDeleteIds.add(`drupal-${p.nid}`)
+          }
+        }
+        if (posts.length < 50) break
+      } catch {
+        break
+      }
+    }
+
+    // Find which exist in DB
+    const candidateIds = Array.from(toDeleteIds)
+    const existing = await prisma.transaction.findMany({
+      where: { id: { in: candidateIds } },
+      select: { id: true, title: true }
+    })
+
+    if (existing.length === 0) {
+      return {
+        success: true,
+        message: 'No se encontraron notas eliminadas o en None en la base de datos.',
+        purged: 0,
+        purgedList: []
+      }
+    }
+
+    const existingIds = existing.map(e => e.id)
+
+    // Delete cascade
+    await Promise.all([
+      prisma.transactionCompany.deleteMany({ where: { transactionId: { in: existingIds } } }),
+      prisma.transactionLawyer.deleteMany({ where: { transactionId: { in: existingIds } } }),
+      prisma.transactionAdvisor.deleteMany({ where: { transactionId: { in: existingIds } } }),
+    ])
+    await prisma.transaction.deleteMany({ where: { id: { in: existingIds } } })
+
+    revalidatePath('/', 'layout')
+    return {
+      success: true,
+      message: `Purga completada: ${existing.length} notas eliminadas o en None fueron removidas de Ágora.`,
+      purged: existing.length,
+      purgedList: existing.map(e => `${e.id}: ${e.title.substring(0, 80)}`)
+    }
+  } catch (error: any) {
+    console.error("purgeDeletedAndNoneTransactions error:", error)
+    return { success: false, error: error.message }
+  }
+}
+
+
