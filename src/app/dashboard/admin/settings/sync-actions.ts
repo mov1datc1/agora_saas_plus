@@ -169,7 +169,7 @@ export async function purgeDeletedAndNoneTransactions() {
     const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/api/agora/transactions'
     const DRUPAL_AGORA_TOKEN = process.env.DRUPAL_AGORA_TOKEN || 'agora-etl-2026-secure-token'
 
-    const KNOWN_DELETED_NIDS = [132999, 133004, 133243, 133487, 132489]
+    const KNOWN_DELETED_NIDS = [132999, 133004, 133243, 133487, 132489, 134465, 134071, 130567]
     const toDeleteIds = new Set<string>()
 
     for (const nid of KNOWN_DELETED_NIDS) {

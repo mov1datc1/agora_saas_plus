@@ -638,9 +638,9 @@ export async function POST(request: Request) {
     // ── 4. Reconciliation: check if recent Agora transactions were deleted in Drupal (HTTP 404) ──
     try {
       const recentTxs = await prisma.transaction.findMany({
-        where: { id: { startsWith: 'drupal-' } },
-        orderBy: { updatedAt: 'desc' },
-        take: 25,
+        where: { id: { startsWith: 'drupal-13' } }, // 2026 transactions
+        orderBy: { id: 'desc' },
+        take: 60,
         select: { id: true }
       })
 
