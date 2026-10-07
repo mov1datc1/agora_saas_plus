@@ -4,12 +4,121 @@ import { useState, useEffect } from 'react'
 import { Mail, Key, ExternalLink, Save, CheckCircle2, AlertCircle, Send } from 'lucide-react'
 import { getEmailTemplates, saveEmailTemplate, testResendConnection } from '@/app/actions/smtp'
 
-const DEFAULT_WELCOME = `<h1>¡Bienvenido a Ágora Plus!</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p>\n<p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
-const DEFAULT_DUNNING = `<h1>Hubo un problema con tu pago</h1>\n<p>Hola {{userFirstname}},</p>\n<p>No pudimos procesar el último cargo de tu suscripción a <strong>Ágora Plus</strong>. Para evitar interrupciones, por favor actualiza tu tarjeta.</p>\n<p><a href="{{dashboardUrl}}/billing">Actualizar Método de Pago</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
-const DEFAULT_REMINDER_TRIAL = `<h1>Tu prueba de Ágora Plus está por terminar</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Esperamos que hayas disfrutado de tu prueba gratuita. Te recordamos que en 3 días comenzará tu suscripción PRO y se realizará el cargo automático a tu método de pago registrado.</p>\n<p>Si deseas continuar con nosotros, no tienes que hacer nada. Si necesitas revisar tu método de pago o cancelación, visita el enlace abajo:</p>\n<p><a href="{{dashboardUrl}}/billing">Ver Mi Facturación</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
+const DEFAULT_WELCOME = `<h1>¡Bienvenido a Ágora Plus!</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Tu prueba gratuita de <strong>15 días</strong> se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos transaccional y al <strong>Ágora Copilot</strong> impulsado por IA.</p>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}" style="background-color: #E05C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Comenzar en mi Dashboard
+  </a>
+</p>
+<p>Recuerda que puedes explorar firmas asesoras, transacciones por industria y generar informes personalizados durante tu periodo de prueba sin costo alguno.</p>
+<p>Saludos cordiales,<br><strong>Equipo Ágora Plus</strong></p>`
+
+const DEFAULT_REMINDER_TRIAL = `<h1>Tu prueba de Ágora Plus está por concluir</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Esperamos que estés aprovechando al máximo la plataforma y las herramientas de analítica legal y financiera de Ágora Plus.</p>
+<p>Te recordamos que en <strong>3 días</strong> finalizará tu periodo de prueba gratuita y se procesará automáticamente el cobro de tu suscripción mensual oficial a tu tarjeta registrada.</p>
+<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0; font-size: 14px; color: #4b5563;">
+    <strong>¿Deseas continuar disfrutando del servicio?</strong> No tienes que hacer nada, tu cuenta continuará activa sin interrupciones.<br><br>
+    Si prefieres gestionar tu método de pago o cancelar antes del cobro para no generar cargos, puedes hacerlo desde tu panel de facturación:
+  </p>
+</div>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}/billing" style="background-color: #1f2937; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Ver Mi Facturación y Métodos de Pago
+  </a>
+</p>
+<p>Saludos,<br><strong>Equipo Ágora Plus</strong></p>`
+
+const DEFAULT_TRIAL_CANCELLED = `<h1>Tu suscripción de prueba ha sido cancelada</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Te confirmamos que tu solicitud de cancelación ha sido procesada con éxito.</p>
+<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <h3 style="color: #166534; margin-top: 0;">Garantía de Cero Cargos</h3>
+  <p style="color: #15803d; margin-bottom: 0; font-size: 14px;">
+    Confirmamos que <strong>no se ha realizado ningún cobro</strong> y que tu método de pago registrado <strong>no recibirá ningún cargo futuro</strong>. Tu suscripción en Stripe ha quedado totalmente anulada.
+  </p>
+</div>
+<p>Lamentamos verte partir. Si en el futuro deseas reactivar tu acceso a las transacciones de América Latina o al Copilot de Ágora, serás bienvenido nuevamente en cualquier momento.</p>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}" style="background-color: #4b5563; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-size: 14px; display: inline-block;">
+    Ir a Ágora Plus
+  </a>
+</p>
+<p>Atentamente,<br><strong>Equipo Ágora Plus</strong></p>`
+
+const DEFAULT_PAYMENT_SUCCESS = `<h1>¡Tu suscripción PRO está oficialmente activa!</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Te confirmamos que el cobro de tu membresía a <strong>Ágora Plus PRO</strong> ha sido procesado exitosamente tras culminar tu periodo de prueba.</p>
+<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <h3 style="margin-top: 0; color: #111827;">Detalle de la Transacción</h3>
+  <ul style="color: #4b5563; font-size: 14px; line-height: 1.8; margin-bottom: 0;">
+    <li><strong>Estado:</strong> Pagado con éxito</li>
+    <li><strong>Plan:</strong> Suscripción Mensual Ágora Plus PRO</li>
+    <li><strong>Acceso:</strong> Ilimitado a la plataforma y reportes analíticos</li>
+  </ul>
+</div>
+<h3>Beneficios activos en tu cuenta:</h3>
+<ul style="color: #374151; font-size: 14px; line-height: 1.6;">
+  <li>Acceso completo a la base histórica de M&A, emisiones y financiamientos de América Latina.</li>
+  <li>Consultas ilimitadas con <strong>Ágora Copilot (IA)</strong>.</li>
+  <li>Rankings interactivos de firmas asesoras, abogados e industrias.</li>
+  <li>Exportación de datos e informes de mercado personalizados.</li>
+</ul>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}" style="background-color: #E05C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Acceder a mi Dashboard
+  </a>
+</p>
+<p>Gracias por confiar en Ágora.<br><strong>Equipo Ágora Plus</strong></p>`
+
+const DEFAULT_DUNNING = `<h1>Hubo un problema con tu método de pago</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Intentamos procesar el cargo correspondiente a tu suscripción de <strong>Ágora Plus</strong>, pero el banco emisor de tu tarjeta no autorizó la transacción.</p>
+<div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="color: #991b1b; margin: 0; font-size: 14px;">
+    <strong>Para evitar la suspensión de tu acceso:</strong> por favor ingresa a tu panel de facturación y actualiza tu tarjeta o selecciona otro método de pago. Realizaremos un nuevo intento de cobro en las próximas horas.
+  </p>
+</div>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}/billing" style="background-color: #dc2626; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Actualizar Método de Pago Ahora
+  </a>
+</p>
+<p>Si consideras que esto es un error de tu banco, te recomendamos contactarlos para autorizar cargos recurrentes de Ágora / Stripe.</p>
+<p>Saludos,<br><strong>Equipo Ágora Plus</strong></p>`
+
+const DEFAULT_UPCOMING_RENEWAL = `<h1>Aviso de próxima renovación mensual</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Te informamos que en <strong>3 días</strong> se procesará la renovación automática de tu suscripción mensual a <strong>Ágora Plus PRO</strong>.</p>
+<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0; font-size: 14px; color: #4b5563;">
+    El cobro se realizará de forma automática a la tarjeta registrada en tu cuenta. No es necesario que realices ninguna acción para mantener tu servicio activo.<br><br>
+    Si necesitas descargar tus facturas anteriores, actualizar tu método de pago o consultar los datos de tu suscripción, puedes hacerlo aquí:
+  </p>
+</div>
+<p style="margin: 24px 0;">
+  <a href="{{dashboardUrl}}/billing" style="background-color: #1f2937; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Gestionar Mi Facturación
+  </a>
+</p>
+<p>Gracias por seguir formando parte de Ágora.<br><strong>Equipo Ágora Plus</strong></p>`
+
+type TemplateType = 'WELCOME' | 'REMINDER_TRIAL' | 'TRIAL_CANCELLED' | 'PAYMENT_SUCCESS' | 'DUNNING' | 'UPCOMING_RENEWAL'
+
+const TABS: { type: TemplateType; label: string; desc: string }[] = [
+  { type: 'WELCOME', label: '1. Bienvenida (Magic Link)', desc: 'Enviado al completar el checkout de prueba de 15 días.' },
+  { type: 'REMINDER_TRIAL', label: '2. Fin de Prueba (3 días)', desc: 'Aviso enviado 3 días antes de culminar la prueba gratuita.' },
+  { type: 'TRIAL_CANCELLED', label: '3. Cancelación Prueba', desc: 'Confirmación de cero cargos al cancelar durante el periodo de prueba.' },
+  { type: 'PAYMENT_SUCCESS', label: '4. Cobro Exitoso PRO', desc: 'Confirmación de cobro exitoso y activación oficial de suscripción.' },
+  { type: 'DUNNING', label: '5. Cobro Fallido', desc: 'Alerta inmediata cuando la tarjeta es declinada.' },
+  { type: 'UPCOMING_RENEWAL', label: '6. Próxima Renovación', desc: 'Aviso 3 días antes de cobrar las mensualidades recurrentes.' },
+]
 
 export default function SMTPSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'WELCOME' | 'DUNNING' | 'REMINDER_TRIAL'>('WELCOME')
+  const [activeTab, setActiveTab] = useState<TemplateType>('WELCOME')
   const [subject, setSubject] = useState('')
   const [htmlBody, setHtmlBody] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -23,10 +132,13 @@ export default function SMTPSettingsPage() {
   const [testMessage, setTestMessage] = useState<{type: 'success'|'error', text: string} | null>(null)
 
   // Local cache to avoid losing unsaved edits when switching tabs
-  const [templates, setTemplates] = useState<Record<string, { subject: string, htmlBody: string }>>({
+  const [templates, setTemplates] = useState<Record<TemplateType, { subject: string, htmlBody: string }>>({
     'WELCOME': { subject: '¡Bienvenido a Ágora Plus PRO!', htmlBody: DEFAULT_WELCOME },
-    'DUNNING': { subject: 'Acción Requerida: Actualiza tu método de pago', htmlBody: DEFAULT_DUNNING },
-    'REMINDER_TRIAL': { subject: 'Aviso: Tu prueba gratuita está por concluir', htmlBody: DEFAULT_REMINDER_TRIAL }
+    'REMINDER_TRIAL': { subject: 'Aviso: Tu prueba gratuita de Ágora Plus finaliza en 3 días', htmlBody: DEFAULT_REMINDER_TRIAL },
+    'TRIAL_CANCELLED': { subject: 'Confirmación: Tu prueba gratuita de Ágora Plus ha sido cancelada', htmlBody: DEFAULT_TRIAL_CANCELLED },
+    'PAYMENT_SUCCESS': { subject: '¡Pago confirmado! Bienvenido a tu suscripción oficial de Ágora Plus PRO', htmlBody: DEFAULT_PAYMENT_SUCCESS },
+    'DUNNING': { subject: 'Acción requerida: Problema al procesar tu pago de Ágora Plus', htmlBody: DEFAULT_DUNNING },
+    'UPCOMING_RENEWAL': { subject: 'Aviso: Tu suscripción a Ágora Plus se renovará en 3 días', htmlBody: DEFAULT_UPCOMING_RENEWAL }
   })
 
   useEffect(() => {
@@ -34,7 +146,9 @@ export default function SMTPSettingsPage() {
       const data = await getEmailTemplates()
       const newTemplates = { ...templates }
       data.forEach((t: any) => {
-        newTemplates[t.type] = { subject: t.subject, htmlBody: t.htmlBody }
+        if (newTemplates[t.type as TemplateType]) {
+          newTemplates[t.type as TemplateType] = { subject: t.subject, htmlBody: t.htmlBody }
+        }
       })
       setTemplates(newTemplates)
       setSubject(newTemplates['WELCOME'].subject)
@@ -45,7 +159,7 @@ export default function SMTPSettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleTabChange = (type: 'WELCOME' | 'DUNNING' | 'REMINDER_TRIAL') => {
+  const handleTabChange = (type: TemplateType) => {
     // Save current active tab to local state
     setTemplates(prev => ({
       ...prev,
@@ -95,6 +209,8 @@ export default function SMTPSettingsPage() {
     return <div className="p-8 text-muted-foreground animate-pulse">Cargando plantillas...</div>
   }
 
+  const currentTabMeta = TABS.find(t => t.type === activeTab)
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
       
@@ -123,7 +239,7 @@ export default function SMTPSettingsPage() {
                 <p className="mt-3 text-xs text-muted-foreground flex flex-col gap-2">
                   <span>Por seguridad en entornos Serverless, esta llave no es editable desde el panel de control.</span>
                   <a 
-                    href="https://vercel.com/jhons-projects-2d167afe/agora-saas-plus/settings/environment-variables" 
+                    href="https://vercel.com/jhons-projects-2d167afe/agora-plus/settings/environment-variables" 
                     target="_blank" 
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-brand hover:underline w-fit"
@@ -183,37 +299,39 @@ export default function SMTPSettingsPage() {
 
       {/* Editor de Plantillas */}
       <div className="bg-surface border border-border shadow-sm sm:rounded-2xl overflow-hidden">
-        <div className="px-4 py-6 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="px-4 py-6 sm:px-6 flex flex-col gap-4">
           <div>
             <h3 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
               <Mail className="h-5 w-5 text-brand" />
-              Plantillas Dinámicas de Correo
+              Plantillas Dinámicas de Correo (Ciclo de Suscripción)
             </h3>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-foreground/60">
-              Personaliza el asunto y el HTML de los correos automáticos.
+              Personaliza el asunto y el código HTML de cada notificación del ciclo de vida del usuario.
             </p>
           </div>
           
-          <div className="flex bg-muted/50 p-1 rounded-xl w-fit">
-            <button
-              onClick={() => handleTabChange('WELCOME')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'WELCOME' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
-            >
-              Bienvenida
-            </button>
-            <button
-              onClick={() => handleTabChange('DUNNING')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'DUNNING' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
-            >
-              Recuperación
-            </button>
-            <button
-              onClick={() => handleTabChange('REMINDER_TRIAL')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'REMINDER_TRIAL' ? 'bg-surface text-brand shadow-sm border border-border' : 'text-foreground/60 hover:text-foreground'}`}
-            >
-              Recordatorio (Prueba)
-            </button>
+          {/* Tabs Selector */}
+          <div className="flex flex-wrap gap-2 bg-muted/40 p-1.5 rounded-xl border border-border">
+            {TABS.map((tab) => (
+              <button
+                key={tab.type}
+                onClick={() => handleTabChange(tab.type)}
+                className={`px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                  activeTab === tab.type 
+                    ? 'bg-surface text-brand shadow-sm border border-border font-semibold' 
+                    : 'text-foreground/70 hover:text-foreground hover:bg-surface/50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
+
+          {currentTabMeta && (
+            <p className="text-xs text-muted-foreground italic">
+              ℹ️ {currentTabMeta.desc}
+            </p>
+          )}
         </div>
         
         <div className="border-t border-border px-4 py-6 sm:p-6">
@@ -223,8 +341,8 @@ export default function SMTPSettingsPage() {
             <div className="bg-brand/5 border border-brand/20 rounded-xl p-4 text-sm text-foreground/80">
               <p className="font-semibold text-brand mb-1">Variables Dinámicas Disponibles:</p>
               <ul className="list-disc pl-5 space-y-1 text-xs">
-                <li><code>{'{'}{'{'}userFirstname{'}'}{'}'}</code>: Nombre del cliente (Ej. Jonathan)</li>
-                <li><code>{'{'}{'{'}dashboardUrl{'}'}{'}'}</code>: URL del dominio principal ({process.env.NEXT_PUBLIC_SITE_URL || 'https://agora-plus.com'}/dashboard)</li>
+                <li><code>{'{'}{'{'}userFirstname{'}'}{'}'}</code>: Nombre del cliente (Ej. Henry)</li>
+                <li><code>{'{'}{'{'}dashboardUrl{'}'}{'}'}</code>: URL del Dashboard o Enlace Mágico de acceso directo</li>
               </ul>
             </div>
 
@@ -249,7 +367,7 @@ export default function SMTPSettingsPage() {
               </label>
               <div className="mt-2">
                 <textarea
-                  rows={14}
+                  rows={16}
                   value={htmlBody}
                   onChange={(e) => setHtmlBody(e.target.value)}
                   className="block w-full rounded-xl border-0 py-3 px-4 bg-muted/30 font-mono text-sm text-foreground shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-brand sm:leading-6 scrollbar-thin scrollbar-thumb-muted"

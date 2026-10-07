@@ -189,7 +189,8 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         const dbSubUser = await prisma.user.findUnique({
-          where: { stripeCustomerId: subscription.customer as string }
+          where: { stripeCustomerId: subscription.customer as string },
+          include: { subscription: true }
         })
 
         if (dbSubUser) {
@@ -199,6 +200,8 @@ export async function POST(req: Request) {
           if (subscription.status === 'active') newStatus = SubscriptionStatus.ACTIVE
           if (subscription.status === 'canceled') newStatus = SubscriptionStatus.CANCELED
           if (subscription.status === 'past_due' || subscription.status === 'unpaid') newStatus = SubscriptionStatus.PAST_DUE
+
+          const wasTrial = dbSubUser.subscription?.status === 'TRIAL' || Boolean(dbSubUser.subscription?.trialEndsAt && new Date(dbSubUser.subscription.trialEndsAt) > new Date())
 
           await prisma.subscription.update({
             where: { userId: dbSubUser.id },
@@ -210,11 +213,34 @@ export async function POST(req: Request) {
             }
           })
 
-          // Send Dunning Email if past_due
+          // 1. Send TRIAL_CANCELLED email if cancelled during trial
+          if (newStatus === SubscriptionStatus.CANCELED && wasTrial) {
+            try {
+              const template = await prisma.emailTemplate.findUnique({ where: { type: 'TRIAL_CANCELLED' }})
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
+              
+              const subject = template?.subject || 'Confirmación: Tu prueba gratuita de Ágora Plus ha sido cancelada'
+              let html = template?.htmlBody || `<h1>Tu suscripción de prueba ha sido cancelada</h1><p>Hola {{userFirstname}},</p><p>Confirmamos que tu suscripción ha sido cancelada exitosamente y <strong>no se realizó ni se realizará cobro alguno</strong> a tu tarjeta.</p><p><a href="{{dashboardUrl}}">Ir a Ágora Plus</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
+              
+              html = html.replace(/{{userFirstname}}/g, dbSubUser.name || 'Usuario')
+                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+              await resend.emails.send({
+                from: 'Ágora Plus <soporte@agora-lexlatin.com>',
+                to: [dbSubUser.email],
+                subject: subject,
+                html: html,
+              })
+            } catch (emailErr) {
+              console.error('[RESEND_ERROR] Failed to send trial cancelled email', emailErr)
+            }
+          }
+
+          // 2. Send Dunning Email if past_due
           if (newStatus === SubscriptionStatus.PAST_DUE) {
             try {
               const template = await prisma.emailTemplate.findUnique({ where: { type: 'DUNNING' }})
-              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
               
               const subject = template?.subject || 'Acción Requerida: Actualiza tu método de pago'
               let html = template?.htmlBody || `<h1>Hubo un problema con tu pago</h1><p>Hola {{userFirstname}},</p><p>No pudimos procesar el último cargo de tu suscripción a <strong>Ágora Plus</strong>. Para evitar interrupciones, por favor actualiza tu tarjeta.</p><p><a href="{{dashboardUrl}}/billing">Actualizar Método de Pago</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
@@ -230,6 +256,118 @@ export async function POST(req: Request) {
               })
             } catch (emailErr) {
               console.error('[RESEND_ERROR] Failed to send dunning email', emailErr)
+            }
+          }
+        }
+        break
+
+      case 'invoice.payment_succeeded':
+      case 'invoice.paid':
+        const invoice = event.data.object as Stripe.Invoice
+        if (invoice.customer) {
+          const dbInvoiceUser = await prisma.user.findUnique({
+            where: { stripeCustomerId: invoice.customer as string },
+            include: { subscription: true }
+          })
+
+          if (dbInvoiceUser) {
+            // Update subscription to ACTIVE
+            await prisma.subscription.updateMany({
+              where: { userId: dbInvoiceUser.id },
+              data: {
+                status: SubscriptionStatus.ACTIVE,
+                cancelAtPeriodEnd: false
+              }
+            })
+
+            // Only send payment confirmation email if it was an actual charge (amount_paid > 0)
+            if (invoice.amount_paid && invoice.amount_paid > 0) {
+              try {
+                const template = await prisma.emailTemplate.findUnique({ where: { type: 'PAYMENT_SUCCESS' }})
+                const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
+                
+                const subject = template?.subject || '¡Pago confirmado! Bienvenido a tu suscripción oficial de Ágora Plus PRO'
+                let html = template?.htmlBody || `<h1>¡Tu suscripción PRO está oficialmente activa!</h1><p>Hola {{userFirstname}},</p><p>Te confirmamos que el cobro de tu membresía a <strong>Ágora Plus PRO</strong> ha sido procesado exitosamente.</p><p><a href="{{dashboardUrl}}">Acceder a mi Dashboard</a></p><p>Gracias por confiar en Ágora.<br>Equipo Ágora Plus</p>`
+                
+                html = html.replace(/{{userFirstname}}/g, dbInvoiceUser.name || 'Usuario')
+                           .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+                await resend.emails.send({
+                  from: 'Ágora Plus Pagos <soporte@agora-lexlatin.com>',
+                  to: [dbInvoiceUser.email],
+                  subject: subject,
+                  html: html,
+                })
+              } catch (emailErr) {
+                console.error('[RESEND_ERROR] Failed to send payment success email', emailErr)
+              }
+            }
+          }
+        }
+        break
+
+      case 'invoice.payment_failed':
+        const failedInvoice = event.data.object as Stripe.Invoice
+        if (failedInvoice.customer) {
+          const dbFailedUser = await prisma.user.findUnique({
+            where: { stripeCustomerId: failedInvoice.customer as string }
+          })
+
+          if (dbFailedUser) {
+            await prisma.subscription.updateMany({
+              where: { userId: dbFailedUser.id },
+              data: { status: SubscriptionStatus.PAST_DUE }
+            })
+
+            try {
+              const template = await prisma.emailTemplate.findUnique({ where: { type: 'DUNNING' }})
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
+              
+              const subject = template?.subject || 'Acción requerida: Problema al procesar tu pago de Ágora Plus'
+              let html = template?.htmlBody || `<h1>Hubo un problema con tu pago</h1><p>Hola {{userFirstname}},</p><p>No pudimos procesar el último cargo de tu suscripción a <strong>Ágora Plus</strong>. Para evitar interrupciones, por favor actualiza tu tarjeta.</p><p><a href="{{dashboardUrl}}/billing">Actualizar Método de Pago</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
+              
+              html = html.replace(/{{userFirstname}}/g, dbFailedUser.name || 'Usuario')
+                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+              await resend.emails.send({
+                from: 'Ágora Plus Pagos <soporte@agora-lexlatin.com>',
+                to: [dbFailedUser.email],
+                subject: subject,
+                html: html,
+              })
+            } catch (emailErr) {
+              console.error('[RESEND_ERROR] Failed to send payment failed email', emailErr)
+            }
+          }
+        }
+        break
+
+      case 'invoice.upcoming':
+        const upcomingInvoice = event.data.object as Stripe.Invoice
+        if (upcomingInvoice.customer) {
+          const dbUpcomingUser = await prisma.user.findUnique({
+            where: { stripeCustomerId: upcomingInvoice.customer as string }
+          })
+
+          if (dbUpcomingUser) {
+            try {
+              const template = await prisma.emailTemplate.findUnique({ where: { type: 'UPCOMING_RENEWAL' }})
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
+              
+              const subject = template?.subject || 'Aviso: Tu suscripción a Ágora Plus se renovará en 3 días'
+              let html = template?.htmlBody || `<h1>Aviso de próxima renovación mensual</h1><p>Hola {{userFirstname}},</p><p>Te informamos que en 3 días se procesará la renovación automática de tu suscripción mensual a <strong>Ágora Plus PRO</strong>.</p><p><a href="{{dashboardUrl}}/billing">Gestionar Mi Facturación</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
+              
+              html = html.replace(/{{userFirstname}}/g, dbUpcomingUser.name || 'Usuario')
+                         .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+              await resend.emails.send({
+                from: 'Ágora Plus <soporte@agora-lexlatin.com>',
+                to: [dbUpcomingUser.email],
+                subject: subject,
+                html: html,
+              })
+            } catch (emailErr) {
+              console.error('[RESEND_ERROR] Failed to send upcoming renewal email', emailErr)
             }
           }
         }
