@@ -61,9 +61,15 @@ export async function POST(req: Request) {
             const { supabaseAdmin } = await import('@/utils/supabase/admin')
             let userId = ''
             
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com'
+            const redirectCallback = `${siteUrl}/auth/callback?next=/dashboard`
+
             const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
               type: 'invite',
               email: customerEmail,
+              options: {
+                redirectTo: redirectCallback
+              }
             })
             
             if (linkError) {
@@ -77,6 +83,9 @@ export async function POST(req: Request) {
                 const { data: magicLinkData } = await supabaseAdmin.auth.admin.generateLink({
                   type: 'magiclink',
                   email: customerEmail,
+                  options: {
+                    redirectTo: redirectCallback
+                  }
                 })
                 if (magicLinkData?.properties?.action_link) {
                   inviteUrl = magicLinkData.properties.action_link
