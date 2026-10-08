@@ -2,24 +2,26 @@
 
 import { createClient } from '@/utils/supabase/server'
 
-export async function changeOwnPassword(data: { currentPassword: string, newPassword: string }) {
+export async function changeOwnPassword(data: { currentPassword?: string, newPassword: string }) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) return { success: false, error: 'No autorizado' }
 
-    // Verify current password by attempting to sign in
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: user.email!,
-      password: data.currentPassword,
-    })
+    // Verify current password only if provided
+    if (data.currentPassword && data.currentPassword.trim() !== '') {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: data.currentPassword.trim(),
+      })
 
-    if (signInError) {
-      return { success: false, error: 'La contraseña actual es incorrecta.' }
+      if (signInError) {
+        return { success: false, error: 'La contraseña actual es incorrecta.' }
+      }
     }
 
-    // Update password
+    // Update password directly in Supabase Auth
     const { error: updateError } = await supabase.auth.updateUser({
       password: data.newPassword
     })

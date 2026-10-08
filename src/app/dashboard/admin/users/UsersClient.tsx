@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2, ArrowUpRight } from 'lucide-react'
+import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2, ArrowUpRight, KeyRound, Copy, Check } from 'lucide-react'
 import { deactivateUser, reactivateUser } from './actions'
+import { resetUserPassword } from './user-actions'
 import PromoteUserModal from './PromoteUserModal'
 
 type UIUser = {
@@ -20,6 +21,8 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
   const [searchQuery, setSearchQuery] = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [promoteUser, setPromoteUser] = useState<UIUser | null>(null)
+  const [resetResult, setResetResult] = useState<{ userName: string, tempPassword: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const isSuperAdmin = currentUserRole === 'SUPERADMIN'
 
   const handlePromoteSuccess = (userId: string) => {
@@ -49,6 +52,19 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
       setUsers(prev => prev.map(u => u.id === id ? { ...u, status: 'ACTIVE' } : u))
     }
     setLoadingId(null)
+  }
+
+  const handleResetPassword = async (user: UIUser) => {
+    if (!confirm(`¿Generar contraseña para ${user.name || user.email}? Se le asignará una contraseña temporal para ingresar directamente.`)) return
+    setLoadingId(user.id)
+    const res = await resetUserPassword(user.id)
+    setLoadingId(null)
+    if (res.success && res.tempPassword) {
+      setResetResult({ userName: user.name || user.email, tempPassword: res.tempPassword })
+      setCopied(false)
+    } else {
+      alert(res.error || 'Error al resetear la contraseña')
+    }
   }
 
   return (
@@ -143,6 +159,13 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
                             <ArrowUpRight className="h-4 w-4" /> Promover
                           </button>
                         )}
+                        <button
+                          onClick={() => handleResetPassword(user)}
+                          className="text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                          title="Asignar o resetear contraseña"
+                        >
+                          <KeyRound className="h-4 w-4" /> Password
+                        </button>
                         {user.status === 'CANCELED' ? (
                           <button
                             onClick={() => handleReactivate(user.id)}
@@ -183,6 +206,45 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
         user={promoteUser}
         onSuccess={handlePromoteSuccess}
       />
+
+      {/* Modal Contraseña Asignada */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm bg-surface rounded-2xl shadow-2xl border border-border p-6 text-center animate-in zoom-in-95">
+            <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="h-6 w-6 text-amber-600" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground">Contraseña Generada</h3>
+            <p className="text-xs text-muted-foreground mt-1">Para {resetResult.userName}</p>
+
+            <div className="my-4 p-3 bg-muted rounded-xl flex items-center justify-between font-mono text-sm border border-border">
+              <span>{resetResult.tempPassword}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`Contraseña para ${resetResult.userName}:\n${resetResult.tempPassword}\n\nIngresa en: https://www.agora-lexlatin.com/login`)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+                className="p-1.5 hover:bg-background rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+                title="Copiar"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mb-4">
+              Copia esta contraseña y compártela con el usuario. Ya podrá acceder directamente en /login con su correo.
+            </p>
+
+            <button
+              onClick={() => setResetResult(null)}
+              className="w-full py-2.5 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-hover transition-colors"
+            >
+              Listo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -103,7 +103,7 @@ export default function Header({ userName = 'Usuario', userEmail = '', isChild =
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted/50 transition-colors"
                       >
                         <KeyRound className="h-4 w-4 text-muted-foreground" />
-                        Cambiar Contraseña
+                        Establecer / Cambiar Contraseña
                       </button>
                     )}
 
@@ -152,10 +152,6 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     setError('')
 
-    if (!currentPassword) {
-      setError('Ingresa tu contraseña actual.')
-      return
-    }
     if (newPassword.length < 6) {
       setError('La nueva contraseña debe tener al menos 6 caracteres.')
       return
@@ -164,13 +160,16 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
       setError('Las contraseñas no coinciden.')
       return
     }
-    if (currentPassword === newPassword) {
+    if (currentPassword && currentPassword === newPassword) {
       setError('La nueva contraseña debe ser diferente a la actual.')
       return
     }
 
     setLoading(true)
-    const result = await changeOwnPassword({ currentPassword, newPassword })
+    const result = await changeOwnPassword({ 
+      currentPassword: currentPassword.trim() ? currentPassword.trim() : undefined, 
+      newPassword 
+    })
     setLoading(false)
 
     if (result.success) {
@@ -190,8 +189,8 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
             <Shield className="h-5 w-5 text-brand" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-foreground">Cambiar Contraseña</h3>
-            <p className="text-xs text-muted-foreground">Actualiza tu contraseña de acceso a Ágora Plus</p>
+            <h3 className="text-lg font-bold text-foreground">Establecer o Cambiar Contraseña</h3>
+            <p className="text-xs text-muted-foreground">Define tu contraseña para acceder directamente sin enlace</p>
           </div>
           <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
@@ -203,8 +202,8 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
             <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
               <Check className="h-8 w-8 text-green-600" />
             </div>
-            <h4 className="text-lg font-bold text-foreground mb-1">¡Contraseña Actualizada!</h4>
-            <p className="text-sm text-muted-foreground">Tu nueva contraseña está activa.</p>
+            <h4 className="text-lg font-bold text-foreground mb-1">¡Contraseña Guardada!</h4>
+            <p className="text-sm text-muted-foreground">Ya puedes iniciar sesión en Ágora con tu correo y esta contraseña.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -216,13 +215,15 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
 
             {/* Current Password */}
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Contraseña Actual</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-muted-foreground">Contraseña Actual</label>
+                <span className="text-[10px] text-muted-foreground font-normal">(Opcional si entraste por Enlace)</span>
+              </div>
               <div className="relative">
                 <input
                   type={showCurrent ? 'text' : 'password'}
-                  required
                   className="w-full rounded-lg border-border bg-background px-3 py-2.5 pr-10 text-sm text-foreground focus:ring-2 focus:ring-brand outline-none"
-                  placeholder="Tu contraseña actual"
+                  placeholder="Déjalo vacío si entraste por enlace"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
@@ -234,6 +235,9 @@ function PasswordChangeModal({ onClose }: { onClose: () => void }) {
                   {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Si accediste mediante enlace a tu correo y aún no tienes contraseña, puedes dejar este campo vacío.
+              </p>
             </div>
 
             {/* New Password */}
