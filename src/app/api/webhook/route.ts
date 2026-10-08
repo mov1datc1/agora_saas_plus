@@ -42,12 +42,18 @@ export async function POST(req: Request) {
     switch (event.type) {
       case 'checkout.session.completed':
         if (session.subscription) {
-          const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
-          const customerEmail = session.customer_details?.email
+          const customerEmail = session.customer_details?.email || (session as any).customer_email
           
           if (!customerEmail) {
             console.error('[WEBHOOK_ERROR] No email found in session')
             break;
+          }
+
+          let stripeSubscription: Stripe.Subscription | null = null
+          try {
+            stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          } catch (subErr: any) {
+            console.warn('[WEBHOOK_WARNING] Could not retrieve subscription directly from Stripe API (may be test/live key mismatch):', subErr?.message)
           }
 
           let dbUser = await prisma.user.findUnique({
@@ -118,31 +124,42 @@ export async function POST(req: Request) {
           }
           
           if (dbUser) {
+            const subId = (session.subscription as string) || stripeSubscription?.id || 'sub_default'
+            const priceId = stripeSubscription?.items?.data?.[0]?.price?.id || process.env.STRIPE_PRICE_ID || 'price_1TqKfkA8zDaMc9MaeJXZTELz'
+            const status = stripeSubscription?.status === 'active' ? SubscriptionStatus.ACTIVE : SubscriptionStatus.TRIAL
+            const trialEndsAt = stripeSubscription?.trial_end 
+              ? new Date(stripeSubscription.trial_end * 1000) 
+              : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+            const currentPeriodEnd = stripeSubscription 
+              ? new Date(((stripeSubscription as any).current_period_end || stripeSubscription.trial_end || stripeSubscription.created || Math.floor(Date.now() / 1000)) * 1000)
+              : trialEndsAt
+            const cancelAtPeriodEnd = Boolean(stripeSubscription ? (stripeSubscription as any).cancel_at_period_end : false)
+
             await prisma.subscription.upsert({
               where: { userId: dbUser.id },
               create: {
                 userId: dbUser.id,
-                stripeSubscriptionId: stripeSubscription.id,
-                status: stripeSubscription.status === 'trialing' ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
-                priceId: stripeSubscription.items.data[0].price.id,
-                trialEndsAt: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
-                currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || stripeSubscription.trial_end || stripeSubscription.created || Math.floor(Date.now() / 1000)) * 1000),
-                cancelAtPeriodEnd: Boolean((stripeSubscription as any).cancel_at_period_end),
+                stripeSubscriptionId: subId,
+                status,
+                priceId,
+                trialEndsAt,
+                currentPeriodEnd,
+                cancelAtPeriodEnd,
               },
               update: {
-                stripeSubscriptionId: stripeSubscription.id,
-                status: stripeSubscription.status === 'trialing' ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
-                priceId: stripeSubscription.items.data[0].price.id,
-                trialEndsAt: stripeSubscription.trial_end ? new Date(stripeSubscription.trial_end * 1000) : null,
-                currentPeriodEnd: new Date(((stripeSubscription as any).current_period_end || stripeSubscription.trial_end || stripeSubscription.created || Math.floor(Date.now() / 1000)) * 1000),
-                cancelAtPeriodEnd: Boolean((stripeSubscription as any).cancel_at_period_end),
+                stripeSubscriptionId: subId,
+                status,
+                priceId,
+                trialEndsAt,
+                currentPeriodEnd,
+                cancelAtPeriodEnd,
               }
             })
             
             // Send Welcome Email for new subscriptions
             try {
               const template = await prisma.emailTemplate.findUnique({ where: { type: 'WELCOME' }})
-              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+              const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
               
               const subject = template?.subject || '¡Bienvenido a Ágora Plus PRO!'
               let html = template?.htmlBody || `<h1>¡Bienvenido a Ágora Plus!</h1><p>Hola {{userFirstname}},</p><p>Tu suscripción PRO se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos y al <strong>Ágora Copilot</strong> impulsado por IA.</p><p><a href="{{dashboardUrl}}">Ir a mi Dashboard</a></p><p>Saludos,<br>Equipo Ágora Plus</p>`
@@ -159,6 +176,7 @@ export async function POST(req: Request) {
                 subject: subject,
                 html: html,
               })
+              console.log(`[RESEND_SUCCESS] Welcome email sent to ${dbUser.email}`)
             } catch (emailErr) {
               console.error('[RESEND_ERROR] Failed to send welcome email', emailErr)
             }
@@ -175,7 +193,7 @@ export async function POST(req: Request) {
         if (dbTrialUser) {
           try {
             const template = await prisma.emailTemplate.findUnique({ where: { type: 'REMINDER_TRIAL' }})
-            const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://agora-plus.com/dashboard'
+            const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'
             
             const subject = template?.subject || 'Aviso: Tu prueba gratuita está por concluir'
             let html = template?.htmlBody || `<h1>Tu prueba de Ágora Plus está por terminar</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Esperamos que hayas disfrutado de tu prueba gratuita. Te recordamos que en 3 días comenzará tu suscripción PRO y se realizará el cargo automático a tu método de pago registrado.</p>\n<p>Si deseas continuar con nosotros, no tienes que hacer nada. Si necesitas revisar tu método de pago o cancelación, visita el enlace abajo:</p>\n<p><a href="{{dashboardUrl}}/billing">Ver Mi Facturación</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
@@ -195,6 +213,7 @@ export async function POST(req: Request) {
         }
         break
 
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         const dbSubUser = await prisma.user.findUnique({
