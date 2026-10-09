@@ -2,6 +2,29 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.4.0] — 2026-10-08 🔐 Stripe Live Mode & Autodefinición de Contraseñas (Magic Link)
+
+### 🐛 Fixed & Diagnosed
+- **Error al Abrir Portal de Facturación ("Gestionar Suscripción")** — Al pulsar *"Gestionar Suscripción"*, Stripe devolvía `StripeInvalidRequestError: No such customer: 'cus_VP706vnkkzEY5u'; a similar object exists in live mode, but a test mode key was used to make this request` (500 en `/api/portal`). Vercel tenía configurada la clave `sk_test_...` de la cuenta de LexLatin (`acct_1NvmaWA8zDaMc9Ma`), mientras que los checkouts ocurrían en Live Mode.
+  - Se recreó `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` como tipo **Config** (resolviendo el bloqueo de seguridad de Vercel para prefijos de framework públicos) con la clave `pk_live_...`.
+  - Se actualizó `STRIPE_SECRET_KEY` con la clave de producción `sk_live_...`.
+  - Se diagnosticó y verificó en vivo la generación exitosa de URLs del Customer Portal (`urlGenerated: true`) para clientes de producción.
+- **Bloqueo de Cambio de Contraseña para Usuarios de Enlace Mágico** — Los usuarios suscritos vía Stripe Checkout y Magic Link no poseían contraseña previa en Supabase Auth. El modal en `Header.tsx` (`PasswordChangeModal`) y la Server Action `changeOwnPassword` (`/profile/actions.ts`) exigían `currentPassword` obligatoria y llamaban a `signInWithPassword`, arrojando siempre *"La contraseña actual es incorrecta"*.
+  - `changeOwnPassword` ahora trata `currentPassword` como opcional: si el usuario no tiene contraseña previa, actualiza directamente en Supabase Auth mediante `supabase.auth.updateUser({ password })`. Si se provee, valida primero la contraseña anterior.
+
+### ✨ Added
+- **Modal de "Establecer o Cambiar Contraseña" en Header**:
+  - Título y descripción actualizados para permitir a cualquier usuario definir su contraseña personal directamente desde su sesión activa.
+  - Campo *"Contraseña Actual"* marcado como opcional con texto de ayuda contextual: *"💡 Si accediste mediante enlace a tu correo y aún no tienes contraseña, puedes dejar este campo vacío"*.
+  - Menú de perfil renombrado a *"Establecer / Cambiar Contraseña"*.
+- **Herramienta de Asignación / Reseteo de Contraseña en Admin (`UsersClient.tsx`)**:
+  - Botón de acción con ícono de llave (`KeyRound` - *"Password"*) incorporado en la tabla de usuarios de suscripción regular (`/dashboard/admin/users`).
+  - Permite a los administradores generar una contraseña temporal segura en Supabase Auth (`resetUserPassword`) y copiarla en 1 clic para compartirla con el cliente.
+- **Restauración de Ciclo de Prueba**:
+  - Suscripción de Henry Infante confirmada en estado `TRIAL` con `cancelAtPeriodEnd: false` y vencimiento hasta el 23 de octubre de 2026.
+
+---
+
 ## [5.3.0] — 2026-10-07 💳 Stripe Webhooks & Ciclo Completo de Correos Transaccionales (Resend)
 
 ### 🐛 Fixed & Diagnosed
