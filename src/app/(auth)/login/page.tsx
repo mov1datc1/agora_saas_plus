@@ -1,9 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { login, loginWithMagicLink } from './actions'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react'
+
+function AuthFeedback() {
+  const searchParams = useSearchParams()
+  const rawError = searchParams.get('error')
+  const rawMessage = searchParams.get('message')
+
+  if (rawError && rawError !== '{}') {
+    return (
+      <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-3 animate-in fade-in">
+        <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold">No pudimos iniciar sesión</p>
+          <p className="mt-0.5 text-red-600">{decodeURIComponent(rawError)}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (rawMessage) {
+    return (
+      <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 flex items-start gap-3 animate-in fade-in">
+        <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold">Información</p>
+          <p className="mt-0.5 text-emerald-700">{decodeURIComponent(rawMessage)}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -16,6 +49,10 @@ export default function LoginPage() {
           Ingresa a tu cuenta para acceder a la inteligencia de negocios.
         </p>
       </div>
+
+      <Suspense fallback={null}>
+        <AuthFeedback />
+      </Suspense>
 
       <form className="space-y-6">
         <div>

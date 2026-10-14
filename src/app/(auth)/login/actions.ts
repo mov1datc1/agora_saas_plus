@@ -7,16 +7,27 @@ import { createClient } from '@/utils/supabase/server'
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
+  const email = (formData.get('email') as string || '').trim()
+  const password = formData.get('password') as string
+
+  if (!email) {
+    redirect('/login?error=' + encodeURIComponent('Por favor ingresa tu correo electrónico.'))
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  if (!password) {
+    redirect('/login?error=' + encodeURIComponent('Para ingresar con contraseña debes escribirla. Si aún no tienes una, haz clic abajo en "Enviar Enlace Mágico de Acceso".'))
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
 
   if (error) {
-    // Aquí puedes redirigir con error a la URL: redirect('/login?error=Invalid credentials')
-    redirect('/login?error=' + error.message)
+    const errorMsg = error.message === 'Invalid login credentials' 
+      ? 'Correo o contraseña incorrectos. Verifica tus datos o usa Enlace Mágico.' 
+      : error.message
+    redirect('/login?error=' + encodeURIComponent(errorMsg))
   }
 
   revalidatePath('/', 'layout')
@@ -25,22 +36,23 @@ export async function login(formData: FormData) {
 
 export async function loginWithMagicLink(formData: FormData) {
   const supabase = await createClient()
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string || '').trim()
 
   if (!email) {
-    redirect('/login?error=Se requiere correo electrónico para el enlace mágico')
+    redirect('/login?error=' + encodeURIComponent('Se requiere correo electrónico para enviar el enlace mágico.'))
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com'
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/dashboard`,
+      emailRedirectTo: `${siteUrl}/dashboard`,
     },
   })
 
   if (error) {
-    redirect('/login?error=' + error.message)
+    redirect('/login?error=' + encodeURIComponent(error.message))
   }
 
-  redirect('/login?message=Revisa tu correo para el enlace mágico de acceso')
+  redirect('/login?message=' + encodeURIComponent('Te hemos enviado un enlace mágico a tu correo. Revisa tu bandeja de entrada o spam.'))
 }
