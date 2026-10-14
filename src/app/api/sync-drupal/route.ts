@@ -313,36 +313,31 @@ export async function POST(request: Request) {
       // Custom API returns practice_areas as an array of strings directly
       const practiceAreas: string[] = post.practice_areas || []
 
-      // ── PORTAL ORIGINAL FILTER (v3.2) ──
-      // Data Entry methodology: when a real transaction spans multiple practice areas
-      // (e.g., Financiamientos + Emisiones), they create CLONES — one per area —
-      // for Ágora to count correctly. The ORIGINAL keeps all areas.
-      //
-      // This happens for BOTH published (portal) and unpublished posts.
-      // The clones always have exactly 1 practice area each.
-      //
-      // Rule: If a post has 2+ MAPPED practice areas (that resolve to different
-      // operation types) → it's always the original → SKIP.
-      // The individual clones (same title, 1 area each) are the authoritative
-      // records for Ágora analytics.
-      const mappedAreas = practiceAreas.map(a => {
-        const lower = a.toLowerCase().trim()
-        return Object.keys(PRACTICE_AREA_MAP).some(key => lower.includes(key) || key.includes(lower))
-      }).filter(Boolean)
-
-      if (mappedAreas.length >= 2) {
-        // This is the multi-area original — skip it, the individual clones are canonical
-        skippedPortalOriginals++
-        if (await deleteIfExists(transactionId)) totalDeleted++
-        processedCount++ // Count as "processed" so pagination advances
-        continue
-      }
-
       // Step 0: Check for manual override (persists through re-syncs)
       const existingTx = await prisma.transaction.findUnique({
         where: { id: transactionId },
         select: { typeOverride: true }
       })
+
+      // Step 1: Deterministic mapping from practice areas
+      const { type: mappedType, matchedArea, allMappedTypes } = mapPracticeAreaToType(practiceAreas)
+
+      // ── PORTAL ORIGINAL FILTER (v3.2) ──
+      // Data Entry methodology: when a real transaction spans multiple practice areas
+      // that resolve to DIFFERENT operation types (e.g., Financiamientos + Emisiones, or M&A + Financiamientos),
+      // they create CLONES — one per type — for Ágora to count correctly.
+      //
+      // Rule: If a post maps to 2+ DISTINCT operation types (allMappedTypes.length >= 2)
+      // → it's a multi-type original with clones → SKIP.
+      // Posts with multiple areas of the SAME type (e.g., "Corporativo - Adquisiciones" + "Corporativo - Fusiones",
+      // both M&A) are NOT conflicts and must be kept.
+      if (!existingTx?.typeOverride && allMappedTypes.length >= 2) {
+        // This is the multi-type original — skip it, the individual clones are canonical
+        skippedPortalOriginals++
+        if (await deleteIfExists(transactionId)) totalDeleted++
+        processedCount++ // Count as "processed" so pagination advances
+        continue
+      }
 
       // ── PHASE 0: NOISE FILTER (runs BEFORE practice area mapping) ──
       // Critical: editorial content (lateral hirings, firm promotions, law firm expansions)
@@ -357,9 +352,6 @@ export async function POST(request: Request) {
       const fullTextForNoise = `${titleLower} ${cleanText}`
       
       const isEditorialNoise = !existingTx?.typeOverride && isNonTransactional(titleLower, fullTextForNoise)
-
-      // Step 1: Deterministic mapping from practice areas
-      const { type: mappedType, matchedArea, allMappedTypes } = mapPracticeAreaToType(practiceAreas)
       // If editorial noise detected, force "Operación General" regardless of practice area mapping
       let finalType = existingTx?.typeOverride || (isEditorialNoise ? 'Operación General' : mappedType)
       const practiceAreaRaw = practiceAreas.join(', ') || null

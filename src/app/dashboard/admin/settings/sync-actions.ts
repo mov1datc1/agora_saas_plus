@@ -77,13 +77,13 @@ export async function wipeAllData() {
 // Scans all transactions in Supabase, queries Drupal API for each NID's practice areas,
 // and deletes any transaction whose Drupal post has 2+ MAPPED practice areas
 // (these are the "portal originals" that Data Entry keeps for display, not for Ágora).
-const PRACTICE_AREA_MAP_KEYS = [
-  'corporativo - adquisiciones',
-  'corporativo - fusiones',
-  'banca y finanzas (créditos y financiamientos)',
-  'banca y finanzas',
-  'mercado de capitales - emisiones',
-]
+const PRACTICE_AREA_MAP: Record<string, string> = {
+  'corporativo - adquisiciones': 'M&A',
+  'corporativo - fusiones': 'M&A',
+  'banca y finanzas (créditos y financiamientos)': 'Financiamientos',
+  'banca y finanzas': 'Financiamientos',
+  'mercado de capitales - emisiones': 'Emisiones',
+}
 
 export async function purgeMultiAreaOriginals() {
   try {
@@ -130,14 +130,20 @@ export async function purgeMultiAreaOriginals() {
         // Parse practice areas from the stored comma-separated string
         const areas = dbTx.practiceArea.split(',').map((a: string) => a.trim()).filter(Boolean)
         
-        // Count how many areas map to our operation types
-        const mappedCount = areas.filter((area: string) => {
+        // Count how many DISTINCT operation types these areas map to
+        const mappedTypes = new Set<string>()
+        for (const area of areas) {
           const lower = area.toLowerCase().trim()
-          return PRACTICE_AREA_MAP_KEYS.some(key => lower.includes(key) || key.includes(lower))
-        }).length
+          for (const [key, type] of Object.entries(PRACTICE_AREA_MAP)) {
+            if (lower.includes(key) || key.includes(lower)) {
+              mappedTypes.add(type)
+              break
+            }
+          }
+        }
 
-        if (mappedCount >= 2) {
-          // This is a portal original — delete it and its relationships
+        if (mappedTypes.size >= 2) {
+          // This is a multi-type original — delete it and its relationships
           await prisma.transactionCompany.deleteMany({ where: { transactionId: item.id } })
           await prisma.transactionLawyer.deleteMany({ where: { transactionId: item.id } })
           await prisma.transactionAdvisor.deleteMany({ where: { transactionId: item.id } })
