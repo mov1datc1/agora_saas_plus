@@ -627,22 +627,37 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 4. Reconciliation: check if recent Agora transactions were deleted in Drupal (HTTP 404) ──
+    // ── 4. Reconciliation: check if Agora transactions were deleted in Drupal (HTTP 404) ──
     try {
-      const recentTxs = await prisma.transaction.findMany({
-        where: { id: { startsWith: 'drupal-13' } }, // 2026 transactions
-        orderBy: { id: 'desc' },
-        take: 60,
-        select: { id: true }
-      })
+      // Check top 40 newest transactions + a rotating batch of 40 oldest/unverified transactions
+      const [recentTxs, rotatingTxs] = await Promise.all([
+        prisma.transaction.findMany({
+          where: { id: { startsWith: 'drupal-13' } },
+          orderBy: { id: 'desc' },
+          take: 40,
+          select: { id: true }
+        }),
+        prisma.transaction.findMany({
+          where: { id: { startsWith: 'drupal-' } },
+          orderBy: { updatedAt: 'asc' },
+          take: 40,
+          select: { id: true }
+        })
+      ])
+
+      const candidateMap = new Map<string, { id: string }>()
+      for (const t of [...recentTxs, ...rotatingTxs]) {
+        candidateMap.set(t.id, t)
+      }
+      const candidateTxs = Array.from(candidateMap.values())
 
       await Promise.allSettled(
-        recentTxs.map(async (tx) => {
+        candidateTxs.map(async (tx) => {
           const nid = tx.id.replace('drupal-', '')
           if (!/^\d+$/.test(nid)) return
           try {
             const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 3000)
+            const timeoutId = setTimeout(() => controller.abort(), 3500)
             const res = await fetch(`https://lexlatin.com/node/${nid}`, {
               method: 'HEAD',
               redirect: 'manual',
@@ -654,6 +669,12 @@ export async function POST(request: Request) {
                 totalDeleted++
                 console.log(`[Cron] Purged deleted Drupal node (404): ${tx.id}`)
               }
+            } else if (res.status === 200 || res.status === 301 || res.status === 403) {
+              // Touch updatedAt so rotating batch advances to other transactions on next run
+              await prisma.transaction.update({
+                where: { id: tx.id },
+                data: { updatedAt: new Date() }
+              }).catch(() => {})
             }
           } catch {
             // Ignore timeouts

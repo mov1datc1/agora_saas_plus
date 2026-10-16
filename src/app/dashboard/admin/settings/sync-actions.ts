@@ -175,12 +175,46 @@ export async function purgeDeletedAndNoneTransactions() {
     const DRUPAL_API_BASE = process.env.DRUPAL_API_URL || 'https://lexlatin.com/api/agora/transactions'
     const DRUPAL_AGORA_TOKEN = process.env.DRUPAL_AGORA_TOKEN || 'agora-etl-2026-secure-token'
 
-    const KNOWN_DELETED_NIDS = [132999, 133004, 133243, 133487, 132489, 134465, 134071, 130567]
+    const KNOWN_DELETED_NIDS = [
+      132999, 133004, 133243, 133487, 132489, 134465, 134071, 130567,
+      131180, // Stonepeak (replaced by 131468)
+      127756, // Kapital (replaced by 127773)
+      132920, // GSI Capital (replaced by 133017)
+      132591, // Intercorp (replaced by 132171)
+    ]
     const toDeleteIds = new Set<string>()
 
     for (const nid of KNOWN_DELETED_NIDS) {
       toDeleteIds.add(`drupal-${nid}`)
     }
+
+    // Check a sample of 50 oldest updated transactions for HTTP 404 in Drupal
+    const checkTxs = await prisma.transaction.findMany({
+      where: { id: { startsWith: 'drupal-' } },
+      orderBy: { updatedAt: 'asc' },
+      take: 50,
+      select: { id: true }
+    })
+
+    await Promise.allSettled(
+      checkTxs.map(async (tx) => {
+        const nid = tx.id.replace('drupal-', '')
+        if (!/^\d+$/.test(nid)) return
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 3000)
+          const res = await fetch(`https://lexlatin.com/node/${nid}`, {
+            method: 'HEAD',
+            redirect: 'manual',
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+          if (res.status === 404) {
+            toDeleteIds.add(tx.id)
+          }
+        } catch {}
+      })
+    )
 
     // Scan up to 20 pages (1,000 posts) of Drupal API for non-transaction / None posts
     for (let page = 0; page < 20; page++) {
