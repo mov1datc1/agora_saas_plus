@@ -14,6 +14,7 @@ const SubscriptionStatus = {
 import { Resend } from 'resend'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import DunningEmail from '@/emails/DunningEmail'
+import { sendCrmWebhook } from '@/lib/crm'
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy')
 
@@ -180,6 +181,17 @@ export async function POST(req: Request) {
             } catch (emailErr) {
               console.error('[RESEND_ERROR] Failed to send welcome email', emailErr)
             }
+
+            // Disparar sincronización con CRM (Ayudante X / Arquitex)
+            sendCrmWebhook({
+              event: status === SubscriptionStatus.ACTIVE ? 'SUBSCRIPTION_ACTIVATED' : 'TRIAL_STARTED',
+              email: dbUser.email,
+              name: dbUser.name,
+              plan: dbUser.accountType,
+              amount: session.amount_total ? session.amount_total / 100 : undefined,
+              currency: session.currency?.toUpperCase() || 'USD',
+              trialEndsAt,
+            }).catch(crmErr => console.error('[CRM_WEBHOOK_ERROR]', crmErr))
           }
         }
         break
@@ -210,6 +222,13 @@ export async function POST(req: Request) {
           } catch (emailErr) {
             console.error('[RESEND_ERROR] Failed to send trial reminder email', emailErr)
           }
+
+          // Disparar sincronización con CRM (Trial por vencer)
+          sendCrmWebhook({
+            event: 'TRIAL_EXPIRING',
+            email: dbTrialUser.email,
+            name: dbTrialUser.name,
+          }).catch(crmErr => console.error('[CRM_WEBHOOK_ERROR]', crmErr))
         }
         break
 
@@ -240,6 +259,22 @@ export async function POST(req: Request) {
               cancelAtPeriodEnd: Boolean((subscription as any).cancel_at_period_end),
             }
           })
+
+          // Disparar sincronización con CRM
+          if (newStatus === SubscriptionStatus.CANCELED) {
+            sendCrmWebhook({
+              event: 'SUBSCRIPTION_CANCELED',
+              email: dbSubUser.email,
+              name: dbSubUser.name,
+            }).catch(crmErr => console.error('[CRM_WEBHOOK_ERROR]', crmErr))
+          } else if (newStatus === SubscriptionStatus.ACTIVE && wasTrial) {
+            sendCrmWebhook({
+              event: 'SUBSCRIPTION_ACTIVATED',
+              email: dbSubUser.email,
+              name: dbSubUser.name,
+              plan: dbSubUser.accountType,
+            }).catch(crmErr => console.error('[CRM_WEBHOOK_ERROR]', crmErr))
+          }
 
           // 1. Send TRIAL_CANCELLED email if cancelled during trial
           if (newStatus === SubscriptionStatus.CANCELED && wasTrial) {

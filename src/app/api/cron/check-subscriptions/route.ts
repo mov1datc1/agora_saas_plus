@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Resend } from 'resend'
+import { sendCrmWebhook } from '@/lib/crm'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -88,6 +89,14 @@ export async function GET(request: Request) {
         })
 
         deactivatedUsers.push(user.email)
+
+        // Sincronizar cancelación/expiración con CRM (Ayudante X / Arquitex)
+        await sendCrmWebhook({
+          event: 'TRIAL_EXPIRED',
+          email: user.email,
+          name: user.name,
+          customTag: 'cancelo'
+        }).catch(err => console.error('[CRM Webhook] Error in cron expiration:', err))
 
         emailType = 'EXPIRED_DEACTIVATED'
         subject = 'Cuenta Desactivada: Ágora Plus'

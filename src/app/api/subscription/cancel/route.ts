@@ -64,6 +64,18 @@ export async function POST(req: Request) {
       console.error('[CANCEL_EMAIL_ERROR] Failed to send cancel confirmation email', emailErr)
     }
 
+    // Disparar sincronización con CRM (Cancelación)
+    try {
+      const { sendCrmWebhook } = await import('@/lib/crm')
+      await sendCrmWebhook({
+        event: 'SUBSCRIPTION_CANCELED',
+        email: dbUser.email,
+        name: dbUser.name,
+      })
+    } catch (crmErr) {
+      console.error('[CRM_WEBHOOK_ERROR]', crmErr)
+    }
+
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('[CANCEL_SUBSCRIPTION_ERROR]', error)

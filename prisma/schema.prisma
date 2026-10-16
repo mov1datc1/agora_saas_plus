@@ -162,6 +162,11 @@ model SystemConfig {
   showGlobalMetricsToUsers Boolean  @default(false)
   showRankingsToUsers      Boolean  @default(false)
   leadFormScript           String?  @db.Text
+  crmWebhookUrl            String?
+  crmSyncEnabled           Boolean  @default(false)
+  crmTagTrial              String?  @default("agora_en_prueba")
+  crmTagActive             String?  @default("agora_suscriptor")
+  crmTagCanceled           String?  @default("agora_cancelo")
   updatedAt                DateTime @updatedAt
 }
 

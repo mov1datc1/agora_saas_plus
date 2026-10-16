@@ -10,6 +10,8 @@ import LeadFormClient from './LeadFormClient'
 import CopilotToggleClient from './CopilotToggleClient'
 import MetricsToggleClient from './MetricsToggleClient'
 import RankingsToggleClient from './RankingsToggleClient'
+import CrmIntegrationClient from './CrmIntegrationClient'
+import { Webhook } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -234,6 +236,39 @@ export default async function SettingsPage() {
           </div>
         </form>
       </div>
+
+      {/* Integración CRM y Webhooks (Ayudante X / Arquitex / GoHighLevel) */}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
+        <div className="px-4 sm:px-0">
+          <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
+            <Webhook className="h-5 w-5 text-brand" />
+            Automatizaciones CRM (Ayudante X / Arquitex)
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-foreground/60">
+            Conecta Ágora con los embudos y pipelines de Ayudante X / Arquitex (GoHighLevel) vía Webhook.
+          </p>
+          <div className="mt-4 rounded-xl bg-muted/40 p-4 border border-border text-xs text-muted-foreground space-y-2">
+            <p className="font-semibold text-foreground">💡 ¿Cómo funciona?</p>
+            <p>1. Cuando un usuario se registra, inicia prueba, paga su suscripción o cancela, Ágora envía un webhook en tiempo real a Arquitex.</p>
+            <p>2. El CRM recibe el evento con sus etiquetas (Tags) para mover al usuario en el Pipeline y disparar o pausar los correos persuasivos.</p>
+          </div>
+        </div>
+
+        <div className="bg-surface shadow-sm ring-1 ring-border sm:rounded-xl md:col-span-2">
+          <div className="px-4 py-6 sm:p-8">
+            <CrmIntegrationClient 
+              initialConfig={{
+                crmWebhookUrl: config.crmWebhookUrl,
+                crmSyncEnabled: config.crmSyncEnabled,
+                crmTagTrial: config.crmTagTrial,
+                crmTagActive: config.crmTagActive,
+                crmTagCanceled: config.crmTagCanceled,
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+
