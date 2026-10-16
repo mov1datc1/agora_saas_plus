@@ -240,9 +240,12 @@ export default async function SettingsPage() {
       {/* Integración CRM y Webhooks (Ayudante X / Arquitex / GoHighLevel) */}
       <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
         <div className="px-4 sm:px-0">
-          <h2 className="text-base font-semibold leading-7 text-foreground flex items-center gap-2">
-            <Webhook className="h-5 w-5 text-brand" />
-            Automatizaciones CRM (Ayudante X / Arquitex)
+          <h2 className="text-base font-semibold leading-6 text-foreground flex items-start gap-2.5">
+            <Webhook className="h-5 w-5 text-brand flex-shrink-0 mt-0.5" />
+            <div>
+              <span>Automatizaciones CRM</span>
+              <span className="block text-xs font-normal text-muted-foreground">Ayudante X / Arquitex (GoHighLevel)</span>
+            </div>
           </h2>
           <p className="mt-1 text-sm leading-6 text-foreground/60">
             Conecta Ágora con los embudos y pipelines de Ayudante X / Arquitex (GoHighLevel) vía Webhook.
