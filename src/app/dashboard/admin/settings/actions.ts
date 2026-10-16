@@ -106,16 +106,31 @@ export async function saveCrmConfig(data: {
   return { success: true }
 }
 
-export async function testCrmWebhookAction(testEmail: string = 'demo@lexlatin.com') {
+export async function testCrmWebhookAction(options: {
+  testEmail?: string
+  name?: string
+  eventType?: 'TRIAL_STARTED' | 'SUBSCRIPTION_ACTIVATED' | 'SUBSCRIPTION_CANCELED' | 'TEST_PING'
+} = {}) {
   const { sendCrmWebhook } = await import('@/lib/crm')
+  
+  const email = options.testEmail?.trim() || 'pedro.perez@demolexlatin.com'
+  const name = options.name?.trim() || 'Pedro Pérez'
+  const event = options.eventType || 'TRIAL_STARTED'
+  
+  const trialEnds = new Date()
+  trialEnds.setDate(trialEnds.getDate() + 7)
+
   const result = await sendCrmWebhook({
-    event: 'TEST_PING',
-    email: testEmail,
-    name: 'Usuario de Prueba Ágora',
-    company: 'Firma Demo & Asociados',
+    event,
+    email,
+    name,
+    company: 'Pérez & Asociados Legal',
+    phone: '+52 55 1234 5678',
     plan: 'INDIVIDUAL',
-    amount: 149.00,
+    amount: event === 'SUBSCRIPTION_ACTIVATED' ? 149.00 : undefined,
     currency: 'USD',
+    trialEndsAt: event === 'TRIAL_STARTED' ? trialEnds : undefined,
+    isSimulation: true,
   })
   return result
 }

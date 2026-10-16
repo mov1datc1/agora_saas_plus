@@ -24,12 +24,15 @@ export default function CrmIntegrationClient({ initialConfig }: CrmIntegrationCl
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
-  const [testEmail, setTestEmail] = useState('demo@lexlatin.com')
+  const [testEmail, setTestEmail] = useState('pedro.perez@demolexlatin.com')
+  const [testName, setTestName] = useState('Pedro Pérez')
   const [isTesting, setIsTesting] = useState(false)
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [activeSimulation, setActiveSimulation] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [testLogs, setTestLogs] = useState<Array<{ time: string; text: string; success?: boolean }>>([])
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     setIsSaving(true)
     setSaveMessage(null)
 
@@ -50,44 +53,105 @@ export default function CrmIntegrationClient({ initialConfig }: CrmIntegrationCl
     setTimeout(() => setSaveMessage(null), 4000)
   }
 
-  const handleTestPing = async () => {
+  const runSimulation = async (
+    eventType: 'TRIAL_STARTED' | 'SUBSCRIPTION_ACTIVATED' | 'SUBSCRIPTION_CANCELED',
+    label: string
+  ) => {
+    if (!webhookUrl.trim()) {
+      alert('Por favor ingresa primero la URL del Webhook antes de hacer la prueba.')
+      return false
+    }
+
+    setIsTesting(true)
+    setActiveSimulation(eventType)
+
+    // Ensure current config is saved
+    await saveCrmConfig({
+      crmWebhookUrl: webhookUrl,
+      crmSyncEnabled: syncEnabled,
+      crmTagTrial: tagTrial,
+      crmTagActive: tagActive,
+      crmTagCanceled: tagCanceled,
+    })
+
+    const timeStr = new Date().toLocaleTimeString()
+    try {
+      const res = await testCrmWebhookAction({
+        testEmail,
+        name: testName,
+        eventType,
+      })
+
+      if (res.success) {
+        setTestLogs(prev => [
+          {
+            time: timeStr,
+            text: `✅ ${label} enviada con éxito para ${testName} (${testEmail}). Webhook respondió HTTP 200 OK.`,
+            success: true
+          },
+          ...prev
+        ])
+        setIsTesting(false)
+        setActiveSimulation(null)
+        return true
+      } else {
+        setTestLogs(prev => [
+          {
+            time: timeStr,
+            text: `❌ Error al enviar ${label}: ${res.error || 'Respuesta fallida'}`,
+            success: false
+          },
+          ...prev
+        ])
+        setIsTesting(false)
+        setActiveSimulation(null)
+        return false
+      }
+    } catch (e: any) {
+      setTestLogs(prev => [
+        {
+          time: timeStr,
+          text: `❌ Error de red: ${e.message}`,
+          success: false
+        },
+        ...prev
+      ])
+      setIsTesting(false)
+      setActiveSimulation(null)
+      return false
+    }
+  }
+
+  const handleSimulateFullFlow = async () => {
     if (!webhookUrl.trim()) {
       alert('Por favor ingresa primero la URL del Webhook antes de hacer la prueba.')
       return
     }
 
     setIsTesting(true)
-    setTestResult(null)
+    setActiveSimulation('FULL_FLOW')
+    setTestLogs([])
 
-    try {
-      // First save if needed
-      await saveCrmConfig({
-        crmWebhookUrl: webhookUrl,
-        crmSyncEnabled: syncEnabled,
-        crmTagTrial: tagTrial,
-        crmTagActive: tagActive,
-        crmTagCanceled: tagCanceled,
-      })
-
-      const res = await testCrmWebhookAction(testEmail)
-      if (res.success) {
-        setTestResult({
-          success: true,
-          message: '✅ Conexión exitosa. El Webhook de AyudanteX/Arquitex respondió correctamente (HTTP 200).'
-        })
-      } else {
-        setTestResult({
-          success: false,
-          message: `❌ Error al conectar con el Webhook: ${res.error || 'Respuesta fallida'}`
-        })
-      }
-    } catch (e: any) {
-      setTestResult({
-        success: false,
-        message: `❌ Error en el envío: ${e.message}`
-      })
+    // Paso 1: Enviar Trial
+    const step1Ok = await runSimulation('TRIAL_STARTED', 'Paso 1/2: Inicio de Prueba (Trial con tag agora_en_prueba)')
+    if (!step1Ok) {
+      setActiveSimulation(null)
+      setIsTesting(false)
+      return
     }
 
+    // Cuenta regresiva de 5 segundos
+    setIsTesting(true)
+    setActiveSimulation('FULL_FLOW')
+    for (let c = 5; c > 0; c--) {
+      setCountdown(c)
+      await new Promise(r => setTimeout(r, 1000))
+    }
+    setCountdown(null)
+
+    // Paso 2: Enviar Suscripción Activa
+    await runSimulation('SUBSCRIPTION_ACTIVATED', 'Paso 2/2: Conversión a Suscriptor (Pago $149 USD con tag agora_suscriptor)')
+    setActiveSimulation(null)
     setIsTesting(false)
   }
 
@@ -219,39 +283,128 @@ export default function CrmIntegrationClient({ initialConfig }: CrmIntegrationCl
         </div>
       </form>
 
-      {/* Probador de Webhook */}
-      <div className="mt-6 pt-5 border-t border-border bg-brand/5 dark:bg-brand/10 p-4 rounded-xl border border-brand/20">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-4 h-4 text-brand" />
-          <h5 className="text-xs font-semibold text-foreground">Probar Conexión con AyudanteX / Arquitex</h5>
+      {/* Simulador y Probador de Webhook */}
+      <div className="mt-8 pt-6 border-t border-border bg-brand/5 dark:bg-brand/10 p-5 rounded-2xl border border-brand/20">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-brand" />
+            <h5 className="text-sm font-semibold text-foreground">Estudio de Simulación y Pruebas en Vivo</h5>
+          </div>
+          <span className="text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+            Sandbox CRM
+          </span>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          Envía un evento de prueba simulado (<code className="text-brand">TEST_PING</code>) para verificar que el webhook de Arquitex reciba los datos y mueva las oportunidades correctamente.
+        <p className="text-xs text-muted-foreground mb-4">
+          Prueba el ciclo de vida en Arquitex/Ayudante X. Puedes disparar la simulación automática completa para ver cómo Pedro Pérez entra al Pipeline en prueba y luego pasa a suscriptor, o probar cada evento por separado.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-2.5">
-          <input
-            type="email"
-            value={testEmail}
-            onChange={(e) => setTestEmail(e.target.value)}
-            placeholder="correo_prueba@ejemplo.com"
-            className="flex-1 w-full rounded-lg border-0 py-2 px-3 bg-background text-xs text-foreground ring-1 ring-border focus:ring-brand"
-          />
+        {/* Datos de contacto de prueba */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-3.5 bg-background rounded-xl border border-border">
+          <div>
+            <label htmlFor="test-name" className="block text-[11px] font-medium text-foreground mb-1">Nombre del Prospecto</label>
+            <input
+              id="test-name"
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="Pedro Pérez"
+              className="w-full rounded-lg border-0 py-1.5 px-3 bg-muted/40 text-xs text-foreground ring-1 ring-border focus:ring-brand"
+            />
+          </div>
+          <div>
+            <label htmlFor="test-email" className="block text-[11px] font-medium text-foreground mb-1">Correo Electrónico</label>
+            <input
+              id="test-email"
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="pedro.perez@demolexlatin.com"
+              className="w-full rounded-lg border-0 py-1.5 px-3 bg-muted/40 text-xs text-foreground ring-1 ring-border focus:ring-brand"
+            />
+          </div>
+        </div>
+
+        {/* Botón Principal: Simulación Automática Completa */}
+        <div className="mb-4">
           <button
             type="button"
-            onClick={handleTestPing}
-            disabled={isTesting || !webhookUrl}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 disabled:opacity-50 transition-colors whitespace-nowrap shadow-sm"
+            onClick={handleSimulateFullFlow}
+            disabled={isTesting || !webhookUrl.trim()}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-indigo-600 px-4 py-3 text-xs font-semibold text-white shadow-md hover:opacity-95 disabled:opacity-50 transition-all"
           >
-            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            {isTesting ? 'Enviando...' : 'Enviar Prueba'}
+            {isTesting && activeSimulation === 'FULL_FLOW' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {countdown !== null 
+                  ? `Paso 1 completado. Esperando ${countdown}s para disparar conversión a Suscriptor...` 
+                  : 'Procesando simulación automática...'}
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span>Simular Ciclo Completo (1. Registrar Trial ➔ Esperar 5s ➔ 2. Convertir en Suscriptor)</span>
+              </>
+            )}
           </button>
         </div>
 
-        {testResult && (
-          <div className={`mt-3 p-2.5 rounded-lg text-xs flex items-center gap-2 ${testResult.success ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-300/40' : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-300/40'}`}>
-            {testResult.success ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-            <span>{testResult.message}</span>
+        {/* Botones de simulación por evento individual */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <button
+            type="button"
+            onClick={() => runSimulation('TRIAL_STARTED', '1. Inicio de Prueba')}
+            disabled={isTesting || !webhookUrl.trim()}
+            className="flex flex-col items-start p-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/30 text-left transition-colors disabled:opacity-50"
+          >
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400">🟡 Simular En Prueba</span>
+              {isTesting && activeSimulation === 'TRIAL_STARTED' && <Loader2 className="w-3 h-3 animate-spin text-amber-600" />}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Envía tag <code className="text-amber-600 dark:text-amber-400 font-mono">{tagTrial}</code></p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => runSimulation('SUBSCRIPTION_ACTIVATED', '2. Compra / Suscriptor')}
+            disabled={isTesting || !webhookUrl.trim()}
+            className="flex flex-col items-start p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/30 text-left transition-colors disabled:opacity-50"
+          >
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">🟢 Simular Suscriptor</span>
+              {isTesting && activeSimulation === 'SUBSCRIPTION_ACTIVATED' && <Loader2 className="w-3 h-3 animate-spin text-emerald-600" />}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Envía tag <code className="text-emerald-600 dark:text-emerald-400 font-mono">{tagActive}</code> ($149 USD)</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => runSimulation('SUBSCRIPTION_CANCELED', '3. Canceló')}
+            disabled={isTesting || !webhookUrl.trim()}
+            className="flex flex-col items-start p-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-left transition-colors disabled:opacity-50"
+          >
+            <div className="flex items-center justify-between w-full mb-1">
+              <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400">🔴 Simular Canceló</span>
+              {isTesting && activeSimulation === 'SUBSCRIPTION_CANCELED' && <Loader2 className="w-3 h-3 animate-spin text-rose-600" />}
+            </div>
+            <p className="text-[10px] text-muted-foreground">Envía tag <code className="text-rose-600 dark:text-rose-400 font-mono">{tagCanceled}</code></p>
+          </button>
+        </div>
+
+        {/* Logs de actividad en vivo */}
+        {testLogs.length > 0 && (
+          <div className="mt-4 p-3 bg-background/80 rounded-xl border border-border space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              Registro de eventos enviados:
+            </div>
+            {testLogs.map((log, idx) => (
+              <div 
+                key={idx} 
+                className={`text-xs p-2 rounded-lg flex items-start gap-2 ${log.success ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}
+              >
+                <span className="font-mono text-[10px] opacity-70 flex-shrink-0">{log.time}</span>
+                <span className="flex-1">{log.text}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>

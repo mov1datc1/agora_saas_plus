@@ -19,6 +19,7 @@ export interface CrmEventPayload {
   currency?: string | null
   trialEndsAt?: Date | null
   customTag?: string | null
+  isSimulation?: boolean
 }
 
 export async function sendCrmWebhook(payload: CrmEventPayload): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
@@ -34,8 +35,8 @@ export async function sendCrmWebhook(payload: CrmEventPayload): Promise<{ succes
       }
     })
 
-    // Allow test ping even if crmSyncEnabled is false, as long as URL exists
-    const isTest = payload.event === 'TEST_PING'
+    // Allow test ping or simulated events even if crmSyncEnabled is false, as long as URL exists
+    const isTest = payload.event === 'TEST_PING' || payload.isSimulation === true
     if (!config?.crmWebhookUrl || (!config.crmSyncEnabled && !isTest)) {
       return { success: true, skipped: true }
     }
