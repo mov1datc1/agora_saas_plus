@@ -268,7 +268,7 @@ Para evitar repetir caídas del entorno de producción durante mantenimientos fu
 ### 9.1. Manejo de Variables Confidenciales
 En todo el ecosistema Ágora Plus, existe la regla estricta de no usar frases genéricas o informales ("Por definir", "No revelado", "N/A") para referirse a datos financieros no públicos.
 - **Estándar Actualizado:** Se debe mapear siempre como **"Valor confidencial"**.
-- **Aplicación:** Esto aplica en tablas dinámicas de *Firmas Asesoras, Industrias, Países Involucrados*, en el *Dashboard Global* y en la *Base de Operaciones*. Se maneja dinámicamente en el backend (ej. `api/metrics/firms/route.ts`) o a nivel de renderizado (Frontend `OperationsClient.tsx`).
+- **Aplicación:** Esto aplica en tablas dinámicas de *Clasificación de Firmas, Industrias, Países Involucrados*, en el *Dashboard Global* y en la *Base de Operaciones*. Se maneja dinámicamente en el backend (ej. `api/metrics/firms/route.ts`) o a nivel de renderizado (Frontend `OperationsClient.tsx`).
 
 ---
 
