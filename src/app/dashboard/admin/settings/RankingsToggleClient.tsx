@@ -33,7 +33,7 @@ export default function RankingsToggleClient({ initialEnabled }: { initialEnable
           Rankings Analíticos para Usuarios
         </label>
         <p className="text-foreground/60">
-          Si está activado, los usuarios finales (SaaS y Legacy) podrán ver los módulos de Rankings Analíticos (Firmas Asesoras, Industrias, Jurisdicciones) en su panel lateral. (Los Administradores siempre los ven).
+          Si está activado, los usuarios finales (SaaS y Legacy) podrán ver los módulos de Rankings Analíticos (Clasificación, Industrias, Jurisdicciones) en su panel lateral. (Los Administradores siempre los ven).
         </p>
       </div>
     </div>

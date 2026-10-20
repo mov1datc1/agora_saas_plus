@@ -182,16 +182,29 @@ Opciones para dropdowns (cached 5min con `Cache-Control`).
 **Response:** `{ types[], countries[], firms[], industries[] }`
 
 #### `GET /api/metrics/firms`
-Ranking de firmas asesoras con stats agregadas.
+Motor de clasificación y ranking de firmas legales por país y volumen. Agrupa y calcula el ranking consolidado de firmas (1 fila por firma) con desglose de operaciones públicas vs confidenciales.
 
-| Param | Tipo | Descripción |
-|-------|------|-------------|
-| `type` | string | Filtro por tipo de operación |
-| `country` | string | Filtro por país |
-| `search` | string | Búsqueda en nombre de firma |
-| `dateStart/dateEnd` | date | Rango de fechas |
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `country` | string | `'México'` | Filtro principal por país de la firma (`firm.country`). |
+| `type` | string | `'Todas'` | Filtro por tipo de operación (`M&A`, `Financiamientos`, `Emisiones`, `Todas`). |
+| `sortBy` | string | `'deals'` | Criterio de ordenamiento: `'deals'` (número de operaciones), `'value'` (monto acumulado USD) o `'name'` (alfabético). |
+| `sortOrder` | string | `'desc'` | Dirección del ordenamiento: `'desc'` o `'asc'`. |
+| `search` | string | `''` | Búsqueda por nombre de firma (retiene la posición real del ranking). |
+| `dateStart/dateEnd` | date | — | Rango de fechas por fecha de anuncio (`dateAnnounced`). |
+| `page` / `limit` | number | `1` / `50` | Paginación server-side. |
 
-**Stats:** `{ totalValue, totalFirms }`
+**Response Data Structure:**
+- `rankingPosition`: Número de posición limpio (1, 2, 3...).
+- `firma`: Nombre de la firma legal.
+- `pais`: País de la firma.
+- `numeroOperaciones`: Total de operaciones asesoradas por la firma.
+- `operacionesPublicas` / `operacionesConfidenciales`: Desglose de operaciones.
+- `montoAcumulado`: Suma acumulada en USD de montos públicos (confidenciales = $0).
+- `transacciones[]`: Listado desglosado de operaciones para el panel lateral interactivo.
+
+**Stats:** `{ totalValue, totalDeals, totalFirms }`  
+**Extra:** `countries[]` — Lista de países con prioridad LatAm (*México, Brasil, Chile, Colombia, Perú, Argentina...*).
 
 #### `GET /api/metrics/industries`
 Agrupación por industria con volumen y conteo.
@@ -309,7 +322,7 @@ WHERE type IN ('M&A', 'Emisiones', 'Financiamientos')
 |--------|------|-------------|
 | Dashboard Global | `/dashboard` | KPIs, gráfico histórico, top industrias |
 | Operaciones | `/dashboard/operations` | Tabla de deals con filtros avanzados |
-| Firmas Asesoras | `/dashboard/metrics/firms` | Ranking y stats de firmas |
+| Clasificación | `/dashboard/metrics/firms` | Ranking analítico por país, # de operaciones y monto acumulado |
 | Industrias | `/dashboard/metrics/industries` | Distribución sectorial |
 | Jurisdicciones | `/dashboard/metrics/countries` | Mapa geográfico interactivo |
 | Ágora Copilot | `/dashboard/copilot` | Asistente IA para consultas |

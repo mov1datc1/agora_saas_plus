@@ -2,7 +2,27 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
-## [5.4.0] — 2026-10-08 🔐 Stripe Live Mode & Autodefinición de Contraseñas (Magic Link)
+## [5.7.0] — 2026-10-20 🏆 Rediseño de "Clasificación de Firmas" (Country-Centric Ranking)
+
+### ✨ Added & Redesigned
+- **Módulo "Clasificación" (anteriormente "Firmas Asesoras")**:
+  - Renombrado en la barra lateral (`Sidebar.tsx`) y en el panel de configuración de administradores (`RankingsToggleClient.tsx`).
+  - **Filtro Principal por País**: Selector estilizado `SearchableSelect` con buscador interno (`Buscar país...`), ubicado en la barra de herramientas directamente encima de la tabla. País por defecto: **México**, con priorización de jurisdicciones de Latinoamérica (*México, Brasil, Chile, Colombia, Perú, Argentina...*).
+  - **Tabla de Clasificación Consolidada (1 fila por firma)**:
+    1. **`#` (Clasificación)**: Numeración limpia (1, 2, 3...) sin emojis ni medallas.
+    2. **`Firma`**: Nombre de la firma legal y país, con opción de ordenamiento alfabético.
+    3. **`Número de Operaciones`**: Total de transacciones asesoradas con desglose contextual de públicas vs. confidenciales. Criterio de ordenamiento por defecto (`sortBy=deals&sortOrder=desc`).
+    4. **`Monto Acumulado (USD)`**: Suma matemática exacta de operaciones con valor público en dólares (transacciones confidenciales suman $0 al monto acumulado pero se cuentan en el total de operaciones). Ordenable con 1 clic (`sortBy=value&sortOrder=desc`).
+- **Motor Server-Side (`/api/metrics/firms`)**:
+  - Agregación eficiente en Prisma agrupando operaciones por firma local (`firm.country = selectedCountry`).
+  - Filtros cruzados dinámicos por tipo (`M&A`, `Financiamientos`, `Emisiones`) y rango de fechas (`dateAnnounced`).
+  - Mapeo de ranking positions consistente incluso al filtrar por búsqueda de texto de firma.
+- **Panel Lateral de Detalle Interactivo**:
+  - Al hacer clic en cualquier firma de la tabla, despliega la lista desglosada de operaciones asesoradas con montos y acceso directo al modal de detalle completo (`EntityDetailModal`).
+- **Exportación a Excel**:
+  - Exporta las columnas consolidadas: `Clasificación`, `Firma`, `País`, `Número de Operaciones`, `Operaciones Públicas`, `Operaciones Confidenciales`, `Monto Acumulado (USD)`.
+
+---
 
 ### 🐛 Fixed & Diagnosed
 - **Error al Abrir Portal de Facturación ("Gestionar Suscripción")** — Al pulsar *"Gestionar Suscripción"*, Stripe devolvía `StripeInvalidRequestError: No such customer: 'cus_VP706vnkkzEY5u'; a similar object exists in live mode, but a test mode key was used to make this request` (500 en `/api/portal`). Vercel tenía configurada la clave `sk_test_...` de la cuenta de LexLatin (`acct_1NvmaWA8zDaMc9Ma`), mientras que los checkouts ocurrían en Live Mode.

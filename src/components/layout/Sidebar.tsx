@@ -11,7 +11,7 @@ const navigation = [
   { name: 'Dashboard Global', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Operaciones', href: '/dashboard/operations', icon: ArrowLeftRight },
   
-  { name: 'Firmas Asesoras', href: '/dashboard/metrics/firms', icon: Building2, isSubItem: true },
+  { name: 'Clasificación', href: '/dashboard/metrics/firms', icon: Building2, isSubItem: true },
   { name: 'Industrias', href: '/dashboard/metrics/industries', icon: Briefcase, isSubItem: true },
   { name: 'Jurisdicciones', href: '/dashboard/metrics/countries', icon: Users, isSubItem: true },
   

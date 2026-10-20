@@ -3,16 +3,40 @@ import prisma from '@/lib/prisma'
 
 export const revalidate = 0
 
+// Prioritized Latin American countries list
+const LATAM_PRIORITY = [
+  'México',
+  'Brasil',
+  'Chile',
+  'Colombia',
+  'Perú',
+  'Argentina',
+  'Costa Rica',
+  'Ecuador',
+  'Uruguay',
+  'Guatemala',
+  'Panamá',
+  'República Dominicana',
+  'Venezuela',
+  'Bolivia',
+  'Paraguay',
+  'El Salvador',
+  'Honduras',
+  'Nicaragua'
+]
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
 
     // Filters
-    const type = searchParams.get('type')
-    const country = searchParams.get('country')
-    const search = searchParams.get('search')
+    const countryParam = searchParams.get('country') || 'México'
+    const type = searchParams.get('type') || 'Todas'
+    const search = searchParams.get('search') || ''
     const dateStart = searchParams.get('dateStart')
     const dateEnd = searchParams.get('dateEnd')
+    const sortBy = searchParams.get('sortBy') || 'deals' // 'deals' | 'value' | 'name'
+    const sortOrder = searchParams.get('sortOrder') || 'desc' // 'desc' | 'asc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
 
@@ -20,15 +44,12 @@ export async function GET(request: Request) {
     const today = new Date()
     today.setHours(23, 59, 59, 999)
 
-    // Build WHERE for transaction relation
+    // Build WHERE for transactions
     const txWhere: any = {
       type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
       dateAnnounced: { gte: new Date('1990-01-01'), lte: today },
     }
     if (type && type !== 'Todas') txWhere.type = type
-    if (country && country !== 'Todos') {
-      txWhere.country = { contains: country, mode: 'insensitive' }
-    }
     if (dateStart) {
       txWhere.dateAnnounced = { ...txWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00.000Z') }
     }
@@ -38,98 +59,177 @@ export async function GET(request: Request) {
       txWhere.dateAnnounced = { ...txWhere.dateAnnounced, lt: nextDay < today ? nextDay : today }
     }
 
-    // Fetch advisors with filtered transactions
-    const advisors = await prisma.transactionAdvisor.findMany({
-      where: { transaction: txWhere },
-      select: {
-        id: true,
-        firm: { select: { name: true } },
-        transaction: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            value: true,
-            valueString: true,
-            country: true,
-            dateAnnounced: true,
-            dateClosed: true,
-            industry: { select: { name: true } },
-            companies: { select: { company: { select: { name: true } } } },
-            lawyers: { select: { lawyer: { select: { name: true } } } }
-          }
-        }
-      },
-      orderBy: { transaction: { dateAnnounced: 'desc' } }
-    })
-
-    // Build aggregated firm ranking
-    const firmMap: Record<string, { deals: number; totalValue: number }> = {}
-    advisors.forEach((adv: any) => {
-      const name = adv.firm?.name || 'Sin firma'
-      if (!firmMap[name]) firmMap[name] = { deals: 0, totalValue: 0 }
-      firmMap[name].deals++
-      firmMap[name].totalValue += adv.transaction?.value ? Number(adv.transaction.value) : 0
-    })
-
-    const ranking = Object.entries(firmMap)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.deals - a.deals)
-
-    // Format helpers
-    const fmtVal = (v: any, vs: string | null) => {
-      if (!v || Number(v) === 0) return 'Valor confidencial'
-      const n = Number(v)
-      if (n >= 1e9) return `USD ${(n / 1e9).toFixed(1)}B`
-      if (n >= 1e6) return `USD ${(n / 1e6).toFixed(1)}M`
-      return `USD ${n.toLocaleString()}`
+    // Build WHERE for firm
+    const firmWhere: any = {}
+    if (countryParam && countryParam !== 'Todos') {
+      firmWhere.country = { equals: countryParam, mode: 'insensitive' }
+    } else {
+      firmWhere.country = { not: null }
     }
 
-    // Apply search filter and paginate
-    let tableData = advisors.map((adv: any) => {
-      const tx = adv.transaction
-      return {
-        id: adv.id,
-        firma: adv.firm?.name || 'Sin firma',
-        monto: fmtVal(tx.value, tx.valueString),
-        volumen: tx.value ? Number(tx.value) : null,
-        tipoOperacion: tx.type || 'M&A',
-        pais: tx.country || 'N/D',
-        abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D',
-        industria: tx.industry?.name || 'Varios / Sin Clasificar',
-        empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
-        fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
-        transactionId: tx.id
+    // Query firms with their transactions in one batch
+    const firms = await prisma.firm.findMany({
+      where: firmWhere,
+      select: {
+        id: true,
+        name: true,
+        country: true,
+        website: true,
+        transactions: {
+          where: {
+            transaction: txWhere
+          },
+          select: {
+            id: true,
+            role: true,
+            transaction: {
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                value: true,
+                valueString: true,
+                country: true,
+                dateAnnounced: true,
+                dateClosed: true,
+                industry: { select: { name: true } },
+                companies: { select: { company: { select: { name: true } } } },
+                lawyers: { select: { lawyer: { select: { name: true } } } }
+              }
+            }
+          }
+        }
       }
     })
 
-    // Search filter
+    // Set of all unique transactions in the filtered scope
+    const uniqueTxIds = new Set<string>()
+
+    // Aggregate data per firm
+    let ranked = firms.map(f => {
+      const txMap = new Map<string, any>()
+      f.transactions.forEach((adv: any) => {
+        if (adv.transaction) {
+          txMap.set(adv.transaction.id, adv.transaction)
+          uniqueTxIds.add(adv.transaction.id)
+        }
+      })
+
+      const txs = Array.from(txMap.values())
+      let publicVal = 0
+      let pubCount = 0
+      let confCount = 0
+
+      txs.forEach(tx => {
+        const v = tx.value ? Number(tx.value) : 0
+        if (v > 0) {
+          publicVal += v
+          pubCount++
+        } else {
+          confCount++
+        }
+      })
+
+      return {
+        id: f.id,
+        firma: f.name,
+        pais: f.country || countryParam,
+        website: f.website || null,
+        numeroOperaciones: txs.length,
+        operacionesPublicas: pubCount,
+        operacionesConfidenciales: confCount,
+        montoAcumulado: publicVal,
+        transacciones: txs.map(tx => ({
+          id: tx.id,
+          title: tx.title,
+          type: tx.type || 'M&A',
+          monto: tx.value && Number(tx.value) > 0 ? Number(tx.value) : null,
+          montoString: tx.valueString || (tx.value && Number(tx.value) > 0 ? `USD ${Number(tx.value).toLocaleString()}` : 'Valor confidencial'),
+          pais: tx.country || 'N/D',
+          fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
+          industria: tx.industry?.name || 'Varios / Sin Clasificar',
+          empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
+          abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
+        }))
+      }
+    }).filter(f => f.numeroOperaciones > 0)
+
+    // Primary Sorting
+    ranked.sort((a, b) => {
+      if (sortBy === 'value') {
+        const diff = b.montoAcumulado - a.montoAcumulado
+        if (diff !== 0) return sortOrder === 'asc' ? -diff : diff
+        return sortOrder === 'asc' ? a.numeroOperaciones - b.numeroOperaciones : b.numeroOperaciones - a.numeroOperaciones
+      } else if (sortBy === 'name') {
+        const cmp = a.firma.localeCompare(b.firma)
+        return sortOrder === 'asc' ? cmp : -cmp
+      } else {
+        // default: 'deals' (Número de Operaciones)
+        const diff = b.numeroOperaciones - a.numeroOperaciones
+        if (diff !== 0) return sortOrder === 'asc' ? -diff : diff
+        return sortOrder === 'asc' ? a.montoAcumulado - b.montoAcumulado : b.montoAcumulado - a.montoAcumulado
+      }
+    })
+
+    // Assign ranking position (#1, #2, #3...) based on current sort
+    let rankedWithPos = ranked.map((r, i) => ({
+      ...r,
+      rankingPosition: i + 1
+    }))
+
+    // Search filter (filters by firm name while retaining the true ranking position)
     if (search && search.trim()) {
-      const s = search.trim().toLowerCase()
-      tableData = tableData.filter(r =>
-        r.firma.toLowerCase().includes(s) || r.monto.toLowerCase().includes(s)
-      )
+      const q = search.trim().toLowerCase()
+      rankedWithPos = rankedWithPos.filter(r => r.firma.toLowerCase().includes(q))
     }
 
-    const totalCount = tableData.length
-    const totalValue = tableData.reduce((sum, r) => sum + (r.volumen || 0), 0)
+    const totalCount = rankedWithPos.length
+    const totalValue = ranked.reduce((acc, r) => acc + r.montoAcumulado, 0)
+    const totalDeals = uniqueTxIds.size
 
     // Paginate
-    const paginatedData = tableData.slice((page - 1) * limit, page * limit)
+    const paginatedData = rankedWithPos.slice((page - 1) * limit, page * limit)
 
-    // Unique countries for filter dropdown
-    const countries = new Set<string>()
-    advisors.forEach((adv: any) => {
-      const c = adv.transaction?.country
-      if (c) c.split(',').forEach((x: string) => countries.add(x.trim()))
+    // Fetch distinct countries from all firms with deals for the dropdown
+    const rawCountries = await prisma.firm.findMany({
+      where: { country: { not: null } },
+      select: { country: true },
+      distinct: ['country']
     })
+    const existingCountries = new Set(rawCountries.map(c => c.country).filter(Boolean) as string[])
+
+    // Sort countries: LatAm priority first, then others alphabetically
+    const orderedCountries: string[] = []
+    LATAM_PRIORITY.forEach(c => {
+      if (existingCountries.has(c)) {
+        orderedCountries.push(c)
+        existingCountries.delete(c)
+      }
+    })
+    const otherCountries = Array.from(existingCountries).sort((a, b) => a.localeCompare(b))
+    const finalCountriesList = [...orderedCountries, ...otherCountries]
 
     return NextResponse.json({
       data: paginatedData,
-      metadata: { page, limit, totalCount, totalPages: Math.ceil(totalCount / limit) },
-      stats: { totalValue, totalFirms: ranking.length },
-      ranking: ranking.slice(0, 100),
-      countries: Array.from(countries).sort(),
+      metadata: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit) || 1
+      },
+      stats: {
+        totalValue,
+        totalDeals,
+        totalFirms: ranked.length
+      },
+      ranking: ranked.slice(0, 10),
+      countries: finalCountriesList,
+      currentFilters: {
+        country: countryParam,
+        type,
+        sortBy,
+        sortOrder
+      }
     })
 
   } catch (error: any) {
