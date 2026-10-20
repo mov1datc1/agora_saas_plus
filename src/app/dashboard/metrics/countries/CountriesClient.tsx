@@ -1,11 +1,32 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import Link from 'next/link'
-import { Building2, Users, FileText, ArrowUpRight, X, Globe, Search, Filter, ChevronRight, ChevronLeft, Loader2, Gavel, Briefcase, ChevronUp, ChevronDown, Download, Lock, ExternalLink } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { 
+  Building2, 
+  Users, 
+  FileText, 
+  Globe, 
+  Search, 
+  Filter, 
+  ChevronRight, 
+  ChevronLeft, 
+  Loader2, 
+  Briefcase, 
+  ChevronUp, 
+  ChevronDown, 
+  Download, 
+  Lock, 
+  ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  PieChart as PieIcon
+} from 'lucide-react'
 import { ComposableMap, Geographies, Geography } from "react-simple-maps"
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import { checkTrialRestrictions, checkCanDownload } from '../../actions'
 import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
+import SearchableSelect from '@/components/ui/SearchableSelect'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import { exportToExcel } from '@/lib/exportUtils'
@@ -48,136 +69,327 @@ const mapGeoToSpanish: Record<string, string[]> = {
   "Portugal": ["Portugal"]
 }
 
-interface TableRow {
-  id?: string
+// Harmonious palette for the Donut Chart
+const PIE_COLORS = [
+  '#E05C50', // Brand Red/Coral
+  '#1C1F33', // Deep Navy
+  '#3B82F6', // Blue
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#06B6D4', // Cyan
+  '#64748B'  // Slate / Others
+]
+
+interface FirmRecord {
+  posicion: number
+  firma: string
   pais: string
   operaciones: number
-  valorAcumulado: number
+  montoAcumulado: number
+  transacciones: any[]
+}
+
+interface IndustryRecord {
+  nombre: string
+  operaciones: number
+  operacionesPublicas: number
+  operacionesConfidenciales: number
+  montoAcumulado: number
+  porcentaje: number
+  firmasCount: number
+  firmas: FirmRecord[]
 }
 
 function useDebounce<T>(value: T, delay: number): T {
   const [dv, setDv] = useState<T>(value)
-  useEffect(() => { const h = setTimeout(() => setDv(value), delay); return () => clearTimeout(h) }, [value, delay])
+  useEffect(() => { 
+    const h = setTimeout(() => setDv(value), delay)
+    return () => clearTimeout(h) 
+  }, [value, delay])
   return dv
 }
 
 export default function CountriesClient() {
-  const [isRankingModalOpen, setIsRankingModalOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
+
+  // Filters
+  const [selectedCountry, setSelectedCountry] = useState('México')
   const [filterType, setFilterType] = useState<string>('Todas')
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 400)
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
-  const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => setIsMounted(true), [])
-  const [isMapExpanded, setIsMapExpanded] = useState(true)
+
+  // State for storytelling navigation
+  const [selectedIndustry, setSelectedIndustry] = useState<IndustryRecord | null>(null)
+  const [selectedTxForModal, setSelectedTxForModal] = useState<any | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isPanelExpanded, setIsPanelExpanded] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [rankingSearchQuery, setRankingSearchQuery] = useState('')
-  const itemsPerPage = 50
+  const [isMapExpanded, setIsMapExpanded] = useState(true)
+
+  // Sorting state for Industries table
+  const [industrySortBy, setIndustrySortBy] = useState<'deals' | 'value' | 'name'>('deals')
+  const [industrySortOrder, setIndustrySortOrder] = useState<'desc' | 'asc'>('desc')
+
+  // Sorting state for Firms in industry table
+  const [firmSortBy, setFirmSortBy] = useState<'deals' | 'value' | 'name'>('deals')
+  const [firmSortOrder, setFirmSortOrder] = useState<'desc' | 'asc'>('desc')
+
+  // Tooltip for Map
   const [tooltipContent, setTooltipContent] = useState<{name: string, operaciones: number, monto: number, x: number, y: number} | null>(null)
+
+  // Paywall
   const [showPaywall, setShowPaywall] = useState(false)
   const [paywallTitle, setPaywallTitle] = useState('')
   const [paywallMessage, setPaywallMessage] = useState('')
   const [isDataAllowed, setIsDataAllowed] = useState(true)
 
-  // Build server-side API URL
+  // API URL
   const apiUrl = useMemo(() => {
     const p = new URLSearchParams()
-    p.set('page', String(currentPage))
-    p.set('limit', String(itemsPerPage))
+    if (selectedCountry) p.set('country', selectedCountry)
     if (filterType !== 'Todas') p.set('type', filterType)
     if (debouncedSearch.trim()) p.set('search', debouncedSearch.trim())
     if (dateRange.start) p.set('dateStart', dateRange.start)
     if (dateRange.end) p.set('dateEnd', dateRange.end)
     return `/api/metrics/countries?${p.toString()}`
-  }, [currentPage, filterType, debouncedSearch, dateRange])
+  }, [selectedCountry, filterType, debouncedSearch, dateRange])
 
-  const { data: apiData, error, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
-  const tableData: TableRow[] = (apiData?.data || []).map((r: any) => ({ ...r, id: r.pais }))
+  const { data: apiData, isLoading: isSwrLoading } = useSWR(apiUrl, fetcher, { keepPreviousData: true })
   const isLoading = isSwrLoading && !apiData
-  const totalCount = apiData?.metadata?.totalCount || 0
-  const totalPages = apiData?.metadata?.totalPages || 1
-  const serverStats = apiData?.stats || {}
-  const serverRanking: TableRow[] = (apiData?.ranking || []).map((r: any) => ({ ...r, id: r.pais }))
 
+  const mapData = apiData?.mapData || []
+  const rawIndustries: IndustryRecord[] = apiData?.industries || []
+  const serverStats = apiData?.stats || {}
+  const availableCountries: string[] = apiData?.countries || []
+
+  // Check trial
   useEffect(() => {
     const checkLimits = async () => {
       const usageCheck = await checkTrialRestrictions()
       if (!usageCheck.allowed) {
         setIsDataAllowed(false)
-        setPaywallTitle('L\u00edmite Diario Alcanzado')
-        setPaywallMessage(usageCheck.message || 'Has llegado al m\u00e1ximo de consultas diarias.')
+        setPaywallTitle('Límite Diario Alcanzado')
+        setPaywallMessage(usageCheck.message || 'Has llegado al máximo de consultas diarias.')
         setShowPaywall(true)
       }
     }
     checkLimits()
   }, [])
 
-  useEffect(() => { setCurrentPage(1) }, [filterType, debouncedSearch, dateRange])
-
-  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
-
-  const handleDownloadExcel = async () => {
-    const downloadCheck = await checkCanDownload()
-    if (!downloadCheck.allowed) {
-      setPaywallTitle('Descarga Bloqueada')
-      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripci\u00f3n activa.')
-      setShowPaywall(true)
-      return
-    }
-    exportToExcel(tableData.map(row => ({
-      Pais: row.pais,
-      Operaciones: row.operaciones,
-      Valor_USD: row.valorAcumulado
-    })), 'paises_agora_plus')
-  }
-
-  // Server-side data
-  const paginatedData = tableData
-  const filteredData = tableData
-  const aggregatedCountries = serverRanking
-
+  // Auto-select #1 industry when country data loads
   useEffect(() => {
-    if (tableData.length > 0 && (!selectedRow || !tableData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(tableData[0])
-    } else if (tableData.length === 0) {
-      setSelectedRow(null)
+    if (rawIndustries.length > 0) {
+      if (!selectedIndustry || !rawIndustries.find(i => i.nombre === selectedIndustry.nombre)) {
+        setSelectedIndustry(rawIndustries[0])
+      } else {
+        const updated = rawIndustries.find(i => i.nombre === selectedIndustry.nombre)
+        if (updated) setSelectedIndustry(updated)
+      }
+    } else {
+      setSelectedIndustry(null)
     }
-  }, [tableData])
+  }, [rawIndustries])
 
-  const formatCurrency = (value: number) => {
+  // Sorted industries
+  const sortedIndustries = useMemo(() => {
+    const list = [...rawIndustries]
+    list.sort((a, b) => {
+      if (industrySortBy === 'value') {
+        const diff = b.montoAcumulado - a.montoAcumulado
+        return industrySortOrder === 'asc' ? -diff : diff
+      } else if (industrySortBy === 'name') {
+        const cmp = a.nombre.localeCompare(b.nombre)
+        return industrySortOrder === 'asc' ? cmp : -cmp
+      } else {
+        // default: deals
+        const diff = b.operaciones - a.operaciones
+        if (diff !== 0) return industrySortOrder === 'asc' ? -diff : diff
+        return industrySortOrder === 'asc' ? a.montoAcumulado - b.montoAcumulado : b.montoAcumulado - a.montoAcumulado
+      }
+    })
+    return list
+  }, [rawIndustries, industrySortBy, industrySortOrder])
+
+  // Sorted firms for selected industry
+  const sortedFirmsForIndustry = useMemo(() => {
+    if (!selectedIndustry?.firmas) return []
+    const list = [...selectedIndustry.firmas]
+    list.sort((a, b) => {
+      if (firmSortBy === 'value') {
+        const diff = b.montoAcumulado - a.montoAcumulado
+        return firmSortOrder === 'asc' ? -diff : diff
+      } else if (firmSortBy === 'name') {
+        const cmp = a.firma.localeCompare(b.firma)
+        return firmSortOrder === 'asc' ? cmp : -cmp
+      } else {
+        // default: deals
+        const diff = b.operaciones - a.operaciones
+        if (diff !== 0) return firmSortOrder === 'asc' ? -diff : diff
+        return firmSortOrder === 'asc' ? a.montoAcumulado - b.montoAcumulado : b.montoAcumulado - a.montoAcumulado
+      }
+    })
+    return list.map((f, i) => ({ ...f, posicion: i + 1 }))
+  }, [selectedIndustry, firmSortBy, firmSortOrder])
+
+  // Donut Chart data (Top 5 + Otros)
+  const chartData = useMemo(() => {
+    if (!rawIndustries || rawIndustries.length === 0) return []
+    const top5 = rawIndustries.slice(0, 5)
+    const others = rawIndustries.slice(5)
+    
+    const result = top5.map(ind => ({
+      name: ind.nombre,
+      value: ind.operaciones,
+      percentage: ind.porcentaje
+    }))
+
+    if (others.length > 0) {
+      const otherDeals = others.reduce((acc, i) => acc + i.operaciones, 0)
+      const otherPercent = others.reduce((acc, i) => acc + i.porcentaje, 0)
+      result.push({
+        name: 'Otras industrias',
+        value: otherDeals,
+        percentage: Number(otherPercent.toFixed(1))
+      })
+    }
+    return result
+  }, [rawIndustries])
+
+  const formatCurrency = (value: number | null | undefined) => {
+    if (!value || value === 0) return 'Valor confidencial'
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
-    if (value === 0) return 'Valor confidencial'
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`
     return `$${value.toLocaleString()}`
   }
 
-  const totalVolume = serverStats.totalValue || 0
-  const topCountriesList = serverRanking
-
-  const filteredRankingList = useMemo(() => {
-    if (!rankingSearchQuery) return topCountriesList
-    return topCountriesList.filter((c: any) => c.pais.toLowerCase().includes(rankingSearchQuery.toLowerCase()))
-  }, [topCountriesList, rankingSearchQuery])
-
-  const getCountryStats = (spanishNames: string[]) => {
-    const active = serverRanking.find((ind: any) => spanishNames.includes(ind.pais))
+  const getMapCountryStats = (spanishNames: string[]) => {
+    const active = mapData.find((ind: any) => spanishNames.includes(ind.pais))
     return active || null
   }
 
+  const handleSelectCountry = (country: string) => {
+    setSelectedCountry(country)
+    // Smooth scroll down to the sectorial breakdown
+    setTimeout(() => {
+      document.getElementById('sector-storytelling-section')?.scrollIntoView({ behavior: 'smooth' })
+    }, 150)
+  }
+
+  const handleDownloadIndustriesExcel = async () => {
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+
+    exportToExcel(sortedIndustries.map(ind => ({
+      'Industria': ind.nombre,
+      'País': selectedCountry,
+      'Operaciones': ind.operaciones,
+      'Cuota de Mercado (%)': `${ind.porcentaje}%`,
+      'Operaciones Públicas': ind.operacionesPublicas,
+      'Operaciones Confidenciales': ind.operacionesConfidenciales,
+      'Monto Acumulado (USD)': ind.montoAcumulado > 0 ? ind.montoAcumulado : 0
+    })), `industrias_${selectedCountry.toLowerCase()}`)
+  }
+
+  const handleDownloadFirmsInSectorExcel = async () => {
+    if (!selectedIndustry) return
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+
+    exportToExcel(sortedFirmsForIndustry.map(f => ({
+      'Posición': f.posicion,
+      'Firma': f.firma,
+      'País Sede': f.pais,
+      'Industria': selectedIndustry.nombre,
+      'Jurisdicción': selectedCountry,
+      'Operaciones en Sector': f.operaciones,
+      'Monto Acumulado en Sector (USD)': f.montoAcumulado > 0 ? f.montoAcumulado : 0
+    })), `firmas_${selectedIndustry.nombre.toLowerCase().replace(/\s+/g, '_')}_${selectedCountry.toLowerCase()}`)
+  }
+
+  const renderSortIndicator = (currentCol: string, targetCol: string, order: string) => {
+    if (currentCol !== targetCol) {
+      return <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/40 ml-1.5 inline" />
+    }
+    return order === 'desc' 
+      ? <ArrowDown className="w-3.5 h-3.5 text-brand ml-1.5 inline" />
+      : <ArrowUp className="w-3.5 h-3.5 text-brand ml-1.5 inline" />
+  }
+
+  const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
+
   return (
     <div className="flex flex-col h-full space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-4 rounded-2xl shadow-sm border border-border">
+      
+      {/* Paywall Modal */}
+      <PaywallModal 
+        isOpen={showPaywall} 
+        onClose={() => setShowPaywall(false)} 
+        title={paywallTitle} 
+        message={paywallMessage} 
+      />
+
+      {/* Modal Detalle de Transacción */}
+      {selectedTxForModal && (
+        <EntityDetailModal 
+          isOpen={isDetailModalOpen}
+          onClose={() => { setIsDetailModalOpen(false); setSelectedTxForModal(null); }}
+          title={selectedTxForModal.title}
+          subtitle={`Operación en ${selectedIndustry?.nombre || 'Sector'}`}
+          amount={selectedTxForModal.montoString}
+          iconType="industry"
+          sections={[
+            { label: 'Tipo de Operación', value: selectedTxForModal.type },
+            { label: 'País / Jurisdicción', value: selectedCountry },
+            { label: 'Empresas / Partes', value: selectedTxForModal.empresa || 'N/D' },
+            { label: 'Abogados Involucrados', value: selectedTxForModal.abogados || 'N/D' },
+            { label: 'Fecha', value: selectedTxForModal.fecha ? new Date(selectedTxForModal.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada' }
+          ]}
+        />
+      )}
+
+      {/* Header PRO (Limpio, Sin tarjetas de KPIs para dar protagonismo total al mapa) */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-surface p-6 rounded-2xl shadow-sm border border-border">
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Globe className="h-6 w-6 text-brand" />
-            Métricas: Países
+          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <Globe className="h-7 w-7 text-brand" />
+            Jurisdicciones
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">Explora la actividad financiera y legal por región y país.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Radiografía geográfica y sectorial: explora la actividad financiera, industrias clave y firmas líderes por país.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Tipos de Operación */}
+          <div className="flex items-center gap-1 bg-background p-1 rounded-xl border border-border">
+            {filterOptions.map(option => (
+              <button
+                key={option}
+                onClick={() => setFilterType(option)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  filterType === option 
+                    ? 'bg-[#1C1F33] text-white shadow-sm' 
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {/* Rango de Fechas */}
           <ProDateRangePicker 
             value={dateRange}
             onChange={setDateRange}
@@ -185,449 +397,556 @@ export default function CountriesClient() {
         </div>
       </div>
 
-      <PaywallModal 
-        isOpen={showPaywall} 
-        onClose={() => setShowPaywall(false)} 
-        title={paywallTitle} 
-        message={paywallMessage} 
-      />
-      {selectedRow && (
-        <EntityDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          title={selectedRow.pais}
-          subtitle="Radiografía Nacional"
-          amount={formatCurrency(selectedRow.valorAcumulado)}
-          iconType="country"
-          sections={[
-            { label: 'Total Operaciones', value: String(selectedRow.operaciones) },
-            { label: 'Valor Acumulado', value: formatCurrency(selectedRow.valorAcumulado) },
-          ]}
-        />
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-3 text-muted-foreground mb-2">
-              <FileText className="h-5 w-5" />
-              <h3 className="text-sm font-semibold">Volumen Financiero Global</h3>
-            </div>
-            <p className="text-3xl font-bold text-foreground">{formatCurrency(totalVolume)}</p>
-            <p className="text-sm text-green-600 flex items-center mt-2"><ArrowUpRight className="h-4 w-4 mr-1"/> Data sincronizada</p>
-          </div>
-          <button onClick={() => setFilterType('Todas')} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
-            Ver a detalles
-          </button>
-        </div>
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-3 text-muted-foreground mb-2">
-              <Globe className="h-5 w-5" />
-              <h3 className="text-sm font-semibold">Países Registrados</h3>
-            </div>
-            <p className="text-3xl font-bold text-foreground">{topCountriesList.length.toLocaleString()}</p>
-            <p className="text-sm text-muted-foreground mt-2">Territorios activos analizados</p>
-          </div>
-          <button onClick={() => setIsRankingModalOpen(true)} className="mt-6 text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-3 py-2 rounded-lg text-center w-full">
-            Ver a detalles
-          </button>
-        </div>
-        <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <Globe className="h-5 w-5 text-[#E05C50]" />
-              <h3 className="text-sm font-semibold">Países Top Ranking</h3>
-            </div>
-            {topCountriesList.length > 0 && (
-              <button 
-                onClick={() => setIsRankingModalOpen(true)}
-                className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors bg-brand/10 px-2 py-1 rounded"
-              >
-                Ver todos
-              </button>
-            )}
-          </div>
-          <div className="mt-4 space-y-2">
-            {topCountriesList.slice(0, 3).map((ind, i) => (
-              <div key={i} className="flex justify-between items-center bg-muted p-2 rounded-lg">
-                <span className="text-xs font-semibold truncate max-w-[120px]" title={ind.pais}>{ind.pais}</span>
-                <span className="text-xs bg-surface px-2 py-1 rounded">{ind.operaciones} ops</span>
-              </div>
-            ))}
-            {topCountriesList.length === 0 && (
-              <p className="text-sm text-muted-foreground mt-2">Sin datos.</p>
-            )}
-          </div>
-        </div>
-      </div>
-
+      {/* NIVEL 1: MAPA HERO INTERACTIVO DE JURISDICCIONES */}
       <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border relative flex flex-col items-center justify-center">
-        <div className="w-full flex justify-between items-center mb-2">
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">Mapa Financiero de Mercado Activo</h3>
-            <span className="text-xs text-muted-foreground">Colores resaltan países con volumen financiero</span>
-          </div>
-          <button 
-            onClick={() => setIsMapExpanded(!isMapExpanded)}
-            className="text-xs font-semibold text-[#E05C50] hover:text-[#D92B4F] transition-colors flex items-center gap-1 bg-brand/10 px-3 py-1.5 rounded-lg"
-          >
-            {isMapExpanded ? (
-              <><ChevronUp className="h-4 w-4" /> Ocultar Mapa</>
-            ) : (
-              <><ChevronDown className="h-4 w-4" /> Mostrar Mapa</>
-            )}
-          </button>
-        </div>
-        {isMapExpanded && (
-        <div className="w-full h-[400px] bg-[#f8f9fa] rounded-xl overflow-hidden relative animate-in slide-in-from-top-2 fade-in duration-300">
-          {isMounted && (
-            <ComposableMap projection="geoMercator" projectionConfig={{scale: 130}} width={800} height={400} className="w-full h-full">
-            <Geographies geography={geoUrl}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
-                  const geoName = geo.properties?.name;
-                  const spanishNames = mapGeoToSpanish[geoName] || [geoName];
-                  
-                  const activeStats = getCountryStats(spanishNames)
-                  const isActive = activeStats !== null
-                  
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={isActive ? "#E05C50" : "#D6D6DA"}
-                      stroke="#FFFFFF"
-                      strokeWidth={0.5}
-                      onClick={() => {
-                        if (isActive && activeStats) {
-                          setSearchQuery(activeStats.pais)
-                          document.getElementById('countries-table-container')?.scrollIntoView({ behavior: 'smooth' })
-                        }
-                      }}
-                      onMouseEnter={(e) => {
-                        if (isActive && activeStats) {
-                          setTooltipContent({
-                            name: activeStats.pais,
-                            operaciones: activeStats.operaciones,
-                            monto: activeStats.valorAcumulado,
-                            x: e.clientX,
-                            y: e.clientY
-                          })
-                        }
-                      }}
-                      onMouseMove={(e) => {
-                        if (tooltipContent) {
-                          setTooltipContent(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setTooltipContent(null)
-                      }}
-                      style={{
-                        default: { fill: isActive ? "#E05C50" : "#D6D6DA", outline: "none", transition: "all 0.3s" },
-                        hover: { fill: isActive ? "#c94b40" : "#F53", outline: "none", cursor: isActive ? "pointer" : "default", transition: "all 0.3s" },
-                        pressed: { outline: "none" },
-                      }}
-                    />
-                  );
-                })
-              }
-            </Geographies>
-          </ComposableMap>
-          )}
-
-          {tooltipContent && (
-            <div 
-              className="fixed z-[100] bg-[#1C1F33] text-white p-3 rounded-lg shadow-xl border border-white/10 pointer-events-none min-w-[150px]"
-              style={{ left: tooltipContent.x + 15, top: tooltipContent.y + 15 }}
-            >
-              <h4 className="font-bold text-sm border-b border-white/10 pb-1 mb-2 text-[#E05C50]">{tooltipContent.name}</h4>
-              <div className="text-xs space-y-1">
-                <p className="flex justify-between gap-4"><span className="text-white/60">Operaciones:</span> <span className="font-bold">{tooltipContent.operaciones}</span></p>
-                <p className="flex justify-between gap-4"><span className="text-white/60">Monto Global:</span> <span className="font-bold text-[#E05C50]">{formatCurrency(tooltipContent.monto)}</span></p>
-              </div>
+        <div className="w-full flex justify-between items-center mb-3">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
+              <Globe className="h-4 w-4" />
             </div>
-          )}
-        </div>
-        )}
-      </div>
-
-      <div id="countries-table-container" className="flex flex-col lg:flex-row gap-6 h-auto lg:h-[600px]">
-        <div className="flex-1 bg-surface rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/30 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            
-            <div className="flex flex-wrap gap-2">
-              <div className="flex items-center gap-2 mr-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold text-muted-foreground hidden sm:inline">Filtro:</span>
-              </div>
-              {filterOptions.map(option => (
-                <button
-                  key={option}
-                  onClick={() => setFilterType(option)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
-                    filterType === option 
-                      ? 'bg-[#1C1F33] text-white shadow-md' 
-                      : 'bg-background text-muted-foreground hover:bg-muted border border-border'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative w-full sm:w-64 shrink-0 flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar país..." 
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E05C50]/20 focus:border-[#E05C50] transition-all"
-                />
-              </div>
-              <button
-                onClick={handleDownloadExcel}
-                title="Exportar a Excel"
-                className="p-2 border border-brand bg-brand/10 text-brand rounded-xl hover:bg-brand hover:text-white transition-colors"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => setIsPanelExpanded(!isPanelExpanded)}
-                className="p-2 border border-border bg-background rounded-xl text-muted-foreground hover:bg-muted transition-colors lg:hidden"
-                title={isPanelExpanded ? "Ocultar panel" : "Mostrar panel"}
-              >
-                {isPanelExpanded ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              </button>
+            <div>
+              <h3 className="text-base font-bold text-foreground">
+                Mapa Financiero de Mercado Activo
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Haz clic en cualquier país en el mapa para explorar sus industrias y firmas asesoras.
+              </p>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse min-w-[500px]">
-              <thead className="bg-muted">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    País
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Monto (USD)
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Operaciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#E05C50] mb-2" />
-                        <span className="text-sm font-medium">Cargando datos geográficos...</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : !isDataAllowed ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-xl p-8 max-w-sm mx-auto">
-                        <Lock className="w-10 h-10 mb-3 text-muted-foreground/50" />
-                        <span className="text-base font-semibold text-foreground mb-1">Datos Bloqueados</span>
-                        <span className="text-sm">Has alcanzado el límite de consultas diarias en tu prueba.</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <>
-                    {paginatedData.map(row => (
-                      <tr 
-                        key={row.id} 
-                        onClick={() => setSelectedRow(row)}
-                        className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedRow?.id === row.id ? 'bg-[#E05C50]/5 border-l-4 border-l-[#E05C50]' : 'border-l-4 border-l-transparent'}`}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`h-8 w-8 rounded flex items-center justify-center shrink-0 ${selectedRow?.id === row.id ? 'bg-[#E05C50] text-white' : 'bg-muted text-muted-foreground'}`}>
-                              <Globe className="h-4 w-4" />
-                            </div>
-                            <span className={`text-sm font-medium ${selectedRow?.id === row.id ? 'text-[#E05C50]' : 'text-foreground'}`}>
-                              {row.pais}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-foreground">{formatCurrency(row.valorAcumulado)}</td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground text-right">{row.operaciones} ops</td>
-                      </tr>
-                    ))}
-                    {paginatedData.length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
-                          No se encontraron países para los filtros seleccionados.
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-          
-          {filteredData.length > 0 && (
-            <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount.toLocaleString()}
-              </span>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 bg-background border border-border text-muted-foreground rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-xs font-semibold"
-                >
-                  Anterior
-                </button>
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 bg-background border border-border text-foreground rounded-lg disabled:opacity-50 hover:bg-muted transition-colors text-xs font-semibold"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {isPanelExpanded ? (
-          <div className="w-full lg:w-[320px] shrink-0 flex flex-col gap-4 relative animate-in slide-in-from-right-4 duration-300">
-            <div className="bg-[#1C1F33] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden h-full flex flex-col">
-              <button 
-                onClick={() => setIsPanelExpanded(false)}
-                className="hidden lg:flex absolute top-4 right-4 z-20 h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
-                title="Ocultar detalles"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-
-              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl"></div>
-            
-            {selectedRow ? (
-              <>
-                <div className="mb-6 z-10">
-                  <h3 className="text-xs uppercase tracking-widest text-white/60 font-semibold mb-1">Radiografía Nacional</h3>
-                  <p className="text-lg font-bold leading-tight line-clamp-2">{selectedRow.pais}</p>
-                  <div className="flex items-center gap-2 mt-3">
-                    <span className="inline-block px-2 py-1 bg-[#E05C50] text-white text-xs font-bold rounded">
-                      {formatCurrency(selectedRow.valorAcumulado)} USD
-                    </span>
-                    <button 
-                      onClick={() => setIsDetailModalOpen(true)}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded transition-colors"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Visualizar
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4 flex-1 overflow-y-auto z-10 custom-scrollbar pr-2 pb-6">
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center gap-2 text-white/60 mb-1">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Valor Acumulado</span>
-                    </div>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(selectedRow.valorAcumulado)}</p>
-                  </div>
-
-                  <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/5">
-                    <div className="flex items-center gap-2 text-white/60 mb-1">
-                      <Briefcase className="h-4 w-4" />
-                      <span className="text-xs font-semibold">Total Operaciones</span>
-                    </div>
-                    <p className="text-2xl font-bold text-white">{selectedRow.operaciones.toLocaleString()}</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center text-white/40 z-10">
-                <Search className="h-12 w-12 mb-4 opacity-50" />
-                <p className="text-sm">Selecciona un país en la tabla para ver su radiografía financiera completa.</p>
-              </div>
-            )}
-            </div>
-          </div>
-        ) : (
-          <div className="hidden lg:flex w-12 shrink-0 flex-col gap-4 items-center animate-in slide-in-from-right-2">
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand/10 text-brand text-xs font-semibold">
+              <span className="h-2 w-2 rounded-full bg-brand animate-pulse"></span>
+              Seleccionado: {selectedCountry}
+            </span>
             <button 
-              onClick={() => setIsPanelExpanded(true)}
-              className="bg-[#1C1F33] text-white rounded-xl p-3 shadow-lg hover:bg-[#252a42] transition-colors h-full flex items-center justify-center"
-              title="Mostrar detalles"
+              onClick={() => setIsMapExpanded(!isMapExpanded)}
+              className="text-xs font-semibold text-brand hover:text-brand/80 transition-colors flex items-center gap-1 bg-brand/10 px-3 py-1.5 rounded-lg"
             >
-              <ChevronLeft className="h-5 w-5" />
+              {isMapExpanded ? (
+                <><ChevronUp className="h-4 w-4" /> Ocultar Mapa</>
+              ) : (
+                <><ChevronDown className="h-4 w-4" /> Mostrar Mapa</>
+              )}
             </button>
           </div>
+        </div>
+
+        {isMapExpanded && (
+          <div className="w-full h-[420px] bg-[#f8f9fa] dark:bg-[#151828] rounded-xl overflow-hidden relative border border-border">
+            {isMounted && (
+              <ComposableMap 
+                projection="geoMercator" 
+                projectionConfig={{ scale: 130 }} 
+                width={800} 
+                height={420} 
+                className="w-full h-full"
+              >
+                <Geographies geography={geoUrl}>
+                  {({ geographies }) =>
+                    geographies.map((geo) => {
+                      const geoName = geo.properties?.name
+                      const spanishNames = mapGeoToSpanish[geoName] || [geoName]
+                      
+                      const activeStats = getMapCountryStats(spanishNames)
+                      const isActive = activeStats !== null
+                      const isCurrentlySelected = activeStats ? spanishNames.includes(selectedCountry) || activeStats.pais === selectedCountry : false
+                      
+                      return (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          fill={isCurrentlySelected ? "#B82E25" : isActive ? "#E05C50" : "#D6D6DA"}
+                          stroke={isCurrentlySelected ? "#1C1F33" : "#FFFFFF"}
+                          strokeWidth={isCurrentlySelected ? 1.5 : 0.5}
+                          onClick={() => {
+                            if (isActive && activeStats) {
+                              handleSelectCountry(activeStats.pais)
+                            }
+                          }}
+                          onMouseEnter={(e) => {
+                            if (isActive && activeStats) {
+                              setTooltipContent({
+                                name: activeStats.pais,
+                                operaciones: activeStats.operaciones,
+                                monto: activeStats.valorAcumulado,
+                                x: e.clientX,
+                                y: e.clientY
+                              })
+                            }
+                          }}
+                          onMouseMove={(e) => {
+                            if (tooltipContent) {
+                              setTooltipContent(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setTooltipContent(null)
+                          }}
+                          style={{
+                            default: { outline: "none", transition: "all 0.25s ease" },
+                            hover: { 
+                              fill: isCurrentlySelected ? "#99231B" : isActive ? "#C94B40" : "#D6D6DA", 
+                              outline: "none", 
+                              cursor: isActive ? "pointer" : "default" 
+                            },
+                            pressed: { outline: "none" },
+                          }}
+                        />
+                      )
+                    })
+                  }
+                </Geographies>
+              </ComposableMap>
+            )}
+
+            {/* Custom Interactive Tooltip */}
+            {tooltipContent && (
+              <div 
+                className="fixed z-[100] bg-[#1C1F33] text-white p-3 rounded-xl shadow-2xl border border-white/10 pointer-events-none min-w-[170px] animate-in fade-in zoom-in-95 duration-150"
+                style={{ left: tooltipContent.x + 15, top: tooltipContent.y + 15 }}
+              >
+                <div className="flex items-center gap-1.5 border-b border-white/10 pb-1 mb-2">
+                  <Globe className="h-3.5 w-3.5 text-brand" />
+                  <h4 className="font-bold text-sm text-white">{tooltipContent.name}</h4>
+                </div>
+                <div className="text-xs space-y-1">
+                  <p className="flex justify-between gap-4 text-white/70">
+                    <span>Operaciones:</span> 
+                    <span className="font-bold text-white">{tooltipContent.operaciones.toLocaleString()}</span>
+                  </p>
+                  <p className="flex justify-between gap-4 text-white/70">
+                    <span>Monto Global:</span> 
+                    <span className="font-bold text-brand">{formatCurrency(tooltipContent.monto)}</span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {isRankingModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setIsRankingModalOpen(false)}>
-          <div className="w-full max-w-md bg-[#1C1F33] h-full shadow-2xl p-6 flex flex-col animate-in slide-in-from-right relative overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
+      {/* NIVEL 2: RADIOGRAFÍA SECTORIAL (INDUSTRIAS DEL PAÍS) */}
+      <div id="sector-storytelling-section" className="space-y-6 pt-2">
+        
+        {/* Toolbar de País y Filtro */}
+        <div className="p-4 bg-surface rounded-2xl shadow-sm border border-border flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* SearchableSelect de País */}
+            <div className="w-full sm:w-[240px]">
+              <SearchableSelect 
+                value={selectedCountry}
+                onChange={handleSelectCountry}
+                options={availableCountries.length > 0 ? availableCountries : ['México', 'Brasil', 'Chile', 'Colombia', 'Perú', 'Argentina']}
+                placeholder="Buscar país..."
+              />
+            </div>
 
-            <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-brand/10 text-brand text-xs font-bold">
+                {serverStats.totalDeals || 0} Operaciones en {selectedCountry}
+              </span>
+              <span className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-xl bg-muted text-foreground text-xs font-bold">
+                {formatCurrency(serverStats.totalValue || 0)} USD acumulados
+              </span>
+            </div>
+          </div>
+
+          <div className="relative w-full md:w-72 shrink-0 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder={`Buscar sector en ${selectedCountry}...`} 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all"
+              />
+            </div>
+            <button
+              onClick={handleDownloadIndustriesExcel}
+              title="Exportar sectores a Excel"
+              className="p-2 border border-brand bg-brand/10 text-brand rounded-xl hover:bg-brand hover:text-white transition-colors shrink-0"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Layout 2 Columnas: Tabla de Industrias (60%) + Gráfico de Donut (40%) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          
+          {/* Tabla de Industrias (Col 7) */}
+          <div className="lg:col-span-7 bg-surface rounded-2xl shadow-sm border border-border flex flex-col overflow-hidden min-h-[460px]">
+            <div className="p-4 border-b border-border bg-muted/20 flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-brand" />
+                  Sectores e Industrias en {selectedCountry}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Haz clic en cualquier sector para ver el ranking de firmas que lo asesoraron.
+                </p>
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground bg-background px-2.5 py-1 rounded-lg border border-border">
+                {sortedIndustries.length} sectores
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-auto max-h-[420px]">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-muted/70 sticky top-0 z-10 backdrop-blur-sm border-b border-border">
+                  <tr>
+                    <th 
+                      onClick={() => {
+                        setIndustrySortBy('name')
+                        setIndustrySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Industria {renderSortIndicator(industrySortBy, 'name', industrySortOrder)}
+                    </th>
+                    <th 
+                      onClick={() => {
+                        setIndustrySortBy('deals')
+                        setIndustrySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Operaciones (% País) {renderSortIndicator(industrySortBy, 'deals', industrySortOrder)}
+                    </th>
+                    <th 
+                      onClick={() => {
+                        setIndustrySortBy('value')
+                        setIndustrySortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-5 py-3 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Monto Acumulado (USD) {renderSortIndicator(industrySortBy, 'value', industrySortOrder)}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                          <Loader2 className="h-8 w-8 animate-spin text-brand mb-2" />
+                          <span className="text-sm font-medium">Cargando sectores de {selectedCountry}...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : !isDataAllowed ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground">
+                          <Lock className="w-8 h-8 mb-2 text-muted-foreground/50" />
+                          <span className="text-sm font-semibold">Límite de consultas alcanzado</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {sortedIndustries.map((ind, i) => {
+                        const isSelected = selectedIndustry?.nombre === ind.nombre
+                        return (
+                          <tr
+                            key={ind.nombre}
+                            onClick={() => setSelectedIndustry(ind)}
+                            className={`cursor-pointer transition-colors hover:bg-muted/60 ${
+                              isSelected 
+                                ? 'bg-brand/10 border-l-4 border-l-brand' 
+                                : 'border-l-4 border-l-transparent'
+                            }`}
+                          >
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-mono text-xs font-semibold text-muted-foreground w-5 text-right">
+                                  {i + 1}
+                                </span>
+                                <span className={`text-sm font-semibold truncate max-w-[220px] ${isSelected ? 'text-brand' : 'text-foreground'}`} title={ind.nombre}>
+                                  {ind.nombre}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-foreground">
+                                  {ind.operaciones} ops
+                                </span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-muted text-muted-foreground border border-border">
+                                  {ind.porcentaje}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-semibold text-sm text-foreground">
+                              {ind.montoAcumulado > 0 ? formatCurrency(ind.montoAcumulado) : (
+                                <span className="text-xs text-muted-foreground italic">Confidencial</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+
+                      {sortedIndustries.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground text-sm">
+                            No se encontraron sectores para este país y filtros.
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Gráfico Donut de Cuota de Mercado (Col 5) */}
+          <div className="lg:col-span-5 bg-surface rounded-2xl shadow-sm border border-border p-6 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Globe className="h-6 w-6 text-[#E05C50]" />
-                <h3 className="text-xl font-bold text-white">Ranking Global Geográfico</h3>
+                <PieIcon className="h-5 w-5 text-brand" />
+                <h3 className="text-sm font-bold text-foreground">
+                  Cuota de Mercado por Industria
+                </h3>
               </div>
-              <button onClick={() => setIsRankingModalOpen(false)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+              <span className="text-xs text-muted-foreground">{selectedCountry}</span>
             </div>
 
-            <div className="mb-4 relative z-10 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-                <input
-                  type="text"
-                  placeholder="Buscar país..."
-                  value={rankingSearchQuery}
-                  onChange={e => setRankingSearchQuery(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#E05C50]/50 focus:border-transparent transition-all"
-                />
+            {/* Donut Chart with Recharts */}
+            <div className="h-56 w-full relative flex items-center justify-center my-2">
+              {isMounted && chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={PIE_COLORS[index % PIE_COLORS.length]} 
+                        />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip 
+                      formatter={(val: any, name: any, item: any) => [
+                        `${val} operaciones (${item.payload.percentage}%)`,
+                        name
+                      ]}
+                      contentStyle={{
+                        backgroundColor: '#1C1F33',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        color: '#fff',
+                        fontSize: '12px'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+                  Sin datos gráficos para mostrar.
+                </div>
+              )}
+
+              {/* Center Metric */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xl font-bold text-foreground">
+                  {serverStats.totalDeals || 0}
+                </span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                  Deals {selectedCountry}
+                </span>
               </div>
             </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar relative z-10">
-              {filteredRankingList.map((c) => {
-                const i = topCountriesList.findIndex(x => x.id === c.id)
-                return (
-                  <Link 
-                    href={`/dashboard/operations?search=${encodeURIComponent(c.pais)}`}
-                    key={c.id} 
-                    className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 hover:border-[#E05C50]/50 hover:bg-white/10 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-4 overflow-hidden">
-                      <span className={`flex items-center justify-center shrink-0 h-8 w-8 rounded-full text-sm font-bold shadow-sm transition-colors ${i < 3 ? 'bg-[#E05C50] text-white border-none' : 'bg-[#252a42] text-white/70 border border-white/10 group-hover:bg-[#E05C50] group-hover:text-white'}`}>
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors truncate">{c.pais}</span>
-                    </div>
-                    <div className="flex flex-col items-end shrink-0 gap-1">
-                      <span className="text-xs font-bold bg-[#E05C50]/20 text-[#E05C50] px-3 py-1 rounded-md border border-[#E05C50]/20">
-                        {c.operaciones} ops
-                      </span>
-                      <span className="text-[10px] text-white/50">{formatCurrency(c.valorAcumulado)}</span>
-                    </div>
-                  </Link>
-                )
-              })}
-              {filteredRankingList.length === 0 && (
-                <p className="text-sm text-white/40 mt-8 text-center">No se encontraron países con ese nombre.</p>
-              )}
+
+            {/* Legend breakdown */}
+            <div className="space-y-1.5 border-t border-border pt-3">
+              {chartData.slice(0, 5).map((entry, idx) => (
+                <div key={entry.name} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 truncate max-w-[190px]">
+                    <span 
+                      className="h-2.5 w-2.5 rounded-full shrink-0" 
+                      style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} 
+                    />
+                    <span className="text-muted-foreground truncate">{entry.name}</span>
+                  </div>
+                  <span className="font-bold text-foreground">
+                    {entry.percentage}% <span className="font-normal text-muted-foreground">({entry.value} ops)</span>
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
+
+        {/* NIVEL 3: FIRMAS LÍDERES EN LA INDUSTRIA SELECCIONADA (EL FINAL DEL STORYTELLING) */}
+        {selectedIndustry && (
+          <div className="bg-surface rounded-2xl shadow-sm border border-border overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-bottom-2">
+            
+            {/* Header del Nivel 3 */}
+            <div className="p-5 border-b border-border bg-muted/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-brand text-white text-[11px] font-bold uppercase tracking-wider">
+                    Storytelling: Nivel 3
+                  </span>
+                  <span className="text-xs text-muted-foreground">•</span>
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {selectedCountry}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mt-1">
+                  Firmas Asesoras en {selectedIndustry.nombre}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Ranking de firmas legales que han asesorado operaciones en este sector específico.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-brand bg-brand/10 px-3 py-1.5 rounded-xl">
+                  {sortedFirmsForIndustry.length} firmas activas en este sector
+                </span>
+                <button
+                  onClick={handleDownloadFirmsInSectorExcel}
+                  title="Exportar firmas del sector a Excel"
+                  className="p-2 border border-brand bg-brand/10 text-brand rounded-xl hover:bg-brand hover:text-white transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tabla de Firmas en el Sector */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[650px]">
+                <thead className="bg-muted/70 border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3.5 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider w-16">
+                      #
+                    </th>
+                    <th 
+                      onClick={() => {
+                        setFirmSortBy('name')
+                        setFirmSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-6 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Firma {renderSortIndicator(firmSortBy, 'name', firmSortOrder)}
+                    </th>
+                    <th 
+                      onClick={() => {
+                        setFirmSortBy('deals')
+                        setFirmSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-6 py-3.5 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Número de Operaciones en Sector {renderSortIndicator(firmSortBy, 'deals', firmSortOrder)}
+                    </th>
+                    <th 
+                      onClick={() => {
+                        setFirmSortBy('value')
+                        setFirmSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+                      }}
+                      className="px-6 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground select-none"
+                    >
+                      Monto Acumulado en Sector (USD) {renderSortIndicator(firmSortBy, 'value', firmSortOrder)}
+                    </th>
+                    <th className="px-6 py-3.5 text-right text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Acción
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {sortedFirmsForIndustry.map((firm) => (
+                    <tr 
+                      key={firm.firma} 
+                      className="hover:bg-muted/50 transition-colors"
+                    >
+                      {/* Posición limpia */}
+                      <td className="px-4 py-3.5 text-center font-mono text-sm font-semibold text-muted-foreground">
+                        {firm.posicion}
+                      </td>
+
+                      {/* Firma */}
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                            <Building2 className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-bold text-foreground block">
+                              {firm.firma}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              Sede: {firm.pais}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Operaciones */}
+                      <td className="px-6 py-3.5">
+                        <span className="text-sm font-bold text-foreground">
+                          {firm.operaciones} ops
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          en {selectedIndustry.nombre}
+                        </span>
+                      </td>
+
+                      {/* Monto acumulado */}
+                      <td className="px-6 py-3.5 text-right font-bold text-sm text-foreground">
+                        {firm.montoAcumulado > 0 ? (
+                          formatCurrency(firm.montoAcumulado)
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-normal italic">
+                            Montos confidenciales
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Ver transacciones */}
+                      <td className="px-6 py-3.5 text-right">
+                        {firm.transacciones && firm.transacciones.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setSelectedTxForModal(firm.transacciones[0])
+                              setIsDetailModalOpen(true)
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-brand/10 text-brand hover:bg-brand hover:text-white transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Ver ({firm.transacciones.length})
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {sortedFirmsForIndustry.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground text-sm">
+                        No hay firmas registradas con operaciones en este sector.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }

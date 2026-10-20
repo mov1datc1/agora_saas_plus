@@ -219,15 +219,23 @@ Agrupación por industria con volumen y conteo.
 **Extra:** `countries[]` — lista de países para dropdown
 
 #### `GET /api/metrics/countries`
-Agrupación geográfica con mapa interactivo.
+Módulo unificado de **Jurisdicciones e Industrias** con experiencia de storytelling en 3 niveles (Macro → Sectores → Firmas Líderes por Sector).
 
 | Param | Tipo | Descripción |
 |-------|------|-------------|
-| `type` | string | Filtro por tipo |
-| `search` | string | Búsqueda por nombre de país |
-| `dateStart/dateEnd` | date | Rango de fechas |
+| `country` | string | País seleccionado (por defecto: `México`). Filtra sectores y firmas asesoras |
+| `type` | string | Filtro por tipo (`M&A`, `Financiamientos`, `Emisiones`, etc.) |
+| `dateStart/dateEnd` | date | Rango de fechas de anuncio (`dateAnnounced`) |
+| `search` | string | Búsqueda por texto |
 
-**Stats:** `{ totalValue, totalCountries }`
+**Payload:**
+- `mapData[]`: Datos globales para el mapa interactivo Mercator (`id`, `country`, `deals`, `totalValue`, `topFirms[]`).
+- `selectedCountry`: Nombre canónico del país analizado.
+- `industries[]`: Desglose sectorial del país (`industry`, `deals`, `publicDeals`, `confidentialDeals`, `totalValue`, `topFirms[]`).
+- `countryStats`: `{ totalDeals, publicDeals, confidentialDeals, totalValue, totalFirms, totalIndustries }`.
+- `countries[]`: Catálogo unificado de países con priorización de Latinoamérica.
+
+> **Nota:** La ruta `/dashboard/metrics/industries` redirige automáticamente (`HTTP 307`) a `/dashboard/metrics/countries`, integrando la distribución sectorial directamente dentro de la experiencia de Jurisdicciones.
 
 ### 4.3 Patrón de Consumo en Frontend
 
@@ -323,8 +331,8 @@ WHERE type IN ('M&A', 'Emisiones', 'Financiamientos')
 | Dashboard Global | `/dashboard` | KPIs, gráfico histórico, top industrias |
 | Operaciones | `/dashboard/operations` | Tabla de deals con filtros avanzados |
 | Clasificación | `/dashboard/metrics/firms` | Ranking analítico por país, # de operaciones y monto acumulado |
-| Industrias | `/dashboard/metrics/industries` | Distribución sectorial |
-| Jurisdicciones | `/dashboard/metrics/countries` | Mapa geográfico interactivo |
+| Jurisdicciones | `/dashboard/metrics/countries` | Mapa geográfico interactivo + sectores e industrias integrados + firmas líderes |
+| *(Industrias)* | `/dashboard/metrics/industries` | *Redirige a Jurisdicciones (módulo unificado)* |
 | Ágora Copilot | `/dashboard/copilot` | Asistente IA para consultas |
 | Suscripción | `/dashboard/subscription` | Stripe Checkout + gestión |
 | Administración | `/dashboard/admin` | CRUD de usuarios (ADMIN+) |

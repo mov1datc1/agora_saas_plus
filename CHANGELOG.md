@@ -2,6 +2,33 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.8.0] — 2026-10-20 🌐 Fusión de "Jurisdicciones" e "Industrias" (3-Level Storytelling)
+
+### ✨ Added & Unified
+- **Fusión de Módulos (Jurisdicciones + Industrias)**:
+  - Se eliminó el enlace independiente de *Industrias* en la barra lateral (`Sidebar.tsx`) y en el panel de configuración de administradores (`RankingsToggleClient.tsx`). La sección **RANKINGS ANALÍTICOS** ahora contiene únicamente **`Clasificación`** (icono `Building2`) y **`Jurisdicciones`** (icono `Globe`).
+  - La ruta heredada `/dashboard/metrics/industries` redirige automáticamente a `/dashboard/metrics/countries` (`redirect`).
+- **Storytelling Analítico en 3 Niveles en `Jurisdicciones` (`/dashboard/metrics/countries`)**:
+  1. **Nivel 1 (Macro / Mapa Interactivo)**:
+     - Mapa interactivo Mercator global/latinoamericano destacado en la cabecera. Se retiraron las tarjetas superiores de KPIs globales para darle protagonismo absoluto a la geografía.
+     - Hover dinámico con tooltip enriquecido mostrando volumen de operaciones y monto acumulado por país.
+     - Barra de herramientas con selector de país `SearchableSelect` con buscador en vivo, por defecto configurado en **México** con prioridad a jurisdicciones de Latinoamérica.
+  2. **Nivel 2 (Sectores por País)**:
+     - Tabla de industrias activas del país seleccionado con columnas: `Industria`, `Operaciones` (con badge del % que representa del total del país), y `Monto Acumulado (USD)` (estrictamente operaciones públicas; confidenciales = $0).
+     - Ordenable interactivamente tanto por número de transacciones como por monto acumulado.
+     - Gráfico Donut (`PieChart` / `recharts`) con desglose visual del % de participación de los sectores principales.
+  3. **Nivel 3 (Clímax: Firmas Asesoras Líderes por Sector)**:
+     - Al seleccionar cualquier industria (por defecto la industria #1 del país seleccionado, e.g. "Banca"), se despliega la tabla de firmas: `Firmas Asesoras en [Industria] — [País]`.
+     - Columnas: `#` (clasificación limpia: 1, 2, 3... sin emojis ni medallas), `Firma`, `Número de Operaciones en Sector`, y `Monto Acumulado en Sector (USD)`.
+     - Ordenable por operaciones (#) o monto ($).
+     - Botón de acceso directo para explorar las transacciones de dicho sector en el módulo de Operaciones.
+- **Motor Server-Side (`/api/metrics/countries`)**:
+  - Consultas paralelas vía `Promise.all` que entregan en una sola respuesta atómica los datos del mapa global (`mapData`), el catálogo de países, el desglose sectorial del país (`industries`) y las firmas asesoras locales por sector con cálculo de montos públicos.
+- **Exportación a Excel**:
+  - Exporta el reporte consolidado de industrias y firmas del país seleccionado.
+
+---
+
 ## [5.7.0] — 2026-10-20 🏆 Rediseño de "Clasificación de Firmas" (Country-Centric Ranking)
 
 ### ✨ Added & Redesigned
