@@ -2,6 +2,28 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.9.0] — 2026-10-22 🔔 Auditoría de Actividad, Contingencia de Trials y Garantía de Cero Cargos
+
+### ✨ Added & Enhanced
+- **Auditoría de Actividad y Primer Acceso (`User.firstLoginAt` / `User.lastLoginAt`)**:
+  - Nuevas columnas en el modelo `User` en PostgreSQL para registrar el primer acceso a la plataforma y la última fecha de actividad de sesión.
+  - Captura transparente y regulada en `DashboardLayout`, `auth/callback` y Server Action de login.
+  - Indicadores visuales en el panel de administración (`UsersClient.tsx`): `✓ Accedió: DD/MM/AAAA` vs `⚠️ Nunca ha ingresado` para segmentar leads en el CRM de Ayudante X.
+- **Motor de Contingencia para Periodos de Prueba (`/api/cron/check-subscriptions`)**:
+  - El cron diario ahora audita proactivamente todas las suscripciones en estado `TRIAL`.
+  - Evalúa la ventana de expiración a ≤ 3 días y dispara en automático el correo `REMINDER_TRIAL` por Resend (`soporte@agora-lexlatin.com`).
+  - Candado anti-spam con el campo `Subscription.trialReminderSentAt` para evitar duplicidad de envíos.
+  - Disparo en tiempo real del evento comercial `TRIAL_EXPIRING` hacia Ayudante X / GoHighLevel.
+  - Acceso seguro al endpoint mediante token `CRON_SECRET` o sesión autenticada de Administrador.
+- **Botón Manual de Aviso de Cobro (`UsersClient.tsx`)**:
+  - Incorporación de botón directo `Aviso Cobro` (`Mail`) para forzar o reenviar la notificación de fin de prueba a cualquier usuario en `TRIAL` en 1 clic.
+- **Validación del Ciclo Completo de Cancelación (Caso Henry Infante)**:
+  - Entrega exitosa del recordatorio preventivo con 1 día de anticipación a `henryjinfantec2366@gmail.com`.
+  - Cancelación anticipada procesada de forma impecable vía portal y webhook de Stripe.
+  - Despacho inmediato del correo de *Garantía de Cero Cargos* (`TRIAL_CANCELLED`) confirmando la anulación total de la suscripción sin cargos a la tarjeta.
+
+---
+
 ## [5.8.0] — 2026-10-20 🌐 Fusión de "Jurisdicciones" e "Industrias" (3-Level Storytelling)
 
 ### ✨ Added & Unified
