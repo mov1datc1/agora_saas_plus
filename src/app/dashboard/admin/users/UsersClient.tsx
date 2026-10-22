@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2, ArrowUpRight, KeyRound, Copy, Check } from 'lucide-react'
+import { Search, MoreVertical, CheckCircle2, XCircle, Shield, ShieldOff, Loader2, ArrowUpRight, KeyRound, Copy, Check, Mail } from 'lucide-react'
 import { deactivateUser, reactivateUser } from './actions'
-import { resetUserPassword } from './user-actions'
+import { resetUserPassword, sendTrialReminderManually } from './user-actions'
 import PromoteUserModal from './PromoteUserModal'
 
 type UIUser = {
@@ -14,6 +14,9 @@ type UIUser = {
   status: string
   isActive: boolean
   createdAt: string
+  firstLoginAt?: string | null
+  lastLoginAt?: string | null
+  trialReminderSentAt?: string | null
 }
 
 export default function UsersClient({ initialUsers, currentUserRole }: { initialUsers: UIUser[], currentUserRole?: string }) {
@@ -64,6 +67,19 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
       setCopied(false)
     } else {
       alert(res.error || 'Error al resetear la contraseña')
+    }
+  }
+
+  const handleSendReminder = async (user: UIUser) => {
+    if (!confirm(`¿Enviar correo de aviso de cobro / fin de prueba a ${user.name || user.email}?`)) return
+    setLoadingId(user.id)
+    const res = await sendTrialReminderManually(user.id)
+    setLoadingId(null)
+    if (res.success) {
+      alert(res.message || 'Recordatorio de prueba enviado exitosamente.')
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, trialReminderSentAt: new Date().toISOString() } : u))
+    } else {
+      alert(res.error || 'Error al enviar recordatorio.')
     }
   }
 
@@ -119,6 +135,15 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
                     <div className="ml-4">
                       <div className="font-medium text-foreground">{user.name}</div>
                       <div className="text-muted-foreground">{user.email}</div>
+                      {user.firstLoginAt ? (
+                        <div className="text-[11px] text-emerald-600 font-medium mt-0.5">
+                          ✓ Accedió: {new Date(user.firstLoginAt).toLocaleDateString('es-ES')}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-amber-600 font-medium mt-0.5">
+                          ⚠️ Nunca ha ingresado
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -140,6 +165,11 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
                   {user.status === 'INCOMPLETE' && <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-500/10 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/20">Incompleta</span>}
                   {user.status === 'PAST_DUE' && <span className="inline-flex items-center gap-1.5 rounded-md bg-orange-500/10 px-2 py-1 text-xs font-medium text-orange-600 ring-1 ring-inset ring-orange-500/20">Atrasada</span>}
                   {!user.isActive && <span className="ml-2 inline-flex items-center gap-1.5 rounded-md bg-red-500/10 px-2 py-1 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-500/20">Desactivado Manual</span>}
+                  {user.trialReminderSentAt && (
+                    <span className="block text-[10px] text-blue-600 mt-1">
+                      Aviso enviado: {new Date(user.trialReminderSentAt).toLocaleDateString('es-ES')}
+                    </span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString('es-ES')}
@@ -166,6 +196,15 @@ export default function UsersClient({ initialUsers, currentUserRole }: { initial
                         >
                           <KeyRound className="h-4 w-4" /> Password
                         </button>
+                        {user.status === 'TRIAL' && (
+                          <button
+                            onClick={() => handleSendReminder(user)}
+                            className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            title={user.trialReminderSentAt ? `Aviso enviado el ${new Date(user.trialReminderSentAt).toLocaleDateString('es-ES')}` : "Enviar aviso de cobro por vencer"}
+                          >
+                            <Mail className="h-4 w-4" /> {user.trialReminderSentAt ? 'Reenviar Aviso' : 'Aviso Cobro'}
+                          </button>
+                        )}
                         {user.status === 'CANCELED' ? (
                           <button
                             onClick={() => handleReactivate(user.id)}

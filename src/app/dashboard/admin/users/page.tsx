@@ -36,6 +36,9 @@ export default async function AdminUsersPage() {
     currentPeriodEnd: u.subscription?.currentPeriodEnd?.toISOString() || null,
     stripeCustomerId: u.stripeCustomerId,
     createdAt: u.createdAt.toISOString(),
+    firstLoginAt: u.firstLoginAt?.toISOString() || null,
+    lastLoginAt: u.lastLoginAt?.toISOString() || null,
+    trialReminderSentAt: u.subscription?.trialReminderSentAt?.toISOString() || null,
   }))
 
   const adminUsers = formattedUsers.filter((u: any) => u.role === 'ADMIN' || u.role === 'SUPERADMIN')

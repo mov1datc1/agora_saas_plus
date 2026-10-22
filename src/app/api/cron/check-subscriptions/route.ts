@@ -13,14 +13,37 @@ export async function GET(request: Request) {
 
   try {
     const authHeader = request.headers.get('authorization')
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const { searchParams } = new URL(request.url)
+    const secretParam = searchParams.get('secret')
+
+    const isCronAuthorized = Boolean(
+      process.env.CRON_SECRET && 
+      (authHeader === `Bearer ${process.env.CRON_SECRET}` || secretParam === process.env.CRON_SECRET)
+    )
+
+    let isAdmin = false
+    try {
+      const { createClient } = await import('@/utils/supabase/server')
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email) {
+        const dbAdmin = await prisma.user.findUnique({ where: { email: user.email } })
+        if (dbAdmin?.role === 'ADMIN' || dbAdmin?.role === 'SUPERADMIN') {
+          isAdmin = true
+        }
+      }
+    } catch {
+      // Ignore if not running in authenticated browser context
+    }
+
+    if (!isCronAuthorized && !isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Create CronLog entry
     try {
       const cronLog = await prisma.cronLog.create({
-        data: { jobName: 'check-subscriptions', status: 'RUNNING', trigger: 'cron' }
+        data: { jobName: 'check-subscriptions', status: 'RUNNING', trigger: isAdmin ? 'manual' : 'cron' }
       })
       cronLogId = cronLog.id
     } catch (logErr) {
@@ -30,7 +53,80 @@ export async function GET(request: Request) {
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Normalize to start of day
 
-    // Get all active manual subscriptions
+    const notificationsSent: any[] = []
+    const deactivatedUsers: string[] = []
+
+    // -------------------------------------------------------------------------
+    // 1. TRIAL SUBSCRIPTIONS (Stripe / Self-Serve trials expiring soon)
+    // -------------------------------------------------------------------------
+    const activeTrialUsers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        subscription: {
+          status: 'TRIAL',
+          trialEndsAt: { not: null }
+        }
+      },
+      include: {
+        subscription: true
+      }
+    })
+
+    const trialTemplate = await prisma.emailTemplate.findUnique({ where: { type: 'REMINDER_TRIAL' } })
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com'
+    const dashboardUrl = `${siteUrl}/dashboard`
+
+    for (const user of activeTrialUsers) {
+      if (!user.subscription?.trialEndsAt) continue
+
+      const trialEnd = new Date(user.subscription.trialEndsAt)
+      trialEnd.setHours(0, 0, 0, 0)
+
+      const diffTime = trialEnd.getTime() - today.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+      // Avisar si faltan 3, 2, 1 o 0 días y aún no se ha enviado recordatorio
+      if (diffDays <= 3 && diffDays >= 0 && !user.subscription.trialReminderSentAt) {
+        if (resend) {
+          try {
+            const subject = trialTemplate?.subject || 'Aviso: Tu prueba gratuita de Ágora Plus finaliza en 3 días'
+            let html = trialTemplate?.htmlBody || `<h1>Tu prueba de Ágora Plus está por concluir</h1>\n<p>Hola {{userFirstname}},</p>\n<p>Esperamos que estés aprovechando al máximo la plataforma y las herramientas de analítica legal y financiera de Ágora Plus.</p>\n<p>Te recordamos que en <strong>${diffDays <= 1 ? '1 día' : `${diffDays} días`}</strong> finalizará tu periodo de prueba gratuita y se procesará automáticamente el cobro de tu suscripción mensual oficial a tu tarjeta registrada.</p>\n<p><a href="{{dashboardUrl}}/billing" style="background-color: #1f2937; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Ver Mi Facturación y Métodos de Pago</a></p>\n<p>Saludos,<br>Equipo Ágora Plus</p>`
+
+            html = html.replace(/{{userFirstname}}/g, user.name && user.name !== 'Independiente' ? user.name : 'Usuario')
+                       .replace(/{{dashboardUrl}}/g, dashboardUrl)
+
+            await resend.emails.send({
+              from: 'Ágora Plus <soporte@agora-lexlatin.com>',
+              to: [user.email],
+              subject,
+              html,
+            })
+
+            await prisma.subscription.update({
+              where: { id: user.subscription.id },
+              data: { trialReminderSentAt: new Date() }
+            })
+
+            notificationsSent.push({ email: user.email, type: 'REMINDER_TRIAL', daysLeft: diffDays })
+
+            // Sincronizar evento con CRM (Ayudante X / Arquitex)
+            await sendCrmWebhook({
+              event: 'TRIAL_EXPIRING',
+              email: user.email,
+              name: user.name,
+              trialEndsAt: user.subscription.trialEndsAt,
+            }).catch(err => console.error('[CRM Webhook] Error in trial expiring webhook:', err))
+
+          } catch (emailErr) {
+            console.error(`[CRON_RESEND_ERROR] Failed to send trial reminder to ${user.email}`, emailErr)
+          }
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. ACTIVE MANUAL SUBSCRIPTIONS (Legacy / Corporate agreements)
+    // -------------------------------------------------------------------------
     const activeManualUsers = await prisma.user.findMany({
       where: {
         isActive: true,
@@ -43,9 +139,6 @@ export async function GET(request: Request) {
         subscription: true
       }
     })
-
-    const notificationsSent = []
-    const deactivatedUsers = []
 
     for (const user of activeManualUsers) {
       if (!user.subscription?.currentPeriodEnd) continue
@@ -107,7 +200,7 @@ export async function GET(request: Request) {
         // Enviar correo
         try {
           await resend.emails.send({
-            from: 'Agora Plus <no-reply@agora-lexlatin.com>', // Change to your verified Resend domain
+            from: 'Ágora Plus <soporte@agora-lexlatin.com>',
             to: [user.email],
             subject: subject,
             html: `

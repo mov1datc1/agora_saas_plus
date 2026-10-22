@@ -17,6 +17,23 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const prisma = (await import('@/lib/prisma')).default
+          const now = new Date()
+          await prisma.user.updateMany({
+            where: { email: user.email, firstLoginAt: null },
+            data: { firstLoginAt: now, lastLoginAt: now }
+          })
+          await prisma.user.updateMany({
+            where: { email: user.email },
+            data: { lastLoginAt: now }
+          })
+        }
+      } catch (trackErr) {
+        console.error('[CALLBACK_TRACK_ERROR]', trackErr)
+      }
       return NextResponse.redirect(`${redirectBase}${next}`)
     }
   }
@@ -29,6 +46,23 @@ export async function GET(request: Request) {
     })
 
     if (!error) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user?.email) {
+          const prisma = (await import('@/lib/prisma')).default
+          const now = new Date()
+          await prisma.user.updateMany({
+            where: { email: user.email, firstLoginAt: null },
+            data: { firstLoginAt: now, lastLoginAt: now }
+          })
+          await prisma.user.updateMany({
+            where: { email: user.email },
+            data: { lastLoginAt: now }
+          })
+        }
+      } catch (trackErr) {
+        console.error('[CALLBACK_TRACK_ERROR]', trackErr)
+      }
       return NextResponse.redirect(`${redirectBase}${next}`)
     }
   }

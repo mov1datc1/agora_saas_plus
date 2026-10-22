@@ -32,6 +32,20 @@ export async function login(formData: FormData) {
     redirect('/login?error=' + encodeURIComponent(errorMsg))
   }
 
+  try {
+    const now = new Date()
+    await prisma.user.updateMany({
+      where: { email: { equals: email, mode: 'insensitive' }, firstLoginAt: null },
+      data: { firstLoginAt: now, lastLoginAt: now }
+    })
+    await prisma.user.updateMany({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      data: { lastLoginAt: now }
+    })
+  } catch (trackErr) {
+    console.error('[LOGIN_TRACK_ERROR]', trackErr)
+  }
+
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }

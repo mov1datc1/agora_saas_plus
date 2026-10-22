@@ -28,6 +28,23 @@ export default async function DashboardLayout({
       redirect('/deactivated')
     }
     userRole = dbUser?.role || 'USER';
+
+    // Auto-track firstLoginAt and lastLoginAt
+    if (dbUser) {
+      const now = new Date()
+      const needsFirstLogin = !dbUser.firstLoginAt
+      const lastLoginTime = dbUser.lastLoginAt ? new Date(dbUser.lastLoginAt).getTime() : 0
+      // Update lastLoginAt if first time or if >15 minutes since last update
+      if (needsFirstLogin || now.getTime() - lastLoginTime > 15 * 60 * 1000) {
+        await prisma.user.update({
+          where: { id: dbUser.id },
+          data: {
+            firstLoginAt: needsFirstLogin ? now : undefined,
+            lastLoginAt: now,
+          }
+        }).catch(err => console.error('[LOGIN_TRACK_ERROR]', err))
+      }
+    }
     
     // Auto-upgrade admins to SUPERADMIN if needed (Migration fallback)
     if (dbUser && userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
