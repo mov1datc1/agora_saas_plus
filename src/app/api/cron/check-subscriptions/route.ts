@@ -121,6 +121,25 @@ export async function GET(request: Request) {
             console.error(`[CRON_RESEND_ERROR] Failed to send trial reminder to ${user.email}`, emailErr)
           }
         }
+      } else if (diffDays < 0) {
+        // Periodo de prueba finalizado sin conversión a suscripción activa
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { isActive: false }
+        })
+        await prisma.subscription.update({
+          where: { id: user.subscription.id },
+          data: { status: 'PAST_DUE' }
+        })
+        deactivatedUsers.push(user.email)
+
+        // Sincronizar expiración con CRM
+        await sendCrmWebhook({
+          event: 'TRIAL_EXPIRED',
+          email: user.email,
+          name: user.name,
+          trialEndsAt: user.subscription.trialEndsAt,
+        }).catch(err => console.error('[CRM Webhook] Error in trial expired webhook:', err))
       }
     }
 

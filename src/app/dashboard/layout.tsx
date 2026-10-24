@@ -22,37 +22,85 @@ export default async function DashboardLayout({
   if (user?.email) {
     const dbUser = await prisma.user.findUnique({ 
       where: { email: user.email },
-      include: { subscription: true }
-    });
-    if (dbUser?.isActive === false) {
-      redirect('/deactivated')
-    }
-    userRole = dbUser?.role || 'USER';
-
-    // Auto-track firstLoginAt and lastLoginAt
-    if (dbUser) {
-      const now = new Date()
-      const needsFirstLogin = !dbUser.firstLoginAt
-      const lastLoginTime = dbUser.lastLoginAt ? new Date(dbUser.lastLoginAt).getTime() : 0
-      // Update lastLoginAt if first time or if >15 minutes since last update
-      if (needsFirstLogin || now.getTime() - lastLoginTime > 15 * 60 * 1000) {
-        await prisma.user.update({
-          where: { id: dbUser.id },
-          data: {
-            firstLoginAt: needsFirstLogin ? now : undefined,
-            lastLoginAt: now,
-          }
-        }).catch(err => console.error('[LOGIN_TRACK_ERROR]', err))
+      include: { 
+        subscription: true,
+        parent: {
+          include: { subscription: true }
+        }
       }
+    });
+
+    if (!dbUser) {
+      redirect('/login');
     }
-    
+
+    userRole = dbUser.role || 'USER';
+
     // Auto-upgrade admins to SUPERADMIN if needed (Migration fallback)
-    if (dbUser && userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
+    if (userRole === 'ADMIN' && (dbUser.email === 'palacios.jenrique@gmail.com' || dbUser.email === 'admin@lexlatin.com')) {
       await prisma.user.update({ where: { email: dbUser.email }, data: { role: 'SUPERADMIN' } });
       userRole = 'SUPERADMIN';
     }
-    if (dbUser?.subscription) {
-      subscriptionStatus = dbUser.subscription.status;
+
+    // --- ENFORCED ACCESS RULES FOR REGULAR USERS ---
+    // Admins and Superadmins have unrestricted platform access
+    if (userRole !== 'ADMIN' && userRole !== 'SUPERADMIN') {
+      // 1. User is deactivated
+      if (dbUser.isActive === false) {
+        redirect('/deactivated');
+      }
+
+      // 2. Resolve subscription (individual/corporate or inherited from parent)
+      const effectiveSub = dbUser.parentId ? dbUser.parent?.subscription : dbUser.subscription;
+      const parentIsActive = dbUser.parentId ? dbUser.parent?.isActive : true;
+
+      // If child user and parent is deactivated
+      if (dbUser.parentId && parentIsActive === false) {
+        redirect('/deactivated');
+      }
+
+      // 3. User has no subscription at all
+      if (!effectiveSub) {
+        redirect('/deactivated');
+      }
+
+      // 4. Subscription is CANCELED (cancelled during trial OR cancelled after paying)
+      if (effectiveSub.status === 'CANCELED') {
+        redirect('/deactivated');
+      }
+
+      // 5. Subscription is INCOMPLETE
+      if (effectiveSub.status === 'INCOMPLETE') {
+        redirect('/deactivated');
+      }
+
+      // 6. Trial period expired without an active paid subscription
+      if (effectiveSub.status === 'TRIAL' && effectiveSub.trialEndsAt) {
+        const trialEndDate = new Date(effectiveSub.trialEndsAt);
+        if (trialEndDate < new Date()) {
+          redirect('/deactivated');
+        }
+      }
+    }
+
+    // Auto-track firstLoginAt and lastLoginAt
+    const now = new Date();
+    const needsFirstLogin = !dbUser.firstLoginAt;
+    const lastLoginTime = dbUser.lastLoginAt ? new Date(dbUser.lastLoginAt).getTime() : 0;
+    // Update lastLoginAt if first time or if >15 minutes since last update
+    if (needsFirstLogin || now.getTime() - lastLoginTime > 15 * 60 * 1000) {
+      await prisma.user.update({
+        where: { id: dbUser.id },
+        data: {
+          firstLoginAt: needsFirstLogin ? now : undefined,
+          lastLoginAt: now,
+        }
+      }).catch(err => console.error('[LOGIN_TRACK_ERROR]', err));
+    }
+    
+    const effectiveSub = dbUser.parentId ? dbUser.parent?.subscription : dbUser.subscription;
+    if (effectiveSub) {
+      subscriptionStatus = effectiveSub.status;
     }
     userName = dbUser?.name || user.email.split('@')[0];
     accountType = dbUser?.accountType || 'INDIVIDUAL';

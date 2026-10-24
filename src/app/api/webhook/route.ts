@@ -156,6 +156,12 @@ export async function POST(req: Request) {
                 cancelAtPeriodEnd,
               }
             })
+
+            // Asegurar que el usuario quede activo en la plataforma al completar checkout
+            await prisma.user.update({
+              where: { id: dbUser.id },
+              data: { isActive: true }
+            })
             
             // Send Welcome Email for new subscriptions
             try {
@@ -259,6 +265,19 @@ export async function POST(req: Request) {
               cancelAtPeriodEnd: Boolean((subscription as any).cancel_at_period_end),
             }
           })
+
+          // Sincronizar isActive en User: si canceló, desactivar acceso inmediatamente
+          if (newStatus === SubscriptionStatus.CANCELED) {
+            await prisma.user.update({
+              where: { id: dbSubUser.id },
+              data: { isActive: false }
+            }).catch(e => console.error('[USER_DEACTIVATE_ON_CANCEL_ERROR]', e))
+          } else if (newStatus === SubscriptionStatus.ACTIVE || newStatus === SubscriptionStatus.TRIAL) {
+            await prisma.user.update({
+              where: { id: dbSubUser.id },
+              data: { isActive: true }
+            }).catch(e => console.error('[USER_ACTIVATE_ERROR]', e))
+          }
 
           // Disparar sincronización con CRM
           if (newStatus === SubscriptionStatus.CANCELED) {

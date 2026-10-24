@@ -9,10 +9,29 @@ export async function signup(formData: FormData) {
   const supabase = await createClient()
 
   const name = formData.get('name') as string
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string || '').trim().toLowerCase()
   const password = formData.get('password') as string
 
-  // 1. Registrar usuario en Supabase Auth
+  if (!email) {
+    redirect('/register?error=' + encodeURIComponent('El correo electrónico es requerido.'))
+  }
+
+  // 1. Verificar si el usuario ya existe en la plataforma
+  const existingUser = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+    include: { subscription: true }
+  })
+
+  if (existingUser) {
+    const hadTrial = Boolean(existingUser.subscription?.trialEndsAt || existingUser.subscription?.status === 'CANCELED' || existingUser.subscription?.status === 'ACTIVE')
+    if (hadTrial) {
+      redirect(`/register?alreadyRegistered=true&email=${encodeURIComponent(email)}`)
+    } else {
+      redirect(`/login?error=${encodeURIComponent('Este correo ya está registrado. Inicia sesión con tus credenciales.')}`)
+    }
+  }
+
+  // 2. Registrar usuario en Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -24,7 +43,7 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    redirect('/register?error=' + error.message)
+    redirect('/register?error=' + encodeURIComponent(error.message))
   }
 
   // Si la confirmación de email está desactivada (como se solicitó),

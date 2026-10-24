@@ -24,7 +24,7 @@ export default function CancelSubscriptionModal() {
       }
 
       setIsOpen(false)
-      router.refresh()
+      router.push('/deactivated')
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -61,16 +61,16 @@ export default function CancelSubscriptionModal() {
               </div>
 
               <div className="mt-6 space-y-4 text-sm text-gray-600">
-                <p className="font-medium text-gray-900">Por favor, lee con atención nuestras políticas de retención antes de confirmar:</p>
+                <p className="font-medium text-gray-900">Por favor, lee con atención antes de confirmar tu cancelación:</p>
                 <ul className="space-y-3 list-disc pl-5">
                   <li>
-                    <strong>Acceso Asegurado:</strong> Podrás seguir accediendo a Ágora Plus hasta que termine tu periodo actual o finalicen tus días de prueba gratuitos.
+                    <strong>Cancelación Inmediata:</strong> Al confirmar la cancelación, perderás de inmediato el acceso a la plataforma, buscador de operaciones, analítica y Ágora Copilot.
                   </li>
                   <li>
-                    <strong>Pérdida de Inteligencia:</strong> Tras esta fecha, perderás el acceso a nuestra base de datos corporativa y todas las alertas configuradas.
+                    <strong>Garantía de Cero Cargos:</strong> Confirmamos que no se realizará ningún cargo futuro a tu tarjeta registrada.
                   </li>
                   <li>
-                    <strong>Retención de 30 Días:</strong> Tus datos de perfil y búsquedas se guardarán temporalmente por 30 días post-cancelación por si decides reactivar la cuenta. Pasado este tiempo, podrán ser eliminados de nuestros servidores.
+                    <strong>Reactivación Disponible:</strong> Si en el futuro deseas recuperar el acceso a la inteligencia de mercado, podrás solicitar la reactivación a nuestro equipo de soporte.
                   </li>
                 </ul>
               </div>

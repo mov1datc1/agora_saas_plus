@@ -47,6 +47,11 @@ export async function POST(req: Request) {
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
+    const existingSub = await prisma.subscription.findUnique({
+      where: { userId: dbUser.id }
+    })
+    const hasAlreadyHadTrial = Boolean(existingSub?.trialEndsAt || existingSub?.status === 'CANCELED')
+
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
@@ -57,8 +62,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      // 15 days free trial with credit card required
-      subscription_data: {
+      // 15 days free trial ONLY if the user has never had a trial before
+      subscription_data: hasAlreadyHadTrial ? {} : {
         trial_period_days: 15,
       },
       success_url: `${baseUrl}/dashboard/billing?session_id={CHECKOUT_SESSION_ID}&success=true`,

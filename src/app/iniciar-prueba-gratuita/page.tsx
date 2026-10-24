@@ -45,6 +45,11 @@ export default async function IniciarPruebaGratuita() {
           <p className="text-sm text-gray-500 italic">
             Al completar este formulario, accede a 15 días de prueba gratuita. Al vencer ese período, se activará automáticamente la suscripción paga de la licencia individual. Puedes cancelar en cualquier momento antes del vencimiento para evitar el cobro.
           </p>
+
+          <div className="mt-8 p-4 rounded-xl bg-white/70 border border-gray-200 text-xs text-gray-600 leading-relaxed">
+            <strong className="text-gray-900 block mb-1">¿Ya utilizaste tu prueba gratuita anteriormente?</strong>
+            Si cancelaste tu prueba o tu periodo concluyó y deseas volver a acceder a Ágora Plus, no es posible solicitar otra prueba gratuita con el mismo correo. <Link href="/api/public-checkout?noTrial=true" className="text-brand font-semibold underline hover:text-brand-hover">Suscríbete directamente al plan oficial aquí</Link> o <Link href="/login" className="text-brand font-semibold underline hover:text-brand-hover">inicia sesión</Link>.
+          </div>
         </div>
       </div>
 

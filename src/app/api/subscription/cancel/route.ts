@@ -21,17 +21,26 @@ export async function POST(req: Request) {
       return new NextResponse('Subscription not found', { status: 404 })
     }
 
-    // Tell Stripe to cancel at the end of the current billing period
-    const stripeSubscription = await stripe.subscriptions.update(
-      dbUser.subscription.stripeSubscriptionId,
-      { cancel_at_period_end: true }
-    )
+    // Cancel Stripe subscription immediately so customer is never charged and access is terminated
+    try {
+      await stripe.subscriptions.cancel(dbUser.subscription.stripeSubscriptionId)
+    } catch (stripeErr: any) {
+      console.warn('[STRIPE_CANCEL_WARN]', stripeErr?.message || stripeErr)
+    }
 
-    // Update Prisma
+    // Update Prisma: set status CANCELED and deactivate user access
     await prisma.subscription.update({
       where: { userId: dbUser.id },
       data: {
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end
+        status: 'CANCELED',
+        cancelAtPeriodEnd: false
+      }
+    })
+
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: {
+        isActive: false
       }
     })
 

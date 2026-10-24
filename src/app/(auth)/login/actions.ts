@@ -42,7 +42,27 @@ export async function login(formData: FormData) {
       where: { email: { equals: email, mode: 'insensitive' } },
       data: { lastLoginAt: now }
     })
-  } catch (trackErr) {
+
+    // Comprobar estado de suscripción y acceso para usuarios no-administradores
+    const dbUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      include: { subscription: true, parent: { include: { subscription: true } } }
+    })
+
+    if (dbUser && dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN') {
+      const effectiveSub = dbUser.parentId ? dbUser.parent?.subscription : dbUser.subscription
+      const isDeactivated = dbUser.isActive === false || (dbUser.parentId && dbUser.parent?.isActive === false)
+      const isCanceled = effectiveSub?.status === 'CANCELED'
+      const isTrialExpired = effectiveSub?.status === 'TRIAL' && effectiveSub.trialEndsAt && new Date(effectiveSub.trialEndsAt) < new Date()
+      const isIncomplete = !effectiveSub || effectiveSub?.status === 'INCOMPLETE'
+
+      if (isDeactivated || isCanceled || isTrialExpired || isIncomplete) {
+        revalidatePath('/', 'layout')
+        redirect('/deactivated')
+      }
+    }
+  } catch (trackErr: any) {
+    if (trackErr.digest?.startsWith('NEXT_REDIRECT')) throw trackErr
     console.error('[LOGIN_TRACK_ERROR]', trackErr)
   }
 

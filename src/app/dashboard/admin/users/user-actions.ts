@@ -128,8 +128,18 @@ export async function toggleUserActiveStatus(userId: string, isActive: boolean) 
       data: { isActive }
     })
 
-    // If deactivated and it's a regular user, maybe update subscription status to PAST_DUE or CANCELED
-    // But keeping it separated is fine, isActive blocks login middleware
+    // Sincronizar el estado de suscripción con la activación/desactivación
+    if (!isActive) {
+      await prisma.subscription.updateMany({
+        where: { userId },
+        data: { status: 'CANCELED' }
+      })
+    } else {
+      await prisma.subscription.updateMany({
+        where: { userId },
+        data: { status: 'ACTIVE' }
+      })
+    }
 
     revalidatePath('/dashboard/admin/users')
     return { success: true }

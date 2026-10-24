@@ -10,12 +10,16 @@ export async function deactivateUser(userId: string) {
       create: {
         userId,
         status: 'CANCELED',
-        cancelAtPeriodEnd: true,
+        cancelAtPeriodEnd: false,
       },
       update: {
         status: 'CANCELED',
-        cancelAtPeriodEnd: true,
+        cancelAtPeriodEnd: false,
       }
+    })
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false }
     })
     revalidatePath('/dashboard/admin/users')
     revalidatePath('/dashboard/admin')
@@ -39,6 +43,10 @@ export async function reactivateUser(userId: string) {
         status: 'ACTIVE',
         cancelAtPeriodEnd: false,
       }
+    })
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true }
     })
     revalidatePath('/dashboard/admin/users')
     revalidatePath('/dashboard/admin')

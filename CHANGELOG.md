@@ -2,6 +2,33 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.10.0] — 2026-10-24 🔒 Bloqueo Estricto Post-Cancelación, Candado Anti-Abuso y Enrutamiento al Checkout
+
+### ✨ Added & Enforced
+- **Revocación Estricta e Inmediata de Acceso (`DashboardLayout`)**:
+  - Implementación de gatekeeper central en `src/app/dashboard/layout.tsx` para usuarios regulares (`USER`):
+    - Bloqueo y redirección inmediata a `/deactivated` si `subscription.status === 'CANCELED'`.
+    - Bloqueo por desactivación explícita (`user.isActive === false`).
+    - Bloqueo por prueba vencida (`status === 'TRIAL'` con `trialEndsAt < now` sin conversión a plan activo).
+    - Bloqueo en cuentas corporativas hijas si la cuenta matriz (`parentId`) está inactiva o cancelada.
+    - Excepción de acceso total garantizada para administradores (`ADMIN` y `SUPERADMIN`).
+- **Candado Anti-Abuso de Pruebas Gratuitas (1 Prueba por Correo de por Vida)**:
+  - **En Registro (`/register`)**: Si un correo ya existía en la base de datos y utilizó o canceló una prueba previa, el sistema le impide registrarse gratis de nuevo y despliega un banner destacado: *"Este correo ya se registró para una prueba gratuita. Si deseas suscribirte a Ágora Plus, puedes ingresar al checkout para pagar tu plan oficial"* junto a un botón directo `Ir al Checkout y Pagar`.
+  - **En Checkout Público e Interno (`/api/public-checkout` y `/api/checkout`)**: Detección inteligente por email o usuario autenticado. Si el usuario ya disfrutó de una prueba previa o canceló, **se elimina el parámetro `trial_period_days: 15`** y Stripe procesa el cobro del primer mes de forma inmediata al ingresar la tarjeta.
+  - **En Pantalla de Cuenta Desactivada (`/deactivated`)**: Para usuarios cancelados o con prueba concluida, se integró el botón directo `Suscribirme con Plan Oficial` prellenado con su correo para reactivación inmediata sin soporte manual.
+- **Cancelación Inmediata y Definitiva (`/api/subscription/cancel`)**:
+  - Al procesar la cancelación en la app, se ejecuta `stripe.subscriptions.cancel(subId)` inmediatamente en lugar de diferirlo a fin de ciclo.
+  - Sincronización atómica en Prisma: `subscription.status = 'CANCELED'`, `cancelAtPeriodEnd = false`, y `user.isActive = false`.
+  - Modal de cancelación actualizado en `CancelSubscriptionModal.tsx` aclarando el corte inmediato de acceso, garantía de cero cargos futuros y redirección inmediata a `/deactivated`.
+- **Sincronización Bidireccional en Webhooks y Panel Admin**:
+  - Webhooks de Stripe (`customer.subscription.deleted` / `canceled` y `checkout.session.completed`) sincronizan automáticamente `user.isActive` (false en cancelación, true en pago).
+  - Acciones de administrador (`deactivateUser` / `reactivateUser` en `actions.ts` y `toggleUserActiveStatus` en `user-actions.ts`) sincronizan tanto `user.isActive` como `subscription.status`.
+  - Cron diario (`check-subscriptions`) audita pruebas vencidas (`diffDays < 0`) y desactiva el acceso en automático.
+- **Limpieza de Datos en Producción**:
+  - Normalización de las cuentas canceladas existentes en la base de datos (incluyendo la cuenta de prueba de Henry Infante `henryjinfantec2366@gmail.com`) con `isActive: false` para expulsión inmediata.
+
+---
+
 ## [5.9.0] — 2026-10-22 🔔 Auditoría de Actividad, Contingencia de Trials y Garantía de Cero Cargos
 
 ### ✨ Added & Enhanced
