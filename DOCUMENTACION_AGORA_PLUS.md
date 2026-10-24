@@ -307,3 +307,23 @@ Basado en tres documentos oficiales del owner:
 1. Ejecutar `scripts/wipe_data.js` (elimina todas las tablas transaccionales respetando FKs)
 2. Activar sincronización desde el panel de configuración o POST a `/api/sync-drupal`
 3. Toda la data ingresa clasificada por el Motor v2.0 desde el primer registro
+
+---
+
+## 11. Control Estricto de Acceso Post-Cancelación y Candado Anti-Abuso (v5.10)
+
+### 11.1. Gatekeeper Central de Acceso (`DashboardLayout`)
+- Para todo usuario con rol regular (`USER`), el layout del dashboard intercepta cualquier navegación y fuerza `redirect('/deactivated')` si:
+  - `user.isActive === false`.
+  - `subscription == null` o `subscription.status === 'CANCELED'`.
+  - `subscription.status === 'INCOMPLETE'`.
+  - `subscription.status === 'TRIAL'` con `trialEndsAt < now` (prueba vencida sin conversión).
+  - En cuentas corporativas delegadas (`parentId != null`), si la cuenta principal está inactiva o cancelada.
+- Los roles de administración (`ADMIN` y `SUPERADMIN`) gozan de bypass absoluto garantizando acceso ininterrumpido.
+
+### 11.2. Candado Anti-Abuso de Pruebas Gratuitas (1 Prueba por Correo)
+- **Registro (`/register`)**: Si un correo ya existía en la base de datos y disfrutó o canceló una prueba previa, se bloquea la creación de un nuevo trial y se le muestra el mensaje informativo:
+  > *"Este correo ya se registró para una prueba gratuita. Si deseas suscribirte a Ágora Plus, puedes ingresar al checkout para pagar tu plan oficial."*
+  Junto con el enlace directo al checkout.
+- **Checkout (`/api/public-checkout` y `/api/checkout`)**: Si el correo ya tuvo prueba o canceló, se elimina el atributo `trial_period_days: 15`. Stripe cobra el primer periodo de forma inmediata al ingresar la tarjeta. Al pagar, se reactiva automáticamente el acceso completo a la plataforma.
+- **Cancelación Inmediata (`/api/subscription/cancel`)**: Se cancela la suscripción en Stripe en tiempo real (`stripe.subscriptions.cancel`) y se sincroniza `user.isActive = false` en la base de datos para garantizar cero cargos y expulsión inmediata del dashboard hacia `/deactivated`.
