@@ -21,7 +21,10 @@ export async function GET(request: Request) {
     const txWhere: any = {
       type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
       dateAnnounced: { gte: new Date('1990-01-01'), lte: today },
-      industryId: { not: null },
+      OR: [
+        { industries: { some: {} } },
+        { industryId: { not: null } },
+      ],
     }
     if (type && type !== 'Todas') txWhere.type = type
     if (country && country !== 'Todos') {
@@ -36,7 +39,7 @@ export async function GET(request: Request) {
       txWhere.dateAnnounced = { ...txWhere.dateAnnounced, lt: nextDay < today ? nextDay : today }
     }
 
-    // Get industry aggregates using groupBy
+    // Get industry aggregates across all associated industries per transaction
     const transactions = await prisma.transaction.findMany({
       where: txWhere,
       select: {
@@ -45,17 +48,25 @@ export async function GET(request: Request) {
         type: true,
         country: true,
         industry: { select: { name: true } },
+        industries: { select: { industry: { select: { name: true } } } },
       }
     })
 
-    // Aggregate by industry
+    // Aggregate by industry (including all associated industries per transaction)
     const industryMap: Record<string, { deals: number; totalValue: number; countries: Set<string> }> = {}
     transactions.forEach((tx: any) => {
-      const name = tx.industry?.name || 'Sin Industria'
-      if (!industryMap[name]) industryMap[name] = { deals: 0, totalValue: 0, countries: new Set() }
-      industryMap[name].deals++
-      industryMap[name].totalValue += tx.value ? Number(tx.value) : 0
-      if (tx.country) tx.country.split(',').forEach((c: string) => industryMap[name].countries.add(c.trim()))
+      const indNames: string[] = tx.industries?.map((ti: any) => ti.industry?.name).filter(Boolean) || []
+      if (indNames.length === 0 && tx.industry?.name) {
+        indNames.push(tx.industry.name)
+      }
+      const uniqueNames = indNames.length > 0 ? [...new Set(indNames)] : ['Sin Industria']
+
+      for (const name of uniqueNames) {
+        if (!industryMap[name]) industryMap[name] = { deals: 0, totalValue: 0, countries: new Set() }
+        industryMap[name].deals++
+        industryMap[name].totalValue += tx.value ? Number(tx.value) : 0
+        if (tx.country) tx.country.split(',').forEach((c: string) => industryMap[name].countries.add(c.trim()))
+      }
     })
 
     let tableData = Object.entries(industryMap)

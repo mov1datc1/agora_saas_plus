@@ -111,6 +111,15 @@ export default async function DashboardPage() {
       include: { 
         _count: { 
           select: { 
+            transactionLinks: {
+              where: {
+                transaction: {
+                  type: {
+                    not: 'Operación General'
+                  }
+                }
+              }
+            },
             transactions: {
               where: {
                 type: {
@@ -126,7 +135,7 @@ export default async function DashboardPage() {
     const industryChartData = dbIndustries
       .map((ind: any) => ({
         name: ind.name,
-        count: ind._count.transactions
+        count: Math.max(ind._count.transactionLinks || 0, ind._count.transactions || 0)
       }))
       .filter((ind: any) => ind.count > 0) // Solo mostrar industrias con transacciones reales
       .sort((a: any, b: any) => b.count - a.count)

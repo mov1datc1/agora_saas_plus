@@ -93,6 +93,7 @@ export async function GET(request: Request) {
                 dateAnnounced: true,
                 dateClosed: true,
                 industry: { select: { name: true } },
+                industries: { select: { industry: { select: { name: true } } } },
                 companies: { select: { company: { select: { name: true } } } },
                 lawyers: { select: { lawyer: { select: { name: true } } } }
               }
@@ -147,7 +148,7 @@ export async function GET(request: Request) {
           montoString: tx.valueString || (tx.value && Number(tx.value) > 0 ? `USD ${Number(tx.value).toLocaleString()}` : 'Valor confidencial'),
           pais: tx.country || 'N/D',
           fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
-          industria: tx.industry?.name || 'Varios / Sin Clasificar',
+          industria: (tx.industries?.length > 0 ? [...new Set(tx.industries.map((ti: any) => ti.industry?.name).filter(Boolean))].join(', ') : tx.industry?.name) || 'Varios / Sin Clasificar',
           empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
           abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
         }))

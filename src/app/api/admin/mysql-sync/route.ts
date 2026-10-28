@@ -258,18 +258,21 @@ export async function POST(request: Request) {
       const bodyHtml = sanitizeHtml(p.bodyRaw) || null
       const excerpt = bodyHtml || (p.bodySummary ? stripHtml(p.bodySummary) : null)
 
-      // Industry
+      // Industry (all associated industries)
       const indRels = indByPost[p.id] || []
-      let prismaIndustryId: string | null = null
-      if (indRels[0]) {
-        const indName = (lookups.industries || []).find((i: any) => i.id === indRels[0].idIndustria)?.nombre
+      const upsertedIndustryIds: string[] = []
+      for (const rel of indRels) {
+        const indName = (lookups.industries || []).find((i: any) => i.id === rel.idIndustria)?.nombre
         if (indName) {
           const ind = await prisma.industry.upsert({
             where: { name: indName }, create: { name: indName }, update: {}
           })
-          prismaIndustryId = ind.id
+          if (!upsertedIndustryIds.includes(ind.id)) {
+            upsertedIndustryIds.push(ind.id)
+          }
         }
       }
+      const prismaIndustryId: string | null = upsertedIndustryIds[0] || null
 
       // ── Upsert Transaction ──
       const existing = await prisma.transaction.findUnique({
@@ -314,7 +317,19 @@ export async function POST(request: Request) {
         prisma.transactionAdvisor.deleteMany({ where: { transactionId: txId } }),
         prisma.transactionLawyer.deleteMany({ where: { transactionId: txId } }),
         prisma.transactionCompany.deleteMany({ where: { transactionId: txId } }),
+        prisma.transactionIndustry.deleteMany({ where: { transactionId: txId } }),
       ])
+
+      // ── Industries (N:M) ──
+      for (const indId of upsertedIndustryIds) {
+        try {
+          await prisma.transactionIndustry.upsert({
+            where: { transactionId_industryId: { transactionId: txId, industryId: indId } },
+            create: { transactionId: txId, industryId: indId },
+            update: {}
+          })
+        } catch {}
+      }
 
       // ── Firms (advisors) ──
       for (const rel of (firmsByPost[p.id] || [])) {

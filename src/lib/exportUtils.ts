@@ -180,9 +180,15 @@ export async function exportNativePDF(tx: any, details: any, filename: string) {
   }
 
   // 7. Industry
-  if (tx.industry) {
+  if (details?.industries?.length > 0 || tx.industry) {
     addText("Industrias", 12, true, [0, 0, 0]);
-    addText(`• ${tx.industry}`, 10, false, [51, 51, 51]);
+    const indNames: string[] = details?.industries?.length > 0
+      ? details.industries.map((ti: any) => ti.industry?.name).filter(Boolean)
+      : tx.industry.split(',').map((i: string) => i.trim()).filter(Boolean);
+    indNames.forEach((ind: string) => {
+      addText(`• ${ind}`, 10, false, [51, 51, 51], false);
+      cursorY += 2;
+    });
     addLineBreak(4);
   }
 

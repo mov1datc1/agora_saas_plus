@@ -43,9 +43,17 @@ export async function GET(request: Request) {
       where.type = type
     }
 
-    // Industry filter
+    // Industry filter (matches any of the associated industries on the transaction)
     if (industry && industry !== 'Todas') {
-      where.industry = { name: industry }
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { industries: { some: { industry: { name: industry } } } },
+            { industry: { name: industry } },
+          ]
+        }
+      ]
     }
 
     // Country filter
@@ -167,6 +175,7 @@ export async function GET(request: Request) {
           dateClosed: true,
           link: true,
           industry: { select: { name: true } },
+          industries: { select: { industry: { select: { name: true } } } },
           advisors: { select: { role: true, firm: { select: { name: true } } } },
           lawyers: { select: { role: true, lawyer: { select: { name: true } } } },
           companies: { select: { role: true, company: { select: { name: true } } } }
@@ -223,6 +232,12 @@ export async function GET(request: Request) {
       // Sedes (deduplicated, non-empty)
       const sedes = [...new Set(firmParts.map(f => f.sede).filter(Boolean))]
 
+      const indNames: string[] = tx.industries?.map((ti: any) => ti.industry?.name).filter(Boolean) || []
+      if (indNames.length === 0 && tx.industry?.name) {
+        indNames.push(tx.industry.name)
+      }
+      const uniqueIndustries = [...new Set(indNames)]
+
       return {
         id: tx.id,
         date: fmtDate(tx.dateClosed || tx.dateAnnounced),
@@ -232,7 +247,7 @@ export async function GET(request: Request) {
         isPublished: tx.isPublished,
         amount: fmtVal(tx.value),
         amountRaw: tx.value ? Number(tx.value) : 0,
-        industry: tx.industry?.name || '',
+        industry: uniqueIndustries.join(', ') || '',
         country: tx.country || '',
         firm: baseNames.join(', ') || '',
         firmSede: sedes.join(', ') || '',

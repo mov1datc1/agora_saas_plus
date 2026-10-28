@@ -96,15 +96,22 @@ export async function POST(req: Request) {
             } : {}
 
             const industries = await prisma.industry.findMany({
-              take: limit,
-              orderBy: { transactions: { _count: 'desc' } },
               include: {
                 _count: {
-                  select: { transactions: { where: dateFilter } }
+                  select: {
+                    transactionLinks: { where: { transaction: dateFilter } },
+                    transactions: { where: dateFilter }
+                  }
                 }
               }
             })
-            return industries.map((i: any) => ({ name: i.name, deals: i._count.transactions })).sort((a: any, b: any) => b.deals - a.deals)
+            return industries
+              .map((i: any) => ({
+                name: i.name,
+                deals: Math.max(i._count.transactionLinks || 0, i._count.transactions || 0)
+              }))
+              .sort((a: any, b: any) => b.deals - a.deals)
+              .slice(0, limit)
           },
         }),
         getTopCountries: tool({

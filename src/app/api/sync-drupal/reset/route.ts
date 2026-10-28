@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       prisma.transactionCompany.deleteMany(),
       prisma.transactionLawyer.deleteMany(),
       prisma.transactionAdvisor.deleteMany(),
+      prisma.transactionIndustry.deleteMany(),
       prisma.transaction.deleteMany(),
       prisma.company.deleteMany(),
       prisma.lawyer.deleteMany(),

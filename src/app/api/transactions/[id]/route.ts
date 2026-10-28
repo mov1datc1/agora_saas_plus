@@ -16,6 +16,9 @@ export async function GET(
       where: { id },
       include: {
         industry: true,
+        industries: {
+          include: { industry: true }
+        },
         advisors: {
           include: { firm: true }
         },

@@ -81,16 +81,30 @@ model Transaction {
   industryId    String?
   link          String?
   excerpt       String?
-  industry      Industry?            @relation(fields: [industryId], references: [id])
+  industry      Industry?             @relation(fields: [industryId], references: [id])
+  industries    TransactionIndustry[]
   advisors      TransactionAdvisor[]
   companies     TransactionCompany[]
   lawyers       TransactionLawyer[]
 }
 
 model Industry {
-  id           String        @id @default(uuid())
-  name         String        @unique
-  transactions Transaction[]
+  id               String                @id @default(uuid())
+  name             String                @unique
+  transactions     Transaction[]
+  transactionLinks TransactionIndustry[]
+}
+
+model TransactionIndustry {
+  id            String      @id @default(uuid())
+  transactionId String
+  industryId    String
+  industry      Industry    @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, industryId])
+  @@index([industryId])
+  @@index([transactionId])
 }
 
 model Company {

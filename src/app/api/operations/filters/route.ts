@@ -16,9 +16,14 @@ export async function GET() {
 
     // Parallel queries for filter options
     const [industries, countriesRaw, firms, lawyers] = await Promise.all([
-      // Unique industries
+      // Unique industries (from N:M transactionLinks or legacy 1:N transactions)
       prisma.industry.findMany({
-        where: { transactions: { some: baseWhere } },
+        where: {
+          OR: [
+            { transactionLinks: { some: { transaction: baseWhere } } },
+            { transactions: { some: baseWhere } },
+          ]
+        },
         select: { name: true },
         orderBy: { name: 'asc' },
       }),

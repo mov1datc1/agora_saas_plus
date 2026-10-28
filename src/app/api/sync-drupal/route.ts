@@ -121,6 +121,7 @@ export async function POST(request: Request) {
           prisma.transactionAdvisor.deleteMany({ where: { transactionId: id } }),
           prisma.transactionLawyer.deleteMany({ where: { transactionId: id } }),
           prisma.transactionCompany.deleteMany({ where: { transactionId: id } }),
+          prisma.transactionIndustry.deleteMany({ where: { transactionId: id } }),
         ])
         await prisma.transaction.delete({ where: { id } })
         return true
@@ -385,31 +386,29 @@ export async function POST(request: Request) {
       const link = `https://lexlatin.com/node/${drupalNid}`
 
       // Process Relationships (Industries) — custom API returns industry names directly
-      let prismaIndustryId = null
-      let finalIndustryName = null
-
-      if (post.industries && post.industries.length > 0) {
-        finalIndustryName = post.industries[0] // Take first industry
-      }
+      let prismaIndustryId: string | null = null
+      const upsertedIndustryIds: string[] = []
+      const rawIndustries: string[] = (post.industries || []).map((i: string) => i?.trim()).filter(Boolean)
 
       // If no industry was found in Drupal, use the weighted classifier
-      if (!finalIndustryName) {
+      if (rawIndustries.length === 0) {
         const textToAnalyze = `${title} ${post.body || ''}`
         const guessed = classifyIndustry(textToAnalyze)
         if (guessed) {
-          finalIndustryName = guessed
+          rawIndustries.push(guessed)
         }
       }
 
-      // Upsert the industry
-      if (finalIndustryName) {
+      // Upsert all associated industries
+      for (const indName of [...new Set(rawIndustries)]) {
         const upsertedIndustry = await prisma.industry.upsert({
-          where: { name: finalIndustryName },
-          create: { name: finalIndustryName },
-          update: { name: finalIndustryName }
+          where: { name: indName },
+          create: { name: indName },
+          update: { name: indName }
         })
-        prismaIndustryId = upsertedIndustry.id
+        upsertedIndustryIds.push(upsertedIndustry.id)
       }
+      prismaIndustryId = upsertedIndustryIds[0] || null
 
       // Process Countries — custom API returns array of country names
       const countryNames: string[] = post.countries || []
@@ -473,7 +472,29 @@ export async function POST(request: Request) {
         prisma.transactionAdvisor.deleteMany({ where: { transactionId } }),
         prisma.transactionLawyer.deleteMany({ where: { transactionId } }),
         prisma.transactionCompany.deleteMany({ where: { transactionId } }),
+        prisma.transactionIndustry.deleteMany({ where: { transactionId } }),
       ])
+
+      // Link all Industries to Transaction (N:M)
+      for (const indId of upsertedIndustryIds) {
+        try {
+          await prisma.transactionIndustry.upsert({
+            where: {
+              transactionId_industryId: {
+                transactionId,
+                industryId: indId,
+              }
+            },
+            create: {
+              transactionId,
+              industryId: indId,
+            },
+            update: {}
+          })
+        } catch (bridgeErr: any) {
+          if (!bridgeErr.message?.includes('Unique constraint')) throw bridgeErr
+        }
+      }
 
       // Process Firms — custom API returns array of firm name strings
       const firmNames: string[] = post.firms || []

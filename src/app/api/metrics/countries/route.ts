@@ -83,6 +83,7 @@ export async function GET(request: Request) {
           dateAnnounced: true,
           dateClosed: true,
           industry: { select: { id: true, name: true } },
+          industries: { select: { industry: { select: { id: true, name: true } } } },
           companies: { select: { company: { select: { name: true } } } },
           lawyers: { select: { lawyer: { select: { name: true } } } },
           advisors: {
@@ -121,59 +122,66 @@ export async function GET(request: Request) {
     const indMap = new Map<string, any>()
 
     countryTxs.forEach((tx: any) => {
-      const indName = tx.industry?.name || 'Varios / Sin Clasificar'
-      if (!indMap.has(indName)) {
-        indMap.set(indName, {
-          nombre: indName,
-          operaciones: 0,
-          operacionesPublicas: 0,
-          operacionesConfidenciales: 0,
-          montoAcumulado: 0,
-          firmsMap: new Map<string, any>()
+      const rawInds: string[] = tx.industries?.map((ti: any) => ti.industry?.name).filter(Boolean) || []
+      if (rawInds.length === 0 && tx.industry?.name) {
+        rawInds.push(tx.industry.name)
+      }
+      const txIndNames = rawInds.length > 0 ? [...new Set(rawInds)] : ['Varios / Sin Clasificar']
+
+      for (const indName of txIndNames) {
+        if (!indMap.has(indName)) {
+          indMap.set(indName, {
+            nombre: indName,
+            operaciones: 0,
+            operacionesPublicas: 0,
+            operacionesConfidenciales: 0,
+            montoAcumulado: 0,
+            firmsMap: new Map<string, any>()
+          })
+        }
+
+        const ind = indMap.get(indName)
+        ind.operaciones++
+        const val = tx.value ? Number(tx.value) : 0
+        if (val > 0) {
+          ind.montoAcumulado += val
+          ind.operacionesPublicas++
+        } else {
+          ind.operacionesConfidenciales++
+        }
+
+        // Track advising firms inside this industry for this country
+        tx.advisors?.forEach((adv: any) => {
+          const fn = adv.firm?.name
+          if (!fn) return
+          if (!ind.firmsMap.has(fn)) {
+            ind.firmsMap.set(fn, {
+              firma: fn,
+              pais: adv.firm?.country || countryParam,
+              operaciones: 0,
+              montoAcumulado: 0,
+              txIds: new Set<string>(),
+              transacciones: []
+            })
+          }
+          const firmData = ind.firmsMap.get(fn)
+          if (!firmData.txIds.has(tx.id)) {
+            firmData.txIds.add(tx.id)
+            firmData.operaciones++
+            if (val > 0) firmData.montoAcumulado += val
+            firmData.transacciones.push({
+              id: tx.id,
+              title: tx.title,
+              type: tx.type || 'M&A',
+              monto: val > 0 ? val : null,
+              montoString: tx.valueString || (val > 0 ? `USD ${val.toLocaleString()}` : 'Valor confidencial'),
+              fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
+              empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
+              abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
+            })
+          }
         })
       }
-
-      const ind = indMap.get(indName)
-      ind.operaciones++
-      const val = tx.value ? Number(tx.value) : 0
-      if (val > 0) {
-        ind.montoAcumulado += val
-        ind.operacionesPublicas++
-      } else {
-        ind.operacionesConfidenciales++
-      }
-
-      // Track advising firms inside this industry for this country
-      tx.advisors?.forEach((adv: any) => {
-        const fn = adv.firm?.name
-        if (!fn) return
-        if (!ind.firmsMap.has(fn)) {
-          ind.firmsMap.set(fn, {
-            firma: fn,
-            pais: adv.firm?.country || countryParam,
-            operaciones: 0,
-            montoAcumulado: 0,
-            txIds: new Set<string>(),
-            transacciones: []
-          })
-        }
-        const firmData = ind.firmsMap.get(fn)
-        if (!firmData.txIds.has(tx.id)) {
-          firmData.txIds.add(tx.id)
-          firmData.operaciones++
-          if (val > 0) firmData.montoAcumulado += val
-          firmData.transacciones.push({
-            id: tx.id,
-            title: tx.title,
-            type: tx.type || 'M&A',
-            monto: val > 0 ? val : null,
-            montoString: tx.valueString || (val > 0 ? `USD ${val.toLocaleString()}` : 'Valor confidencial'),
-            fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
-            empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
-            abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
-          })
-        }
-      })
     })
 
     // Convert industries to array with percentages and sorted firm ranking

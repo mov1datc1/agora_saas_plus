@@ -55,6 +55,7 @@ export async function wipeAllData() {
     await prisma.transactionCompany.deleteMany()
     await prisma.transactionLawyer.deleteMany()
     await prisma.transactionAdvisor.deleteMany()
+    await prisma.transactionIndustry.deleteMany()
     
     // Step 2: Main entity
     await prisma.transaction.deleteMany()
@@ -147,6 +148,7 @@ export async function purgeMultiAreaOriginals() {
           await prisma.transactionCompany.deleteMany({ where: { transactionId: item.id } })
           await prisma.transactionLawyer.deleteMany({ where: { transactionId: item.id } })
           await prisma.transactionAdvisor.deleteMany({ where: { transactionId: item.id } })
+          await prisma.transactionIndustry.deleteMany({ where: { transactionId: item.id } })
           await prisma.transaction.delete({ where: { id: item.id } })
           purged++
           purgedList.push(`${item.nid}: ${item.title.substring(0, 80)}`)
@@ -265,6 +267,7 @@ export async function purgeDeletedAndNoneTransactions() {
       prisma.transactionCompany.deleteMany({ where: { transactionId: { in: existingIds } } }),
       prisma.transactionLawyer.deleteMany({ where: { transactionId: { in: existingIds } } }),
       prisma.transactionAdvisor.deleteMany({ where: { transactionId: { in: existingIds } } }),
+      prisma.transactionIndustry.deleteMany({ where: { transactionId: { in: existingIds } } }),
     ])
     await prisma.transaction.deleteMany({ where: { id: { in: existingIds } } })
 

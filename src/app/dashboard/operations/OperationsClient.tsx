@@ -875,12 +875,19 @@ export default function OperationsClient() {
                   )}
 
                   {/* Industria */}
-                  {selectedTx.industry && (
+                  {(txDetails?.industries?.length > 0 || selectedTx.industry) && (
                     <div className="border-b border-border pb-6">
                       <p className="text-sm font-semibold text-foreground/80 mb-4">Industria</p>
-                      <div className="flex items-center gap-2 text-sm text-foreground">
-                        <span className="text-[#E05C50] text-xs">▸</span>
-                        <span>{selectedTx.industry}</span>
+                      <div className="flex flex-col gap-2">
+                        {(txDetails?.industries?.length > 0
+                          ? txDetails.industries.map((ti: any) => ti.industry?.name).filter(Boolean)
+                          : selectedTx.industry.split(',').map((i: string) => i.trim()).filter(Boolean)
+                        ).map((indName: string) => (
+                          <div key={indName} className="flex items-start gap-2 text-sm text-foreground">
+                            <span className="text-[#E05C50] mt-0.5 text-xs">▸</span>
+                            <span>{indName}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

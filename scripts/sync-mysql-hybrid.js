@@ -520,6 +520,19 @@ async function main() {
     }
   }
 
+  // Industries (all associated industries per transaction)
+  for (let i = 0; i < postIndustries.length; i += BATCH) {
+    const batch = postIndustries.slice(i, i + BATCH);
+    const vals = batch.map(r => {
+      const tid = txIds[r.idPost]; const iid = indMap[r.idIndustria];
+      if (!tid || !iid) return null;
+      return `('${uuid()}', '${tid}', '${iid}')`;
+    }).filter(Boolean);
+    if (vals.length) {
+      try { await pg.query(`INSERT INTO "TransactionIndustry" (id, "transactionId", "industryId") VALUES ${vals.join(',')} ON CONFLICT ("transactionId", "industryId") DO NOTHING`); relCount += vals.length; } catch(e) {}
+    }
+  }
+
   stats.relations = relCount;
   log(`  ✅ ${relCount} relations`);
 
