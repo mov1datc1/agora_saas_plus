@@ -53,12 +53,13 @@ export default function SearchableSelect({ options, value, onChange, placeholder
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between rounded-lg border bg-background text-sm p-2.5 outline-none transition-all duration-200 
+        title={value || placeholder}
+        className={`w-full flex items-center justify-between gap-2 rounded-lg border bg-background text-sm p-2.5 outline-none transition-all duration-200 
           ${isOpen ? 'border-[#EB3159] ring-2 ring-[#EB3159]/20' : 'border-border hover:border-[#EB3159]/50'}
         `}
       >
-        <span className="truncate text-foreground">{value || placeholder}</span>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="truncate text-foreground text-left">{value || placeholder}</span>
+        <ChevronDown className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
@@ -68,7 +69,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -5, scale: 0.98 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden"
+            className="absolute z-50 left-0 min-w-full sm:min-w-[380px] max-w-[90vw] mt-2 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden"
           >
             {/* Search Input */}
             <div className="p-2 border-b border-border bg-muted/30">
@@ -93,15 +94,16 @@ export default function SearchableSelect({ options, value, onChange, placeholder
                     <div
                       key={`${opt}-${idx}`}
                       onClick={() => handleSelect(opt)}
-                      className={`flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors
+                      title={opt}
+                      className={`flex items-center justify-between gap-2 w-full px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors
                         ${value === opt 
                           ? 'bg-[#EB3159]/10 text-[#EB3159] font-medium' 
                           : 'text-foreground hover:bg-muted'
                         }
                       `}
                     >
-                      <span className="truncate">{opt}</span>
-                      {value === opt && <Check className="w-4 h-4" />}
+                      <span className="break-words leading-snug text-left">{opt}</span>
+                      {value === opt && <Check className="w-4 h-4 shrink-0" />}
                     </div>
                   ))}
                   {hasMore && (
