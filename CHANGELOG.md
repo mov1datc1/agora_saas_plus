@@ -2,6 +2,33 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.0] — 2026-10-28 🏭 Soporte Multi-Industria (N:M), Backfill Histórico y Organización Documental
+
+### ✨ Added & Enhanced
+- **Soporte Multi-Industria en Base de Datos (`TransactionIndustry` N:M)**:
+  - Nuevo modelo puente `TransactionIndustry` (`transactionId`, `industryId` con índice único `@@unique([transactionId, industryId])`) en `prisma/schema.prisma`, permitiendo que una operación tenga múltiples industrias asociadas simultáneamente (comportamiento análogo a operaciones *Crossborder* por país), manteniendo `Transaction.industryId` por retrocompatibilidad.
+- **Ingesta Completa de Industrias Asociadas en el ETL**:
+  - Actualización de `src/app/api/sync-drupal/route.ts`, `src/app/api/admin/mysql-sync/route.ts` y `scripts/sync-mysql-hybrid.js` para iterar y vincular **todas** las industrias enviadas por Drupal en `post.industries[]` (eliminando el truncamiento previo que solo tomaba `post.industries[0]`).
+  - Limpieza e inserción atómica de `TransactionIndustry` en cada re-sincronización y en las acciones administrativas de purga (`sync-actions.ts`, `/api/sync-drupal/reset`).
+- **Filtro de Operaciones, Detalle, Exportación y Rankings Multi-Industria**:
+  - **`GET /api/operations` y `GET /api/operations/filters`**: Al filtrar por una industria, ahora retorna toda operación que tenga dicha industria entre cualquiera de sus industrias asociadas (`industries.some`), devolviendo todas las industrias de la operación separadas por coma.
+  - **Drawer de Detalle (`OperationsClient.tsx`) y Exportación PDF/Excel (`exportUtils.ts`)**: Despliegan la lista completa de industrias asociadas con viñetas.
+  - **Métricas, Rankings y Copilot (`/api/metrics/industries`, `/api/metrics/countries`, `/api/metrics/firms`, `/dashboard`, `/api/chat`)**: Contabilizan cada industria asociada a la operación en los desgloses sectoriales.
+- **Backfill Histórico desde el API de Drupal (`scripts/backfill-industries.js`)**:
+  - Migración de `17,975` relaciones base y escaneo completo de las `25,400` publicaciones en el API de Drupal.
+  - **`5,403` transacciones multi-industria actualizadas** en producción con **`6,327` nuevos vínculos de industria** (verificado con el caso *Tidewater* `drupal-131758`, ahora visible bajo *Gas Natural*, *Petróleo* y *Transporte y logística*).
+
+### 🐛 Fixed
+- **UX en Selector de Filtros (`SearchableSelect.tsx`)**:
+  - Se amplió el ancho mínimo del menú desplegable (`sm:min-w-[380px]`) y se habilitó el salto de línea (`break-words`) con tooltip `title` para evitar que industrias con prefijos largos idénticos (*"Energía y recursos naturales | No Renovable - Carbón / Gas Natural / Petróleo"*) se vieran truncadas e indistinguibles en el listado.
+
+### 📚 Documentation
+- **Estructuración y Actualización de Documentación Maestra (`docs/`)**:
+  - Creación de `docs/01_ARQUITECTURA_SOLUCION_AGORA_PLUS.md`, `docs/02_CONTRATO_API_DRUPAL.md` y `docs/03_REGLAS_NEGOCIO_Y_PIPELINE_ETL.md`.
+  - Organización de documentos históricos, diagramas, reportes de auditoría y scripts auxiliares en subcarpetas dedicadas.
+
+---
+
 ## [5.10.0] — 2026-10-24 🔒 Bloqueo Estricto Post-Cancelación, Candado Anti-Abuso y Enrutamiento al Checkout
 
 ### ✨ Added & Enforced
