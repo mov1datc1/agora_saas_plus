@@ -114,3 +114,4 @@ Existen **únicamente 3 tipos de operación oficiales** en Ágora Plus (`Private
   * El filtro de rango de fechas en `/api/operations` aplica exactamente la misma regla lógica (`COALESCE`): si `dateClosed` existe, filtra por `dateClosed`; solo si `dateClosed` es `null`, filtra por `dateAnnounced`.
 * **Reconciliación Automática de Nodos Eliminados (HTTP 404):**
   * En cada corrida del cron (`/api/sync-drupal`), el paso 4 verifica mediante peticiones `HEAD` a `https://lexlatin.com/node/{nid}` los 40 casos más recientes y un lote rotativo de 40 casos antiguos. Si Drupal responde `HTTP 404` (nodo borrado definitivamente), Ágora lo elimina automáticamente en cascada.
+

@@ -2,6 +2,29 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.1] — 2026-10-29 🔄 Estabilización del Cron ETL, Reconciliación 404 y Sincronización Integral
+
+### 🐛 Fixed & Resolved
+- **Caso 1 — Ingesta de Clones y Purga de Nodos Principales ("None")**:
+  - Eliminado el nodo principal (`drupal-136899`) que estaba marcado como *None* en Drupal pero había quedado rezagado por falta de ejecución del cron.
+  - Sincronizados y confirmados los 3 clones no publicados correspondientes (`drupal-136907`, `drupal-136908`, `drupal-136909`) con sus respectivas firmas asesoras, abogados participantes, empresas y sectores asociados.
+- **Caso 2 — Actualización de Abogados y Empresas en Inversora Juramento (`drupal-136898`)**:
+  - Ingesta exitosa de los 10 abogados involucrados y las 3 empresas (*Inversora Juramento S.A.*, *El Quebrachal S.A.*, *Estancia Lote 5*) editadas en Drupal. Verificado y activo en la API `/api/transactions/drupal-136898` y en el drawer de detalle.
+- **Caso 3 — Purga de Operación Eliminada en Drupal (Greystar `drupal-136856`)**:
+  - Eliminación atómica en base de datos (`Transaction` y todas sus tablas puente `TransactionAdvisor`, `TransactionLawyer`, `TransactionCompany`, `TransactionIndustry`) del nodo `136856` que había sido borrado en Drupal tras consolidarse en una operación múltiple.
+- **Caso 4 — Sincronización de Operaciones del 28 de Octubre**:
+  - Las 10 operaciones reportadas (incluyendo *YPF*, *Grenergy*, *ETB*, *Cloronor*, *Natan Ventures / Fonder*, *Cerro de Pasco*, *Interseguro*, *Solarity*, *Creditech VIII*, y *Capitânia Shoppings / Amazonas Shopping*) se encuentran completamente sincronizadas y disponibles en el módulo de Operaciones.
+
+### ⚡ Reliability & Performance
+- **Mayor Frecuencia de Sincronización en Vercel (`vercel.json`)**:
+  - Se incrementó la frecuencia del cron de sincronización de 1 vez al día (`0 9 * * *`) a cada 4 horas (`0 */4 * * *`), garantizando que cualquier operación o edición realizada por el equipo de redacción durante la jornada laboral aparezca en Ágora pocas horas después.
+- **Resiliencia en Conexión HTTP con Drupal (`/api/sync-drupal`)**:
+  - Implementación de reintento automático con retroceso exponencial (`fetchWithRetry`) ante caídas transitorias de red o respuestas 5xx de Drupal.
+- **Reconciliación Concurrente por Lotes para Nodos 404**:
+  - Reemplazo del envío masivo de 80 peticiones paralelas simultáneas por procesamiento en lotes de 5 solicitudes concurrentes con timeout de 4.5s, evitando bloqueos por firewall o saturación de Nginx en Cloudways.
+
+---
+
 ## [5.11.0] — 2026-10-28 🏭 Soporte Multi-Industria (N:M), Backfill Histórico y Organización Documental
 
 ### ✨ Added & Enhanced

@@ -129,3 +129,4 @@ erDiagram
 5. **Gatekeeper de Suscripciones y Candado Anti-Abuso**:
    * Validación central en `src/app/dashboard/layout.tsx`: bloquea inmediatamente cuentas con `isActive === false`, `status === 'CANCELED'` o `TRIAL` vencido, redirigiendo a `/deactivated`.
    * **Candado de 1 Prueba por Correo:** Si un email ya tuvo prueba previa, `/register` y `/api/public-checkout` omiten los 15 días de trial y dirigen al pago inmediato del plan oficial.
+

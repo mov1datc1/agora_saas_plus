@@ -142,18 +142,39 @@ export async function POST(request: Request) {
       let debugInfo: any = null
       
       try {
-        const response = await fetch(url, {
-          headers: {
-            'X-Agora-Token': DRUPAL_AGORA_TOKEN,
-            'Accept': 'application/json'
+        let response: Response | null = null
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const res = await fetch(url, {
+              headers: {
+                'X-Agora-Token': DRUPAL_AGORA_TOKEN,
+                'Accept': 'application/json'
+              }
+            })
+            if (res.ok) {
+              response = res
+              break
+            }
+            if (attempt === 1 && (res.status >= 500 || res.status === 429)) {
+              await new Promise(r => setTimeout(r, 1500))
+              continue
+            }
+            response = res
+            break
+          } catch (fetchErr: any) {
+            if (attempt === 1) {
+              await new Promise(r => setTimeout(r, 1500))
+              continue
+            }
+            throw fetchErr
           }
-        })
+        }
 
-        if (!response.ok) {
-          console.error(`Drupal batch ${batchNumber} failed: ${response.status}`)
+        if (!response || !response.ok) {
+          console.error(`Drupal batch ${batchNumber} failed: ${response?.status}`)
           // Return diagnostic info instead of silently breaking
           if (batchNumber === 1) {
-            debugInfo = { drupalStatus: response.status, url: url.replace(DRUPAL_AGORA_TOKEN, '***'), envUrl: DRUPAL_API_BASE }
+            debugInfo = { drupalStatus: response?.status, url: url.replace(DRUPAL_AGORA_TOKEN, '***'), envUrl: DRUPAL_API_BASE }
           }
           break // Stop pagination on error, return what we have
         }
@@ -672,36 +693,40 @@ export async function POST(request: Request) {
       }
       const candidateTxs = Array.from(candidateMap.values())
 
-      await Promise.allSettled(
-        candidateTxs.map(async (tx) => {
-          const nid = tx.id.replace('drupal-', '')
-          if (!/^\d+$/.test(nid)) return
-          try {
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 3500)
-            const res = await fetch(`https://lexlatin.com/node/${nid}`, {
-              method: 'HEAD',
-              redirect: 'manual',
-              signal: controller.signal
-            })
-            clearTimeout(timeoutId)
-            if (res.status === 404) {
-              if (await deleteIfExists(tx.id)) {
-                totalDeleted++
-                console.log(`[Cron] Purged deleted Drupal node (404): ${tx.id}`)
+      // Process in batches of 5 concurrently to avoid flooding Drupal/Nginx with 80 simultaneous requests
+      for (let i = 0; i < candidateTxs.length; i += 5) {
+        const batch = candidateTxs.slice(i, i + 5)
+        await Promise.allSettled(
+          batch.map(async (tx) => {
+            const nid = tx.id.replace('drupal-', '')
+            if (!/^\d+$/.test(nid)) return
+            try {
+              const controller = new AbortController()
+              const timeoutId = setTimeout(() => controller.abort(), 4500)
+              const res = await fetch(`https://lexlatin.com/node/${nid}`, {
+                method: 'HEAD',
+                redirect: 'manual',
+                signal: controller.signal
+              })
+              clearTimeout(timeoutId)
+              if (res.status === 404) {
+                if (await deleteIfExists(tx.id)) {
+                  totalDeleted++
+                  console.log(`[Cron] Purged deleted Drupal node (404): ${tx.id}`)
+                }
+              } else if (res.status === 200 || res.status === 301 || res.status === 403) {
+                // Touch updatedAt so rotating batch advances to other transactions on next run
+                await prisma.transaction.update({
+                  where: { id: tx.id },
+                  data: { updatedAt: new Date() }
+                }).catch(() => {})
               }
-            } else if (res.status === 200 || res.status === 301 || res.status === 403) {
-              // Touch updatedAt so rotating batch advances to other transactions on next run
-              await prisma.transaction.update({
-                where: { id: tx.id },
-                data: { updatedAt: new Date() }
-              }).catch(() => {})
+            } catch {
+              // Ignore timeouts
             }
-          } catch {
-            // Ignore timeouts
-          }
-        })
-      )
+          })
+        )
+      }
     } catch (recErr) {
       console.error('[Cron] 404 Reconciliation error:', recErr)
     }
