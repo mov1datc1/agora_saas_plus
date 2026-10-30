@@ -1,6 +1,6 @@
 # Ágora Plus — Inteligencia Transaccional Legal (LexLatin)
 
-> **Versión Actual:** `v5.11.0`  
+> **Versión Actual:** `v5.11.1`  
 > **Producción:** [https://www.agora-lexlatin.com](https://www.agora-lexlatin.com)  
 > **Stack:** Next.js 16 (App Router) · React 19 · Tailwind CSS v4 · Prisma 7.8 · Supabase PostgreSQL & Auth · Stripe · Resend · Vercel AI SDK
 

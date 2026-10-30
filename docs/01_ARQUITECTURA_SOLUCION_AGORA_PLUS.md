@@ -129,4 +129,9 @@ erDiagram
 5. **Gatekeeper de Suscripciones y Candado Anti-Abuso**:
    * Validación central en `src/app/dashboard/layout.tsx`: bloquea inmediatamente cuentas con `isActive === false`, `status === 'CANCELED'` o `TRIAL` vencido, redirigiendo a `/deactivated`.
    * **Candado de 1 Prueba por Correo:** Si un email ya tuvo prueba previa, `/register` y `/api/public-checkout` omiten los 15 días de trial y dirigen al pago inmediato del plan oficial.
+6. **Pipeline de Sincronización ETL y Reconciliación Continua (`/api/sync-drupal`)**:
+   * **Frecuencia:** Automatizado vía Vercel Crons cada 4 horas (`0 */4 * * *`).
+   * **Resiliencia HTTP:** Doble intento con *exponential backoff* para evitar fallos por microcortes de red entre Vercel y Cloudways.
+   * **Reconciliación 404 Concurrente por Lotes:** Verifica 40 casos recientes + 40 casos rotativos en bloques de 5 consultas para purgar operaciones eliminadas de Drupal sin sobrecargar Nginx.
+   * **Filtrado Canónico de Clones:** Purga notas matrices con tipo `- None -` o multi-área y mantiene los clones no publicados que contienen los datos específicos de cada transacción.
 

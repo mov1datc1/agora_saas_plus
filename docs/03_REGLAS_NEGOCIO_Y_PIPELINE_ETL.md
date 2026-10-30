@@ -58,13 +58,16 @@ En ocasiones se marcan por error notas editoriales como `"Transacción"` en Drup
 
 ---
 
-### Regla 3: Metodología de Clones de Data Entry (Filtro "Portal Original")
-Cuando una operación real involucra múltiples naturalezas jurídicas (por ejemplo, una compra apalancada que es **M&A + Financiamiento**, o un **Financiamiento + Emisión**), la metodología de Data Entry en Drupal es:
-1. Publicar en el portal de LexLatin una nota original que tiene marcadas ambas áreas de práctica.
-2. Crear en Drupal **clones no publicados** (uno por cada tipo de operación individual, con sus propios montos y roles de empresas correspondientes).
-* **Regla:**
-  * Si un nodo mapea a **2 o más tipos de operación distintos** (`allMappedTypes.length >= 2`, ej. `['M&A', 'Financiamientos']`) y no tiene `typeOverride`, se identifica como el **Portal Original** → **se salta y se purga de Ágora**, dejando únicamente sus clones individuales para no duplicar conteos ni montos.
-  * **Excepción importante:** Si un nodo tiene 2 áreas de práctica que mapean al **mismo** tipo de operación (ej. `"Corporativo - Adquisiciones"` + `"Corporativo - Fusiones"`, ambas `M&A`), **NO** hay conflicto (`uniqueTypes.length === 1`) y la operación se conserva.
+### Regla 3: Metodología de Clones de Data Entry (Filtro "Portal Original" y Clones No Publicados)
+Cuando una operación real involucra múltiples naturalezas jurídicas o transacciones paralelas (por ejemplo, una compra apalancada que es **M&A + Financiamiento**, o un reporte consolidado con varias ventas como el caso *Urban, Greystar Brasil y Genetica Bioscience* `node/136899`), la metodología oficial del equipo de Data Entry en Drupal es:
+1. Publicar en el portal de LexLatin una nota matriz u original que agrupa el evento editorial. A menudo esta nota matriz tiene `field_tipo_de_noticia` como `- None -` o tiene marcadas múltiples áreas de práctica de distintas familias.
+2. Crear en Drupal **clones no publicados** (`field_caso_no_publicado: true`, ej. `node/136907`, `node/136908`, `node/136909`), uno por cada operación individual, con sus propios montos, partes y abogados asesores asignados específicamente a ese negocio.
+* **Regla de Filtrado y Purga del Original:**
+  * Si el post matriz está marcado como `- None -`, la **Regla 1** lo descarta y purga de inmediato.
+  * Si el post matriz fue marcado como `"Transacción"` pero mapea a **2 o más tipos de operación distintos** (`allMappedTypes.length >= 2`, ej. `['M&A', 'Financiamientos']`) y no tiene `typeOverride`, la **Regla 3** lo identifica como el **Portal Original** → **se salta y se purga de Ágora**, evitando conteos duplicados.
+* **Ingesta de Clones Canónicos:**
+  * Los clones no publicados ingresan a Ágora con `isPublished: false`, conservan su tipo único específico (`M&A`, `Financiamientos` o `Emisiones`) y son desplegados con normalidad en el módulo de Operaciones para total fidelidad del universo transaccional.
+* **Excepción de Homogeneidad:** Si un nodo tiene 2 áreas de práctica que mapean al **mismo** tipo de operación (ej. `"Corporativo - Adquisiciones"` + `"Corporativo - Fusiones"`, ambas `M&A`), **NO** hay conflicto (`uniqueTypes.length === 1`) y la operación se conserva íntegra.
 
 ---
 
@@ -108,10 +111,21 @@ Existen **únicamente 3 tipos de operación oficiales** en Ágora Plus (`Private
 
 ---
 
-### Regla 7: Fecha Efectiva (`COALESCE(dateClosed, dateAnnounced)`) y Reconciliación 404
-* **Fecha Efectiva en UI y Filtros:**
-  * La tabla de Operaciones muestra `tx.dateClosed || tx.dateAnnounced` (priorizando la fecha de cierre/concreción sobre la fecha de firma/creación).
-  * El filtro de rango de fechas en `/api/operations` aplica exactamente la misma regla lógica (`COALESCE`): si `dateClosed` existe, filtra por `dateClosed`; solo si `dateClosed` es `null`, filtra por `dateAnnounced`.
-* **Reconciliación Automática de Nodos Eliminados (HTTP 404):**
-  * En cada corrida del cron (`/api/sync-drupal`), el paso 4 verifica mediante peticiones `HEAD` a `https://lexlatin.com/node/{nid}` los 40 casos más recientes y un lote rotativo de 40 casos antiguos. Si Drupal responde `HTTP 404` (nodo borrado definitivamente), Ágora lo elimina automáticamente en cascada.
+### Regla 7: Fecha Efectiva, Frecuencia del Cron, Resiliencia HTTP y Reconciliación 404
+
+#### 7.1. Fecha Efectiva en UI y Filtros (`COALESCE(dateClosed, dateAnnounced)`)
+* La tabla de Operaciones muestra `tx.dateClosed || tx.dateAnnounced` (priorizando la fecha de cierre/concreción sobre la fecha de firma/creación).
+* El filtro de rango de fechas en `/api/operations` aplica exactamente la misma regla lógica (`COALESCE`): si `dateClosed` existe, filtra por `dateClosed`; solo si `dateClosed` es `null`, filtra por `dateAnnounced`.
+
+#### 7.2. Frecuencia del Cron de Sincronización (`vercel.json`)
+* El cron en Vercel está configurado a una frecuencia de **cada 4 horas (`0 */4 * * *`)** (en lugar de la corrida diaria anterior).
+* Esto garantiza que cualquier nueva publicación, edición de abogados/empresas (ej. caso *Inversora Juramento*) o ajuste de industrias realizado por el equipo editorial durante el día se refleje en Ágora pocas horas después de guardarse en Drupal.
+
+#### 7.3. Resiliencia y Reintentos Automáticos en el Pipeline HTTP
+* Para mitigar microcortes o caídas temporales de red entre Vercel y el servidor Cloudways de Drupal (errores 502/504 o `ETIMEDOUT`), la función de extracción ejecuta **reintentos automáticos con retroceso exponencial** (`fetchWithRetry`), esperando 1.5s antes del reintento para garantizar que ningún lote quede en 0 registros por fallos esporádicos.
+
+#### 7.4. Reconciliación Concurrente por Lotes de Nodos Eliminados (HTTP 404)
+* En cada corrida del cron (`/api/sync-drupal`), el paso 4 toma los 40 casos más recientes (`id LIKE 'drupal-13%'`) y un lote rotativo de 40 casos antiguos para verificar su existencia en el portal.
+* Para no saturar el servidor Nginx de Drupal con 80 solicitudes simultáneas, las comprobaciones se procesan en **lotes de 5 solicitudes concurrentes** con timeout individual de 4.5 segundos.
+* Si Drupal responde `HTTP 404` (nodo eliminado físicamente por fusión o descarte editorial, como el caso *Greystar* `node/136856`), Ágora ejecuta de inmediato `deleteIfExists(transactionId)` eliminando la operación y sus tablas puente en cascada. Si responde 200/301/403, actualiza `updatedAt` para rotar el ciclo en la siguiente ejecución.
 
