@@ -104,7 +104,23 @@ const DEFAULT_UPCOMING_RENEWAL = `<h1>Aviso de próxima renovación mensual</h1>
 </p>
 <p>Gracias por seguir formando parte de Ágora.<br><strong>Equipo Ágora Plus</strong></p>`
 
-type TemplateType = 'WELCOME' | 'REMINDER_TRIAL' | 'TRIAL_CANCELLED' | 'PAYMENT_SUCCESS' | 'DUNNING' | 'UPCOMING_RENEWAL'
+const DEFAULT_PASSWORD_RESET = `<h1>Restablece tu contraseña</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Recibimos una solicitud para restablecer la contraseña de acceso a tu cuenta en <strong>Ágora Plus</strong>.</p>
+<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0; font-size: 14px; color: #4b5563;">
+    Haz clic en el siguiente botón para definir tu nueva contraseña de acceso:
+  </p>
+</div>
+<p style="margin: 24px 0;">
+  <a href="{{resetUrl}}" style="background-color: #E05C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Restablecer Mi Contraseña
+  </a>
+</p>
+<p style="font-size: 13px; color: #6b7280;">Este enlace de recuperación es de un solo uso y caduca automáticamente por seguridad. Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+<p>Saludos cordiales,<br><strong>Equipo Ágora Plus</strong></p>`
+
+type TemplateType = 'WELCOME' | 'REMINDER_TRIAL' | 'TRIAL_CANCELLED' | 'PAYMENT_SUCCESS' | 'DUNNING' | 'UPCOMING_RENEWAL' | 'PASSWORD_RESET'
 
 const TABS: { type: TemplateType; label: string; desc: string }[] = [
   { type: 'WELCOME', label: '1. Bienvenida (Magic Link)', desc: 'Enviado al completar el checkout de prueba de 15 días.' },
@@ -113,6 +129,7 @@ const TABS: { type: TemplateType; label: string; desc: string }[] = [
   { type: 'PAYMENT_SUCCESS', label: '4. Cobro Exitoso PRO', desc: 'Confirmación de cobro exitoso y activación oficial de suscripción.' },
   { type: 'DUNNING', label: '5. Cobro Fallido', desc: 'Alerta inmediata cuando la tarjeta es declinada.' },
   { type: 'UPCOMING_RENEWAL', label: '6. Próxima Renovación', desc: 'Aviso 3 días antes de cobrar las mensualidades recurrentes.' },
+  { type: 'PASSWORD_RESET', label: '7. Recuperar Contraseña', desc: 'Enviado al solicitar restablecimiento de contraseña desde el login.' },
 ]
 
 export default function SMTPSettingsPage() {
@@ -136,7 +153,8 @@ export default function SMTPSettingsPage() {
     'TRIAL_CANCELLED': { subject: 'Confirmación: Tu prueba gratuita de Ágora Plus ha sido cancelada', htmlBody: DEFAULT_TRIAL_CANCELLED },
     'PAYMENT_SUCCESS': { subject: '¡Pago confirmado! Bienvenido a tu suscripción oficial de Ágora Plus PRO', htmlBody: DEFAULT_PAYMENT_SUCCESS },
     'DUNNING': { subject: 'Acción requerida: Problema al procesar tu pago de Ágora Plus', htmlBody: DEFAULT_DUNNING },
-    'UPCOMING_RENEWAL': { subject: 'Aviso: Tu suscripción a Ágora Plus se renovará en 3 días', htmlBody: DEFAULT_UPCOMING_RENEWAL }
+    'UPCOMING_RENEWAL': { subject: 'Aviso: Tu suscripción a Ágora Plus se renovará en 3 días', htmlBody: DEFAULT_UPCOMING_RENEWAL },
+    'PASSWORD_RESET': { subject: 'Restablece tu contraseña - Ágora Plus', htmlBody: DEFAULT_PASSWORD_RESET }
   })
 
   useEffect(() => {

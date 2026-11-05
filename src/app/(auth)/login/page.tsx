@@ -78,9 +78,9 @@ export default function LoginPage() {
               Contraseña
             </label>
             <div className="text-sm">
-              <a href="#" className="font-semibold text-[#E05C50] hover:text-[#c94b40] transition-colors">
+              <Link href="/forgot-password" className="font-semibold text-[#E05C50] hover:text-[#c94b40] transition-colors">
                 ¿Olvidaste tu contraseña?
-              </a>
+              </Link>
             </div>
           </div>
           <div className="mt-2 relative">

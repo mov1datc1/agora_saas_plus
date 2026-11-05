@@ -15,12 +15,17 @@ export function AuthListener() {
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const access_token = hashParams.get('access_token');
       const refresh_token = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
       
       if (access_token && refresh_token) {
         supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
           if (!error) {
             router.refresh();
-            router.push('/dashboard');
+            if (type === 'recovery' || window.location.pathname === '/reset-password') {
+              router.push('/reset-password');
+            } else {
+              router.push('/dashboard');
+            }
           }
         });
       }
@@ -30,14 +35,19 @@ export function AuthListener() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session && window.location.hash.includes('access_token')) {
         router.refresh()
-        router.push('/dashboard')
+        if (window.location.pathname !== '/reset-password') {
+          router.push('/dashboard')
+        }
       }
     })
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+      if (event === 'PASSWORD_RECOVERY') {
+        router.refresh()
+        router.push('/reset-password')
+      } else if (event === 'SIGNED_IN') {
         router.refresh()
         // Only redirect if they are on login or root to avoid pulling them out of deep pages
         if (window.location.pathname === '/login' || window.location.pathname === '/') {
@@ -45,7 +55,9 @@ export function AuthListener() {
         }
       } else if (event === 'INITIAL_SESSION' && session && window.location.hash.includes('access_token')) {
         router.refresh()
-        router.push('/dashboard')
+        if (window.location.pathname !== '/reset-password') {
+          router.push('/dashboard')
+        }
       }
     })
 

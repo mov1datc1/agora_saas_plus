@@ -118,6 +118,25 @@ const TEMPLATES = [
   </a>
 </p>
 <p>Gracias por seguir formando parte de Ágora.<br><strong>Equipo Ágora Plus</strong></p>`
+  },
+  {
+    type: 'PASSWORD_RESET',
+    subject: 'Restablece tu contraseña - Ágora Plus',
+    htmlBody: `<h1>Restablece tu contraseña</h1>
+<p>Hola {{userFirstname}},</p>
+<p>Recibimos una solicitud para restablecer la contraseña de acceso a tu cuenta en <strong>Ágora Plus</strong>.</p>
+<div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+  <p style="margin: 0; font-size: 14px; color: #4b5563;">
+    Haz clic en el siguiente botón para definir tu nueva contraseña de acceso:
+  </p>
+</div>
+<p style="margin: 24px 0;">
+  <a href="{{resetUrl}}" style="background-color: #E05C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+    Restablecer Mi Contraseña
+  </a>
+</p>
+<p style="font-size: 13px; color: #6b7280;">Este enlace de recuperación es de un solo uso y caduca automáticamente por seguridad. Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+<p>Saludos cordiales,<br><strong>Equipo Ágora Plus</strong></p>`
   }
 ]
 
@@ -139,6 +158,10 @@ async function seed() {
     console.log(`✅ Plantilla '${upserted.type}' guardada con éxito.`)
   }
   console.log('🎉 Todas las plantillas han sido sincronizadas en PostgreSQL.')
+  process.exit(0)
 }
 
-seed().catch(console.error)
+seed().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})

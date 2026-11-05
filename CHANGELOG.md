@@ -2,6 +2,28 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.3] — 2026-11-05 🔑 Flujo Completo de Recuperación y Restablecimiento de Contraseña ("¿Olvidaste tu contraseña?")
+
+### 🔐 Authentication & Security
+- **Activación del Enlace "¿Olvidaste tu contraseña?" en `/login`**:
+  - Se sustituyó el enlace muerto anterior (`<a href="#">`) por una navegación reactiva mediante `<Link href="/forgot-password">`.
+- **Nueva Página de Solicitud de Recuperación (`/forgot-password`)**:
+  - Permite a los usuarios suscriptores y administradores ingresar su correo electrónico registrado para solicitar el restablecimiento seguro de su contraseña.
+  - Verifica la existencia del usuario en la base de datos PostgreSQL (`prisma.user`).
+  - Genera enlaces de recuperación de uso único y vigencia limitada mediante la API administrativa de Supabase (`supabaseAdmin.auth.admin.generateLink({ type: 'recovery' })`), eludiendo las restricciones de cuota y bloqueos de spam de los servidores de correo predeterminados.
+- **Nueva Página de Restablecimiento de Contraseña (`/reset-password`)**:
+  - Valida el token y la sesión autenticada establecida a través del callback `/auth/callback?next=/reset-password`.
+  - Proporciona un formulario intuitivo con validación de longitud (mínimo 6 caracteres), verificación de coincidencia y visualización/ocultación de caracteres.
+  - Actualiza la contraseña en Supabase Auth (`supabase.auth.updateUser({ password })`) y redirige automáticamente al usuario a su Dashboard de Ágora Plus.
+  - Muestra un estado claro con botón para reintentar en caso de enlaces vencidos o ya utilizados.
+- **Resiliencia en `AuthListener` (`src/components/auth/AuthListener.tsx`)**:
+  - Evita redirecciones involuntarias al Dashboard cuando el evento de autenticación es `PASSWORD_RECOVERY`, asegurando que el usuario permanezca en `/reset-password` hasta definir su nueva contraseña.
+- **Plantilla de Correo `PASSWORD_RESET` Integrada**:
+  - Creada e insertada la plantilla de recuperación en la base de datos (`EmailTemplate`), panel SMTP administrativo (`/dashboard/admin/smtp`) y script semilla (`scripts/seed-email-templates.ts`).
+  - Envío automático con diseño corporativo de Ágora Plus a través de **Resend** (`soporte@agora-lexlatin.com`) con fallback al mailer interno.
+
+---
+
 ## [5.11.2] — 2026-11-05 ✉️ Ajuste en Plantillas de Correo Transaccional (Exclusión de Servicios no Activos)
 
 ### ✉️ Email Templates & Communications
