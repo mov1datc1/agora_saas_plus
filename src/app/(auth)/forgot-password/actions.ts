@@ -140,3 +140,4 @@ export async function sendPasswordResetLink(formData: FormData) {
     encodeURIComponent(`Hemos enviado un enlace seguro para restablecer tu contraseña a ${user.email}. Revisa tu bandeja de entrada o spam.`)
   )
 }
+

@@ -6,7 +6,7 @@ import { Filter, Building2, Briefcase, ChevronRight, X, ArrowUpRight, ArrowUpDow
 import { checkTrialRestrictions, checkCanDownload, getUserExportPermission } from '../actions'
 import PaywallModal from '@/components/ui/PaywallModal'
 import AlertModal from '@/components/ui/AlertModal'
-import { exportToExcel, exportToPDF } from '@/lib/exportUtils'
+import { exportToExcel, exportToPDF, cleanExcerpt } from '@/lib/exportUtils'
 
 import useSWR from 'swr'
 import SearchableSelect from '@/components/ui/SearchableSelect'
@@ -37,6 +37,7 @@ export type UITransaction = {
   lawyer: string
   company: string
   link: string
+  excerpt?: string | null
 }
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -284,7 +285,8 @@ export default function OperationsClient() {
       Países: tx.country,
       Firmas: tx.firm,
       Sede: tx.firmSede,
-      Abogados: tx.lawyer
+      Abogados: tx.lawyer,
+      'Extracto / Resumen': cleanExcerpt(tx.excerpt)
     })), 'operaciones_agora_plus')
   }
 
@@ -396,7 +398,8 @@ export default function OperationsClient() {
         'País(es)': tx.country,
         'Firma(s)': tx.firm,
         'Sede(s)': tx.firmSede,
-        'Abogado(s)': tx.lawyer
+        'Abogado(s)': tx.lawyer,
+        'Extracto / Resumen': cleanExcerpt(tx.excerpt)
       })), `operaciones_agora_${new Date().toISOString().split('T')[0]}`)
     } catch (err) {
       console.error('Export error:', err)

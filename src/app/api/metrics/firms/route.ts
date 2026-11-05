@@ -92,6 +92,7 @@ export async function GET(request: Request) {
                 country: true,
                 dateAnnounced: true,
                 dateClosed: true,
+                excerpt: true,
                 industry: { select: { name: true } },
                 industries: { select: { industry: { select: { name: true } } } },
                 companies: { select: { company: { select: { name: true } } } },
@@ -150,7 +151,8 @@ export async function GET(request: Request) {
           fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
           industria: (tx.industries?.length > 0 ? [...new Set(tx.industries.map((ti: any) => ti.industry?.name).filter(Boolean))].join(', ') : tx.industry?.name) || 'Varios / Sin Clasificar',
           empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
-          abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
+          abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D',
+          excerpt: tx.excerpt ? tx.excerpt.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim() : ''
         }))
       }
     }).filter(f => f.numeroOperaciones > 0)

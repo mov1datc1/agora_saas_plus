@@ -2,6 +2,27 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.4] — 2026-11-05 📊 Exportación de Extractos en Excel y Sincronización Dinámica de Clasificación
+
+### 📑 Exportación de Data y Extractos (Feedback Henry Infante)
+- **Columna de Extracto / Resumen en Módulo de Operaciones (`/dashboard/operations`)**:
+  - Incorporada la columna `Extracto / Resumen` tanto en la exportación rápida de la vista como en la exportación de todo el universo filtrado (`Descargar Excel (N ops)`).
+  - Sanitización automática de etiquetas HTML (`<p>`, `<span>`, `&nbsp;`, `&amp;`) para que las celdas de Excel contengan texto limpio y directamente utilizable en investigaciones editoriales y periodísticas.
+- **Libro Excel Multi-Hoja en Clasificación de Firmas (`/dashboard/metrics/firms`)**:
+  - Al pulsar el botón de descarga en Clasificación, el sistema genera ahora un archivo `.xlsx` estructurado en dos hojas:
+    - **Hoja 1 ("Clasificación de Firmas")**: Resumen ejecutivo con ranking, número de operaciones públicas/confidenciales y monto acumulado en USD.
+    - **Hoja 2 ("Operaciones y Extractos")**: Detalle exhaustivo de todas las operaciones de las firmas clasificadas con su correspondiente extracto periodístico completo.
+- **Exportación Individual y Modal de Detalle**:
+  - Incorporado botón directo en la tarjeta lateral de la firma seleccionada para descargar sus operaciones y extractos a Excel con un clic.
+  - Agregada la sección `Extracto / Resumen` dentro del modal de detalle de transacción (`EntityDetailModal`) en Clasificación.
+
+### 🎯 Corrección de Sincronización en Panel Lateral de Clasificación
+- **Fin del Bloqueo Estático en Tarjeta Lateral**:
+  - Solucionada la discrepancia donde la tarjeta oscura lateral permanecía congelada en la firma número uno previa (ej. *Demarest Advogados* con 18 operaciones de M&A) a pesar de haber cambiado a pestañas como *Financiamientos* o *Emisiones*.
+  - Ahora, al alternar entre pestañas (*Todas*, *M&A*, *Financiamientos*, *Emisiones*), cambiar de país o modificar el ordenamiento, el panel lateral selecciona y despliega de inmediato al líder legítimo (#1) de esa categoría específica (ej. *Pinheiro Neto Advogados* en Financiamientos de Brasil con sus 3 operaciones reales y métricas exactas).
+
+---
+
 ## [5.11.3] — 2026-11-05 🔑 Flujo Completo de Recuperación y Restablecimiento de Contraseña ("¿Olvidaste tu contraseña?")
 
 ### 🔐 Authentication & Security

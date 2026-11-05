@@ -1,10 +1,33 @@
 import * as XLSX from 'xlsx'
 import { jsPDF } from 'jspdf'
 
-export function exportToExcel(data: any[], filename: string) {
+export function cleanExcerpt(html?: string | null): string {
+  if (!html) return ''
+  return html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function exportToExcel(data: any[], filename: string, sheetName: string = "Datos") {
   const worksheet = XLSX.utils.json_to_sheet(data)
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Datos")
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+  XLSX.writeFile(workbook, `${filename}.xlsx`)
+}
+
+export function exportToExcelMultiSheet(sheets: { name: string; data: any[] }[], filename: string) {
+  const workbook = XLSX.utils.book_new()
+  for (const sheet of sheets) {
+    const worksheet = XLSX.utils.json_to_sheet(sheet.data.length > 0 ? sheet.data : [{}])
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name)
+  }
   XLSX.writeFile(workbook, `${filename}.xlsx`)
 }
 

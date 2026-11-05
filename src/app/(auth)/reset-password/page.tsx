@@ -17,3 +17,4 @@ export default async function ResetPasswordPage() {
 
   return <ResetPasswordClient initialUserEmail={initialEmail} />
 }
+

@@ -27,7 +27,7 @@ import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
-import { exportToExcel } from '@/lib/exportUtils'
+import { exportToExcel, exportToExcelMultiSheet, cleanExcerpt } from '@/lib/exportUtils'
 import useSWR from 'swr'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -43,6 +43,7 @@ interface FirmTransaction {
   industria: string
   empresa: string
   abogados: string
+  excerpt?: string
 }
 
 interface TableRow {
@@ -133,19 +134,29 @@ export default function FirmsClient() {
     checkLimits()
   }, [])
 
-  // Reset page on filter changes
+  // Reset page and selection when filters or sort change, so it dynamically selects the #1 firm of the new view
   useEffect(() => { 
-    setCurrentPage(1) 
-  }, [filterType, selectedCountry, debouncedSearch, dateRange])
+    setCurrentPage(1)
+    setSelectedRow(null)
+  }, [filterType, selectedCountry, debouncedSearch, dateRange, sortBy, sortOrder])
 
-  // Select first row when data loads
+  // Select leader (#1) or update active selection with fresh filtered transactions
   useEffect(() => {
-    if (tableData.length > 0 && (!selectedRow || !tableData.find(r => r.id === selectedRow.id))) {
-      setSelectedRow(tableData[0])
-    } else if (tableData.length === 0) {
+    if (tableData.length > 0) {
+      if (!selectedRow) {
+        setSelectedRow(tableData[0])
+      } else {
+        const freshRow = tableData.find(r => r.id === selectedRow.id)
+        if (freshRow) {
+          setSelectedRow(freshRow)
+        } else {
+          setSelectedRow(tableData[0])
+        }
+      }
+    } else {
       setSelectedRow(null)
     }
-  }, [tableData, selectedRow])
+  }, [tableData])
 
   const handleSort = (column: 'deals' | 'value' | 'name') => {
     if (sortBy === column) {
@@ -166,7 +177,8 @@ export default function FirmsClient() {
       return
     }
 
-    exportToExcel(tableData.map(row => ({
+    // Hoja 1: Resumen de Clasificación de Firmas
+    const rankingSheet = tableData.map(row => ({
       'Clasificación': row.rankingPosition,
       'Firma': row.firma,
       'País': row.pais,
@@ -174,7 +186,63 @@ export default function FirmsClient() {
       'Operaciones Públicas': row.operacionesPublicas,
       'Operaciones Confidenciales': row.operacionesConfidenciales,
       'Monto Acumulado (USD)': row.montoAcumulado > 0 ? row.montoAcumulado : 0
-    })), `clasificacion_firmas_${selectedCountry.toLowerCase()}`)
+    }))
+
+    // Hoja 2: Operaciones Detalladas y Extractos
+    const operationsSheet: any[] = []
+    tableData.forEach(row => {
+      row.transacciones?.forEach(tx => {
+        operationsSheet.push({
+          'Firma': row.firma,
+          'Posición Firma': row.rankingPosition,
+          'Título de la Operación': tx.title,
+          'Tipo': tx.type,
+          'Monto': tx.montoString,
+          'Fecha': tx.fecha ? tx.fecha.split('T')[0] : '',
+          'País(es)': tx.pais,
+          'Industria(s)': tx.industria,
+          'Empresas / Partes': tx.empresa,
+          'Abogados Involucrados': tx.abogados,
+          'Extracto / Resumen': cleanExcerpt(tx.excerpt)
+        })
+      })
+    })
+
+    exportToExcelMultiSheet([
+      { name: 'Clasificación de Firmas', data: rankingSheet },
+      { name: 'Operaciones y Extractos', data: operationsSheet }
+    ], `clasificacion_firmas_${selectedCountry.toLowerCase()}_${filterType.toLowerCase()}`)
+  }
+
+  const handleDownloadFirmOperationsExcel = async () => {
+    if (!selectedRow || !selectedRow.transacciones?.length) return
+    const downloadCheck = await checkCanDownload()
+    if (!downloadCheck.allowed) {
+      setPaywallTitle('Descarga Bloqueada')
+      setPaywallMessage(downloadCheck.message || 'Solo puedes descargar datos con una suscripción activa.')
+      setShowPaywall(true)
+      return
+    }
+
+    const data = selectedRow.transacciones.map(tx => ({
+      'Firma': selectedRow.firma,
+      'Posición en Ranking': selectedRow.rankingPosition,
+      'Título de la Operación': tx.title,
+      'Tipo': tx.type,
+      'Monto': tx.montoString,
+      'Fecha': tx.fecha ? tx.fecha.split('T')[0] : '',
+      'País(es)': tx.pais,
+      'Industria(s)': tx.industria,
+      'Empresas / Partes': tx.empresa,
+      'Abogados Involucrados': tx.abogados,
+      'Extracto / Resumen': cleanExcerpt(tx.excerpt)
+    }))
+
+    exportToExcel(
+      data, 
+      `operaciones_${selectedRow.firma.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${filterType.toLowerCase()}`,
+      `Operaciones ${selectedRow.firma.substring(0, 25)}`
+    )
   }
 
   const filterOptions = ['Todas', 'M&A', 'Financiamientos', 'Emisiones']
@@ -229,7 +297,8 @@ export default function FirmsClient() {
             { label: 'Empresas / Partes', value: selectedTxForModal.empresa },
             { label: 'Industria', value: selectedTxForModal.industria },
             { label: 'Abogados Involucrados', value: selectedTxForModal.abogados },
-            { label: 'Fecha de Anuncio / Cierre', value: selectedTxForModal.fecha ? new Date(selectedTxForModal.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada' }
+            { label: 'Fecha de Anuncio / Cierre', value: selectedTxForModal.fecha ? new Date(selectedTxForModal.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No especificada' },
+            { label: 'Extracto / Resumen', value: selectedTxForModal.excerpt || 'Sin extracto registrado' }
           ]}
         />
       )}
@@ -578,6 +647,15 @@ export default function FirmsClient() {
                     <h4 className="text-xs uppercase tracking-wider text-white/60 font-semibold">
                       Operaciones Asesoradas ({selectedRow.transacciones?.length || 0})
                     </h4>
+                    {selectedRow.transacciones?.length > 0 && (
+                      <button
+                        onClick={handleDownloadFirmOperationsExcel}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-medium text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg transition-colors border border-white/10"
+                        title="Descargar operaciones y extractos de esta firma en Excel"
+                      >
+                        <Download className="w-3 h-3 text-brand" /> Excel
+                      </button>
+                    )}
                   </div>
 
                   {/* Scrollable List of Transactions */}
