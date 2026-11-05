@@ -2,6 +2,18 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.2] — 2026-11-05 ✉️ Ajuste en Plantillas de Correo Transaccional (Exclusión de Servicios no Activos)
+
+### ✉️ Email Templates & Communications
+- **Depuración de Beneficios en Plantilla de Cobro Exitoso (`PAYMENT_SUCCESS`)**:
+  - Se eliminaron las menciones a *Ágora Copilot (IA)* y *Rankings interactivos de firmas, abogados e industrias* del listado de beneficios activos del correo de confirmación de suscripción PRO.
+  - La plantilla ahora resalta únicamente los servicios disponibles y estables de la plataforma: *Acceso completo a la base histórica de M&A, emisiones y financiamientos de América Latina* y *Exportación de datos e informes de mercado personalizados*.
+  - Actualización aplicada directamente en la base de datos de producción (`EmailTemplate`), en el panel de configuración SMTP (`src/app/dashboard/admin/smtp/page.tsx`), en el script semilla (`scripts/seed-email-templates.ts`) y en los manejadores de fallback del webhook de Stripe (`src/app/api/webhook/route.ts`).
+- **Limpieza Preventiva en Plantillas `WELCOME` y `TRIAL_CANCELLED`**:
+  - Ajustados los textos de bienvenida y cancelación de prueba para no prometer herramientas que aún se encuentran en fase de desarrollo o despliegue controlado.
+
+---
+
 ## [5.11.1] — 2026-10-29 🔄 Estabilización del Cron ETL, Reconciliación 404 y Sincronización Integral
 
 ### 🐛 Fixed & Resolved

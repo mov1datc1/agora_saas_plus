@@ -6,7 +6,7 @@ import { getEmailTemplates, saveEmailTemplate, testResendConnection } from '@/ap
 
 const DEFAULT_WELCOME = `<h1>¡Bienvenido a Ágora Plus!</h1>
 <p>Hola {{userFirstname}},</p>
-<p>Tu prueba gratuita de <strong>15 días</strong> se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos transaccional y al <strong>Ágora Copilot</strong> impulsado por IA.</p>
+<p>Tu prueba gratuita de <strong>15 días</strong> se ha activado con éxito. Ahora tienes acceso total a nuestra base de datos transaccional de América Latina.</p>
 <p style="margin: 24px 0;">
   <a href="{{dashboardUrl}}" style="background-color: #E05C50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
     Comenzar en mi Dashboard
@@ -41,7 +41,7 @@ const DEFAULT_TRIAL_CANCELLED = `<h1>Tu suscripción de prueba ha sido cancelada
     Confirmamos que <strong>no se ha realizado ningún cobro</strong> y que tu método de pago registrado <strong>no recibirá ningún cargo futuro</strong>. Tu suscripción en Stripe ha quedado totalmente anulada.
   </p>
 </div>
-<p>Lamentamos verte partir. Si en el futuro deseas reactivar tu acceso a las transacciones de América Latina o al Copilot de Ágora, serás bienvenido nuevamente en cualquier momento.</p>
+<p>Lamentamos verte partir. Si en el futuro deseas reactivar tu acceso a las transacciones de América Latina, serás bienvenido nuevamente en cualquier momento.</p>
 <p style="margin: 24px 0;">
   <a href="{{dashboardUrl}}" style="background-color: #4b5563; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-size: 14px; display: inline-block;">
     Ir a Ágora Plus
@@ -63,8 +63,6 @@ const DEFAULT_PAYMENT_SUCCESS = `<h1>¡Tu suscripción PRO está oficialmente ac
 <h3>Beneficios activos en tu cuenta:</h3>
 <ul style="color: #374151; font-size: 14px; line-height: 1.6;">
   <li>Acceso completo a la base histórica de M&A, emisiones y financiamientos de América Latina.</li>
-  <li>Consultas ilimitadas con <strong>Ágora Copilot (IA)</strong>.</li>
-  <li>Rankings interactivos de firmas asesoras, abogados e industrias.</li>
   <li>Exportación de datos e informes de mercado personalizados.</li>
 </ul>
 <p style="margin: 24px 0;">
