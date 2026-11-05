@@ -1,7 +1,7 @@
 # 🏗️ 01. Arquitectura de la Solución — Ágora Plus SaaS
 
-> **Versión:** 5.11.0  
-> **Última actualización:** 28 de octubre de 2026  
+> **Versión:** 5.11.4  
+> **Última actualización:** 5 de noviembre de 2026  
 > **Dominio Producción:** [https://www.agora-lexlatin.com](https://www.agora-lexlatin.com)  
 > **Repositorio:** `github.com/mov1datc1/agora_saas_plus` (`dev` → `main`)
 
@@ -20,7 +20,7 @@ flowchart LR
     end
 
     subgraph VercelEdge ["⚡ Vercel Serverless (Next.js 16 App Router)"]
-        CronETL["Cron /api/sync-drupal\n(Diario 3:00 AM CST)"]
+        CronETL["Cron /api/sync-drupal\n(Cada 4 horas 0 */4 * * *)"]
         AdminSync["Sync Masiva / MySQL\n(/api/admin/mysql-sync)"]
         Classifier["Motor Clasificación 5 Fases\n(classificationEngine.ts)"]
         APIRoutes["APIs Server-Side\n(/api/operations, /api/metrics/*)"]
@@ -31,13 +31,13 @@ flowchart LR
     subgraph SupabaseCloud ["🗄️ Supabase Cloud"]
         PgBouncer["Supavisor Pooler (:6543)"]
         Postgres[("PostgreSQL 15\nDatos Transaccionales & SaaS")]
-        SupaAuth["Supabase Auth\n(PKCE + OTP Magic Link)"]
+        SupaAuth["Supabase Auth\n(PKCE + Password Recovery + Magic Link)"]
         PgBouncer --> Postgres
     end
 
     subgraph ExternalIntegrations ["🔗 Servicios Externos"]
         Stripe["💳 Stripe Live\n(Checkout, Portal, Webhooks)"]
-        Resend["✉️ Resend\n(6 Plantillas React/HTML)"]
+        Resend["✉️ Resend\n(7 Plantillas Oficiales HTML)"]
         GHL["📣 CRM Ayudante X / GHL\n(Webhooks de Ciclo de Vida)"]
     end
 
