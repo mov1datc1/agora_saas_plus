@@ -35,28 +35,41 @@ export async function GET(request: Request) {
     const dateStart = searchParams.get('dateStart')
     const dateEnd = searchParams.get('dateEnd')
 
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
+    const nowUTC = new Date()
+    const endOfTodayUTC = new Date(Date.UTC(nowUTC.getUTCFullYear(), nowUTC.getUTCMonth(), nowUTC.getUTCDate() + 1))
 
-    // Base filter for dates and operation types
+    // Base filter for dates and operation types (canonical with /api/operations)
     const baseTxWhere: any = {
       type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
-      dateAnnounced: { gte: new Date('1990-01-01'), lte: today },
+      dateAnnounced: {
+        gte: new Date('1990-01-01T00:00:00Z'),
+        lt: endOfTodayUTC,
+      },
     }
-    if (type && type !== 'Todas') baseTxWhere.type = type
-    if (dateStart) {
-      baseTxWhere.dateAnnounced = { ...baseTxWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00.000Z') }
-    }
-    if (dateEnd) {
-      const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
-      baseTxWhere.dateAnnounced = { ...baseTxWhere.dateAnnounced, lt: nextDay < today ? nextDay : today }
+    if (type && type !== 'Todas' && type !== 'Todos') baseTxWhere.type = type
+
+    if (dateStart || dateEnd) {
+      const dateGte = dateStart ? new Date(dateStart + 'T00:00:00.000Z') : new Date('1990-01-01T00:00:00.000Z')
+      let dateLt = endOfTodayUTC
+      if (dateEnd) {
+        dateLt = new Date(dateEnd + 'T00:00:00.000Z')
+        dateLt.setUTCDate(dateLt.getUTCDate() + 1)
+      }
+      delete baseTxWhere.dateAnnounced
+      baseTxWhere.AND = [
+        {
+          OR: [
+            { dateClosed: { gte: dateGte, lt: dateLt } },
+            { dateClosed: null, dateAnnounced: { gte: dateGte, lt: dateLt } },
+          ]
+        }
+      ]
     }
 
     // Specific country transaction filter
     const countryTxWhere: any = {
       ...baseTxWhere,
-      country: { contains: countryParam, mode: 'insensitive' }
+      ...(countryParam && countryParam !== 'Todos' ? { country: { contains: countryParam, mode: 'insensitive' } } : {})
     }
 
     // Run parallel queries: Global map data + Selected country deep transaction data + available countries
@@ -104,9 +117,8 @@ export async function GET(request: Request) {
     const mapDataMap: Record<string, { pais: string; operaciones: number; valorAcumulado: number }> = {}
     mapTxs.forEach((tx: any) => {
       if (!tx.country) return
-      tx.country.split(',').forEach((c: string) => {
-        const name = c.trim()
-        if (!name) return
+      const uniqueCountries = [...new Set(tx.country.split(',').map((c: string) => c.trim()).filter(Boolean))] as string[]
+      uniqueCountries.forEach((name: string) => {
         if (!mapDataMap[name]) {
           mapDataMap[name] = { pais: name, operaciones: 0, valorAcumulado: 0 }
         }
@@ -224,7 +236,11 @@ export async function GET(request: Request) {
       industries = industries.filter(ind => ind.nombre.toLowerCase().includes(q))
     }
 
-    const totalCountryPublicVal = industries.reduce((acc, i) => acc + i.montoAcumulado, 0)
+    // Compute canonical country value without double-counting multi-industry transactions
+    const totalCountryPublicVal = countryTxs.reduce((acc: number, tx: any) => {
+      const v = tx.value ? Number(tx.value) : 0
+      return v > 0 ? acc + v : acc
+    }, 0)
 
     // 3. Prioritized Countries List
     const existingCountries = new Set(rawCountries.map((c: any) => c.country).filter(Boolean) as string[])

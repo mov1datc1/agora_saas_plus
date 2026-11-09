@@ -671,29 +671,60 @@ export async function POST(request: Request) {
 
     // ── 4. Reconciliation: check if Agora transactions were deleted in Drupal (HTTP 404) ──
     try {
-      // Check top 40 newest transactions + a rotating batch of 40 oldest/unverified transactions
+      // Build active Drupal ID set from Phase 1 + pages 3..9 (up to 1,000 active Drupal nodes)
+      const activeDrupalIds = new Set<string>(processedIds)
+      if (startOffset === 0) {
+        const extraPages = [3, 4, 5, 6, 7, 8, 9]
+        const pageResults = await Promise.allSettled(
+          extraPages.map(async (p) => {
+            const res = await fetch(`${DRUPAL_API_BASE}?page=${p}&limit=100&status=all`, {
+              headers: { 'X-Agora-Token': DRUPAL_AGORA_TOKEN, 'Accept': 'application/json' }
+            })
+            if (!res.ok) return []
+            const j = await res.json()
+            return j.data || []
+          })
+        )
+        for (const r of pageResults) {
+          if (r.status === 'fulfilled') {
+            for (const post of r.value) {
+              if (post?.nid) activeDrupalIds.add(`drupal-${post.nid}`)
+            }
+          }
+        }
+      }
+
+      // Check top 450 newest transactions (filtered against activeDrupalIds) + rotating batch of 15 unverified
       const [recentTxs, rotatingTxs] = await Promise.all([
         prisma.transaction.findMany({
           where: { id: { startsWith: 'drupal-13' } },
           orderBy: { id: 'desc' },
-          take: 40,
+          take: 450,
           select: { id: true }
         }),
         prisma.transaction.findMany({
           where: { id: { startsWith: 'drupal-' } },
           orderBy: { updatedAt: 'asc' },
-          take: 40,
+          take: 15,
           select: { id: true }
         })
       ])
 
       const candidateMap = new Map<string, { id: string }>()
-      for (const t of [...recentTxs, ...rotatingTxs]) {
-        candidateMap.set(t.id, t)
+      for (const t of recentTxs) {
+        if (!activeDrupalIds.has(t.id)) {
+          candidateMap.set(t.id, t)
+        }
       }
-      const candidateTxs = Array.from(candidateMap.values())
+      for (const t of rotatingTxs) {
+        if (!activeDrupalIds.has(t.id)) {
+          candidateMap.set(t.id, t)
+        }
+      }
+      // Cap HTTP HEAD checks at 15 per run so 15s timeout never exceeds Vercel maxDuration
+      const candidateTxs = Array.from(candidateMap.values()).slice(0, 15)
 
-      // Process in batches of 5 concurrently to avoid flooding Drupal/Nginx with 80 simultaneous requests
+      // Process in batches of 5 concurrently with 15s timeout (Drupal 404 pages take ~8-12s)
       for (let i = 0; i < candidateTxs.length; i += 5) {
         const batch = candidateTxs.slice(i, i + 5)
         await Promise.allSettled(
@@ -702,7 +733,7 @@ export async function POST(request: Request) {
             if (!/^\d+$/.test(nid)) return
             try {
               const controller = new AbortController()
-              const timeoutId = setTimeout(() => controller.abort(), 4500)
+              const timeoutId = setTimeout(() => controller.abort(), 15000)
               const res = await fetch(`https://lexlatin.com/node/${nid}`, {
                 method: 'HEAD',
                 redirect: 'manual',

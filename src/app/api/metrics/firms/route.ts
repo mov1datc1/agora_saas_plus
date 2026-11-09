@@ -40,23 +40,42 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
 
-    // Date boundary
-    const today = new Date()
-    today.setHours(23, 59, 59, 999)
+    // Date boundary (canonical UTC boundary matching /api/operations)
+    const nowUTC = new Date()
+    const endOfTodayUTC = new Date(Date.UTC(nowUTC.getUTCFullYear(), nowUTC.getUTCMonth(), nowUTC.getUTCDate() + 1))
 
-    // Build WHERE for transactions
+    // Build WHERE for transactions (canonical COALESCE(dateClosed, dateAnnounced) logic)
     const txWhere: any = {
       type: { in: ['M&A', 'Emisiones', 'Financiamientos'] },
-      dateAnnounced: { gte: new Date('1990-01-01'), lte: today },
+      dateAnnounced: {
+        gte: new Date('1990-01-01T00:00:00Z'),
+        lt: endOfTodayUTC,
+      },
     }
-    if (type && type !== 'Todas') txWhere.type = type
-    if (dateStart) {
-      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, gte: new Date(dateStart + 'T00:00:00.000Z') }
+    if (type && type !== 'Todas' && type !== 'Todos') txWhere.type = type
+
+    if (dateStart || dateEnd) {
+      const dateGte = dateStart ? new Date(dateStart + 'T00:00:00.000Z') : new Date('1990-01-01T00:00:00.000Z')
+      let dateLt = endOfTodayUTC
+      if (dateEnd) {
+        dateLt = new Date(dateEnd + 'T00:00:00.000Z')
+        dateLt.setUTCDate(dateLt.getUTCDate() + 1)
+      }
+      delete txWhere.dateAnnounced
+      txWhere.AND = [
+        {
+          OR: [
+            { dateClosed: { gte: dateGte, lt: dateLt } },
+            { dateClosed: null, dateAnnounced: { gte: dateGte, lt: dateLt } },
+          ]
+        }
+      ]
     }
-    if (dateEnd) {
-      const nextDay = new Date(dateEnd + 'T00:00:00.000Z')
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1)
-      txWhere.dateAnnounced = { ...txWhere.dateAnnounced, lt: nextDay < today ? nextDay : today }
+
+    // Canonical country transaction filter so KPI totals match /api/operations and /api/metrics/countries
+    const canonicalCountryTxWhere: any = {
+      ...txWhere,
+      ...(countryParam && countryParam !== 'Todos' ? { country: { contains: countryParam, mode: 'insensitive' } } : {})
     }
 
     // Build WHERE for firm
@@ -67,42 +86,54 @@ export async function GET(request: Request) {
       firmWhere.country = { not: null }
     }
 
-    // Query firms with their transactions in one batch
-    const firms = await prisma.firm.findMany({
-      where: firmWhere,
-      select: {
-        id: true,
-        name: true,
-        country: true,
-        website: true,
-        transactions: {
-          where: {
-            transaction: txWhere
-          },
-          select: {
-            id: true,
-            role: true,
-            transaction: {
-              select: {
-                id: true,
-                title: true,
-                type: true,
-                value: true,
-                valueString: true,
-                country: true,
-                dateAnnounced: true,
-                dateClosed: true,
-                excerpt: true,
-                industry: { select: { name: true } },
-                industries: { select: { industry: { select: { name: true } } } },
-                companies: { select: { company: { select: { name: true } } } },
-                lawyers: { select: { lawyer: { select: { name: true } } } }
+    // Query firms, canonical country transaction stats, and countries list in parallel
+    const [firms, countryAggregate, rawCountries] = await Promise.all([
+      prisma.firm.findMany({
+        where: firmWhere,
+        select: {
+          id: true,
+          name: true,
+          country: true,
+          website: true,
+          transactions: {
+            where: {
+              transaction: txWhere
+            },
+            select: {
+              id: true,
+              role: true,
+              transaction: {
+                select: {
+                  id: true,
+                  title: true,
+                  type: true,
+                  value: true,
+                  valueString: true,
+                  country: true,
+                  dateAnnounced: true,
+                  dateClosed: true,
+                  excerpt: true,
+                  industry: { select: { name: true } },
+                  industries: { select: { industry: { select: { name: true } } } },
+                  companies: { select: { company: { select: { name: true } } } },
+                  lawyers: { select: { lawyer: { select: { name: true } } } }
+                }
               }
             }
           }
         }
-      }
-    })
+      }),
+      prisma.transaction.aggregate({
+        where: canonicalCountryTxWhere,
+        _count: { id: true },
+        _sum: { value: true }
+      }),
+      prisma.firm.findMany({
+        where: { country: { not: null } },
+        select: { country: true },
+        distinct: ['country']
+      })
+    ])
 
     // Set of all unique transactions in the filtered scope
     const uniqueTxIds = new Set<string>()
@@ -148,7 +179,7 @@ export async function GET(request: Request) {
           monto: tx.value && Number(tx.value) > 0 ? Number(tx.value) : null,
           montoString: tx.valueString || (tx.value && Number(tx.value) > 0 ? `USD ${Number(tx.value).toLocaleString()}` : 'Valor confidencial'),
           pais: tx.country || 'N/D',
-          fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
+          fecha: tx.dateClosed?.toISOString() || tx.dateAnnounced?.toISOString() || null,
           industria: (tx.industries?.length > 0 ? [...new Set(tx.industries.map((ti: any) => ti.industry?.name).filter(Boolean))].join(', ') : tx.industry?.name) || 'Varios / Sin Clasificar',
           empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
           abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D',
@@ -187,18 +218,12 @@ export async function GET(request: Request) {
     }
 
     const totalCount = rankedWithPos.length
-    const totalValue = ranked.reduce((acc, r) => acc + r.montoAcumulado, 0)
-    const totalDeals = uniqueTxIds.size
+    const totalValue = countryAggregate._sum.value ? Number(countryAggregate._sum.value) : 0
+    const totalDeals = countryAggregate._count.id || 0
 
     // Paginate
     const paginatedData = rankedWithPos.slice((page - 1) * limit, page * limit)
 
-    // Fetch distinct countries from all firms with deals for the dropdown
-    const rawCountries = await prisma.firm.findMany({
-      where: { country: { not: null } },
-      select: { country: true },
-      distinct: ['country']
-    })
     const existingCountries = new Set(rawCountries.map(c => c.country).filter(Boolean) as string[])
 
     // Sort countries: LatAm priority first, then others alphabetically

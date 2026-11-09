@@ -2,6 +2,25 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.5] — 2026-11-09 🔄 Unificación de Conteos Transaccionales entre Módulos y Reconciliación Inteligente 404
+
+### 📊 Consistencia 100% entre Operaciones, Jurisdicciones y Clasificación (Feedback Daniela Bernal)
+- **Unificación de Filtros de Fecha Efectiva (`COALESCE(dateClosed, dateAnnounced)`)**:
+  - Se homologó la lógica de filtrado temporal en **Clasificación de Firmas** (`/api/metrics/firms`) y **Jurisdicciones** (`/api/metrics/countries`) para utilizar exactamente la misma fecha efectiva (`dateClosed` si existe; en su defecto `dateAnnounced`) y el filtro de familias transaccionales (`M&A`, `Emisiones`, `Financiamientos`) que el módulo de **Operaciones** (`/api/operations`).
+- **Alineación Canónica de KPIs de País y Periodo**:
+  - En **Clasificación de Firmas**, las tarjetas de *Operaciones Registradas* y *Monto Acumulado (USD)* ahora calculan el universo canónico de transacciones del país y periodo seleccionado, eliminando la discrepancia previa donde se omitían operaciones de ese país asesoradas exclusivamente por firmas internacionales o se duplicaba el monto cuando múltiples firmas participaban en un mismo caso.
+  - En **Jurisdicciones**, el cálculo de *Monto Acumulado* del país suma una única vez el valor de cada transacción única (`countryTxs`), evitando que las operaciones multi-industria duplicaran su valor respecto al mapa interactivo y al módulo de Operaciones.
+  - **Resultado verificado (`México`, `01/01/2026` – `30/06/2026`)**: Los 3 módulos reportan de manera idéntica **123 operaciones** y **$142.91B USD** (`$142,905,785,731.70`).
+
+### 🧹 Purga de Nodos Eliminados en Drupal y Reconciliación Inteligente en Cron (`/api/sync-drupal`)
+- **Purga de *Brava Energía* (`drupal-136682`) y Auditoría Completa 2026**:
+  - Se ejecutó una auditoría cruzada de las 1,514 transacciones de 2026 en Ágora frente a la API de Drupal (`/api/agora/transactions`), detectando y purgando de forma atómica los 5 nodos eliminados en Drupal que respondían HTTP 404: `drupal-136682` (*Brava Energía*), `drupal-134078` (*Termocandelaria Power*), `drupal-135402` (*Credicuotas Consumo*), `drupal-135864` (*ETB*) y `drupal-136224` (*Malambo Solar*).
+- **Reconciliación 404 de Alto Alcance en `/api/sync-drupal`**:
+  - Se amplió la ventana de inspección de las últimas 40 a las **últimas 450 transacciones** (`orderBy: { id: 'desc' }, take: 450`) pre-filtrándolas contra los **1,000 nodos activos más recientes** de `/api/agora/transactions` (páginas `0..9`).
+  - Solo los nodos ausentes del listado activo de Drupal se verifican mediante `HEAD https://lexlatin.com/node/{nid}` con un timeout extendido de **15 segundos** (dado que Drupal tarda ~10–12s en renderizar su página de búsqueda 404), garantizando que cualquier eliminación futura sea detectada y purgada automáticamente sin sufrir abortos por timeout.
+
+---
+
 ## [5.11.4] — 2026-11-05 📊 Exportación de Extractos en Excel y Sincronización Dinámica de Clasificación
 
 ### 📑 Exportación de Data y Extractos (Feedback Henry Infante)
