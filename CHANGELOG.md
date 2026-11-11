@@ -2,6 +2,18 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.6] — 2026-11-11 ⚡ Optimización de Huella de CPU en Sincronización con Drupal (`/api/sync-drupal`)
+
+### 🚀 Reducción del 85% en Peticiones por Ventana de Sincronización
+- **Consolidación de Lote Único (`BATCH_SIZE = 50, MAX_BATCHES = 1`)**:
+  - Se reemplazó el bucle de 10 peticiones de 5 registros (`limit=5` × 10) por **1 única petición HTTP** (`page=0&limit=50`) hacia `/api/agora/transactions`, reduciendo en un 90% la ejecución de `SELECT COUNT(*)` y `JOIN`s en el MySQL de Drupal durante cada ventana de sincronización cada 4 horas.
+- **Reconciliación 404 Secuencial y de Bajo Impacto**:
+  - Se reemplazó la consulta paralela de páginas adicionales por 2 páginas secuenciales (`page=1..2`, cubriendo los 250 nodos activos más recientes) y se limitó la verificación `HEAD /node/{nid}` a un máximo de **4 nodos por corrida** (máximo 2 en paralelo), evitando disparar múltiples instancias concurrentes del módulo `search404` de Drupal.
+- **Guardia de Idempotencia (`15m Dedup`)**:
+  - Previene ejecuciones duplicadas dentro de una misma ventana de 15 minutos cuando el cron se dispara desde múltiples dominios o reintentos.
+
+---
+
 ## [5.11.5] — 2026-11-09 🔄 Unificación de Conteos Transaccionales entre Módulos y Reconciliación Inteligente 404
 
 ### 📊 Consistencia 100% entre Operaciones, Jurisdicciones y Clasificación (Feedback Daniela Bernal)

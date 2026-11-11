@@ -68,6 +68,22 @@ export async function POST(request: Request) {
     const isCronTrigger = request.headers.get('x-vercel-cron') === '1' || (authHeader === `Bearer ${CRON_SECRET}` && authHeader !== 'Bearer agora-bypass-token')
     const triggerSource = authHeader === 'Bearer agora-bypass-token' ? 'manual' : (isCronTrigger ? 'cron' : 'system')
 
+    // Dedup guard: if an automated cron already succeeded with records in the last 15 minutes, skip duplicate execution
+    if (triggerSource === 'cron') {
+      const recentSuccess = await prisma.cronLog.findFirst({
+        where: {
+          jobName: 'sync-drupal',
+          status: 'SUCCESS',
+          recordsProcessed: { gt: 0 },
+          startedAt: { gte: new Date(Date.now() - 15 * 60 * 1000) }
+        },
+        select: { id: true }
+      }).catch(() => null)
+      if (recentSuccess) {
+        return NextResponse.json({ success: true, skippedDuplicate: true, message: 'Skipped duplicate cron trigger within 15m window.' })
+      }
+    }
+
     // Create CronLog entry
     try {
       const cronLog = await prisma.cronLog.create({
@@ -82,9 +98,10 @@ export async function POST(request: Request) {
       console.error('Failed to create CronLog:', logErr)
     }
 
-    // 2. Pagination loop: process batches of 5 until no more new posts
-    const BATCH_SIZE = 5
-    const MAX_BATCHES = 10 // Safety cap: 50 posts max per cron run (~45s, within Vercel Pro 60s limit)
+    // 2. Single-batch fetch: fetch all 50 posts in 1 HTTP call instead of 10 calls of 5
+    // This reduces SQL COUNT(*) and JOIN queries on Drupal by 90% per cron execution.
+    const BATCH_SIZE = 50
+    const MAX_BATCHES = 1 // 50 posts max per cron run in a single request
     const { searchParams } = new URL(request.url)
     const startOffset = parseInt(searchParams.get('offset') || '0', 10)
 
@@ -671,41 +688,39 @@ export async function POST(request: Request) {
 
     // ── 4. Reconciliation: check if Agora transactions were deleted in Drupal (HTTP 404) ──
     try {
-      // Build active Drupal ID set from Phase 1 + pages 3..9 (up to 1,000 active Drupal nodes)
+      // Build active Drupal ID set from Phase 1 + 2 sequential pages (up to 250 active Drupal nodes)
+      // Sequential fetching avoids parallel PHP-FPM worker spikes on Drupal/Cloudways
       const activeDrupalIds = new Set<string>(processedIds)
       if (startOffset === 0) {
-        const extraPages = [3, 4, 5, 6, 7, 8, 9]
-        const pageResults = await Promise.allSettled(
-          extraPages.map(async (p) => {
+        for (const p of [1, 2]) {
+          try {
             const res = await fetch(`${DRUPAL_API_BASE}?page=${p}&limit=100&status=all`, {
               headers: { 'X-Agora-Token': DRUPAL_AGORA_TOKEN, 'Accept': 'application/json' }
             })
-            if (!res.ok) return []
-            const j = await res.json()
-            return j.data || []
-          })
-        )
-        for (const r of pageResults) {
-          if (r.status === 'fulfilled') {
-            for (const post of r.value) {
-              if (post?.nid) activeDrupalIds.add(`drupal-${post.nid}`)
+            if (res.ok) {
+              const j = await res.json()
+              for (const post of j.data || []) {
+                if (post?.nid) activeDrupalIds.add(`drupal-${post.nid}`)
+              }
             }
+          } catch {
+            // Ignore transient error on extra page
           }
         }
       }
 
-      // Check top 450 newest transactions (filtered against activeDrupalIds) + rotating batch of 15 unverified
+      // Check top 200 newest transactions (filtered against activeDrupalIds) + rotating batch of 5 unverified
       const [recentTxs, rotatingTxs] = await Promise.all([
         prisma.transaction.findMany({
           where: { id: { startsWith: 'drupal-13' } },
           orderBy: { id: 'desc' },
-          take: 450,
+          take: 200,
           select: { id: true }
         }),
         prisma.transaction.findMany({
           where: { id: { startsWith: 'drupal-' } },
           orderBy: { updatedAt: 'asc' },
-          take: 15,
+          take: 5,
           select: { id: true }
         })
       ])
@@ -721,12 +736,11 @@ export async function POST(request: Request) {
           candidateMap.set(t.id, t)
         }
       }
-      // Cap HTTP HEAD checks at 15 per run so 15s timeout never exceeds Vercel maxDuration
-      const candidateTxs = Array.from(candidateMap.values()).slice(0, 15)
+      // Cap HTTP HEAD checks at 4 per run (max 2 concurrent) to keep Drupal CPU impact near zero
+      const candidateTxs = Array.from(candidateMap.values()).slice(0, 4)
 
-      // Process in batches of 5 concurrently with 15s timeout (Drupal 404 pages take ~8-12s)
-      for (let i = 0; i < candidateTxs.length; i += 5) {
-        const batch = candidateTxs.slice(i, i + 5)
+      for (let i = 0; i < candidateTxs.length; i += 2) {
+        const batch = candidateTxs.slice(i, i + 2)
         await Promise.allSettled(
           batch.map(async (tx) => {
             const nid = tx.id.replace('drupal-', '')
