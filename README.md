@@ -16,7 +16,9 @@ Toda la documentación técnica, contratos de API y reglas de negocio del proyec
    Especificación técnica del endpoint REST custom en Drupal (`GET https://lexlatin.com/api/agora/transactions`), autenticación (`X-Agora-Token`), parámetros, estructura JSON de respuesta y mapeo de tablas MySQL de Drupal a Supabase.
 3. **[03_REGLAS_NEGOCIO_Y_PIPELINE_ETL.md](./docs/03_REGLAS_NEGOCIO_Y_PIPELINE_ETL.md)**  
    Las 7 reglas de negocio y filtrado del motor ETL acordadas con el equipo de Data Entry (Filtro primario `Transacción`, Guardrail de Evidencia Cero, Filtro de Originales con Clones Multi-Área, Noise Filter Editorial, Clasificación Determinística de 3 familias, Soporte Multi-Industria N:M y Reconciliación automática de nodos 404).
-4. **[CHANGELOG.md](./CHANGELOG.md)**  
+4. **[04_INTEGRACION_STRIPE_Y_CICLO_SUSCRIPCIONES.md](./docs/04_INTEGRACION_STRIPE_Y_CICLO_SUSCRIPCIONES.md)**  
+   Documentación técnica completa de la integración con Stripe: arquitectura de pagos, variables de entorno y eventos webhook, reglas diferenciadas de cancelación (`TRIAL` vs `ACTIVE` con `cancel_at_period_end`), control de acceso en tiempo real, cron de respaldo, plantillas de correo y playbook de troubleshooting.
+5. **[CHANGELOG.md](./CHANGELOG.md)**  
    Historial detallado de versiones y despliegues en producción.
 
 ### Carpetas Adicionales en `docs/` y `drupal-modules/`
