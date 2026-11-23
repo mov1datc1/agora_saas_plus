@@ -2,6 +2,17 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.9] — 2026-11-23 🛡️ Bloqueo de Correos `UPCOMING_RENEWAL` a Suscripciones Canceladas y Validación Estricta en Stripe
+
+### 💳 Protección contra Cobros y Correos de Renovación Indebidos
+- **Filtro Estricto en Webhook `invoice.upcoming` (`/api/webhook`)**:
+  - Ahora consulta la suscripción del usuario antes de despachar la plantilla `UPCOMING_RENEWAL`. Si la suscripción figura como `CANCELED`, tiene `cancelAtPeriodEnd: true` o el monto a cobrar es `0`, **suprime el envío del correo**.
+  - Incluye un mecanismo de **auto-sanación (`self-heal`)**: si Stripe llegara a emitir `invoice.upcoming` para una cuenta marcada como cancelada o programada para baja en base de datos, el webhook fuerza automáticamente `cancel_at_period_end: true` en Stripe.
+- **Cero Fallos Silenciosos al Cancelar en Stripe (`/api/subscription/cancel`)**:
+  - Se eliminó el `catch` silencioso que permitía marcar una suscripción como cancelada en Prisma aunque la llamada a la API de Stripe hubiera fallado. Ahora, si Stripe rechaza la cancelación (salvo que el recurso ya esté cancelado), el endpoint devuelve error `502` explícito para evitar discrepancias entre Ágora y Stripe.
+
+---
+
 ## [5.11.8] — 2026-11-23 📑 Columna "Resumen de Operaciones" Visible en Hoja 1 de Excel (Clasificación y Jurisdicciones)
 
 ### 📊 Mejora en Exportaciones Excel (Feedback Henry Infante)

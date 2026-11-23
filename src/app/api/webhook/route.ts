@@ -428,10 +428,32 @@ export async function POST(req: Request) {
         const upcomingInvoice = event.data.object as Stripe.Invoice
         if (upcomingInvoice.customer) {
           const dbUpcomingUser = await prisma.user.findUnique({
-            where: { stripeCustomerId: upcomingInvoice.customer as string }
+            where: { stripeCustomerId: upcomingInvoice.customer as string },
+            include: { subscription: true }
           })
 
           if (dbUpcomingUser) {
+            const sub = dbUpcomingUser.subscription
+            const isAlreadyCanceledOrScheduled =
+              !sub ||
+              sub.status === SubscriptionStatus.CANCELED ||
+              sub.cancelAtPeriodEnd === true ||
+              (typeof upcomingInvoice.amount_due === 'number' && upcomingInvoice.amount_due <= 0)
+
+            if (isAlreadyCanceledOrScheduled) {
+              console.log(`[WEBHOOK_UPCOMING_SKIPPED] Skipping renewal email for ${dbUpcomingUser.email} (status=${sub?.status}, cancelAtPeriodEnd=${sub?.cancelAtPeriodEnd})`)
+              // Self-healing: if DB says canceled/scheduled but Stripe still fired invoice.upcoming, enforce cancel_at_period_end in Stripe
+              if (sub?.stripeSubscriptionId && (sub.status === SubscriptionStatus.CANCELED || sub.cancelAtPeriodEnd)) {
+                try {
+                  await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true })
+                  console.log(`[WEBHOOK_SELF_HEAL] Enforced cancel_at_period_end=true on Stripe sub ${sub.stripeSubscriptionId}`)
+                } catch (healErr: any) {
+                  console.warn('[WEBHOOK_SELF_HEAL_WARN]', healErr?.message || healErr)
+                }
+              }
+              break
+            }
+
             try {
               const template = await prisma.emailTemplate.findUnique({ where: { type: 'UPCOMING_RENEWAL' }})
               const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard` : 'https://www.agora-lexlatin.com/dashboard'

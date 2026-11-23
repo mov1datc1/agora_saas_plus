@@ -29,7 +29,15 @@ export async function POST(req: Request) {
       try {
         await stripe.subscriptions.cancel(dbUser.subscription.stripeSubscriptionId)
       } catch (stripeErr: any) {
-        console.warn('[STRIPE_CANCEL_WARN]', stripeErr?.message || stripeErr)
+        const msg = String(stripeErr?.message || '')
+        const alreadyGone = stripeErr?.code === 'resource_missing' || msg.toLowerCase().includes('already canceled') || msg.toLowerCase().includes('no such subscription')
+        if (!alreadyGone) {
+          console.error('[STRIPE_CANCEL_TRIAL_ERROR]', stripeErr)
+          return NextResponse.json(
+            { error: 'No se pudo cancelar la suscripción en la pasarela de pagos. Por favor intenta de nuevo o contacta a soporte.' },
+            { status: 502 }
+          )
+        }
       }
 
       await prisma.subscription.update({
@@ -57,7 +65,15 @@ export async function POST(req: Request) {
           currentPeriodEnd = new Date(stripePeriodEndTs * 1000)
         }
       } catch (stripeErr: any) {
-        console.warn('[STRIPE_CANCEL_AT_PERIOD_END_WARN]', stripeErr?.message || stripeErr)
+        const msg = String(stripeErr?.message || '')
+        const alreadyGone = stripeErr?.code === 'resource_missing' || msg.toLowerCase().includes('already canceled') || msg.toLowerCase().includes('canceled subscription')
+        if (!alreadyGone) {
+          console.error('[STRIPE_CANCEL_AT_PERIOD_END_ERROR]', stripeErr)
+          return NextResponse.json(
+            { error: 'No se pudo programar la cancelación en la pasarela de pagos. Por favor intenta de nuevo o contacta a soporte.' },
+            { status: 502 }
+          )
+        }
       }
 
       await prisma.subscription.update({
