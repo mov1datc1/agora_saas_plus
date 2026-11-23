@@ -177,16 +177,27 @@ export default function FirmsClient() {
       return
     }
 
-    // Hoja 1: Resumen de Clasificación de Firmas
-    const rankingSheet = tableData.map(row => ({
-      'Clasificación': row.rankingPosition,
-      'Firma': row.firma,
-      'País': row.pais,
-      'Número de Operaciones': row.numeroOperaciones,
-      'Operaciones Públicas': row.operacionesPublicas,
-      'Operaciones Confidenciales': row.operacionesConfidenciales,
-      'Monto Acumulado (USD)': row.montoAcumulado > 0 ? row.montoAcumulado : 0
-    }))
+    // Hoja 1: Resumen de Clasificación de Firmas (incluye columna con resumen de operaciones directamente visible)
+    const rankingSheet = tableData.map(row => {
+      const opsSummary = (row.transacciones || [])
+        .map((tx, idx) => {
+          const excerptText = cleanExcerpt(tx.excerpt)
+          const snippet = excerptText.length > 350 ? `${excerptText.slice(0, 347)}...` : excerptText
+          return `${idx + 1}) ${tx.title} [${tx.type} · ${tx.montoString}]${snippet ? `: ${snippet}` : ''}`
+        })
+        .join('\n\n')
+
+      return {
+        'Clasificación': row.rankingPosition,
+        'Firma': row.firma,
+        'País': row.pais,
+        'Número de Operaciones': row.numeroOperaciones,
+        'Operaciones Públicas': row.operacionesPublicas,
+        'Operaciones Confidenciales': row.operacionesConfidenciales,
+        'Monto Acumulado (USD)': row.montoAcumulado > 0 ? row.montoAcumulado : 0,
+        'Resumen de Operaciones': opsSummary || 'Ver pestaña Operaciones y Extractos'
+      }
+    })
 
     // Hoja 2: Operaciones Detalladas y Extractos
     const operationsSheet: any[] = []

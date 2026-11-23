@@ -15,8 +15,49 @@ export function cleanExcerpt(html?: string | null): string {
     .trim()
 }
 
+function sanitizeRowsForExcel(data: any[]): any[] {
+  if (!data || data.length === 0) return [{}]
+  return data.map(row => {
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(row)) {
+      if (typeof v === 'string' && v.length > 32000) {
+        out[k] = v.slice(0, 31997) + '...'
+      } else {
+        out[k] = v
+      }
+    }
+    return out
+  })
+}
+
+function applyAutoColumnWidths(worksheet: XLSX.WorkSheet, rows: any[]) {
+  if (!rows || rows.length === 0) return
+  const keys = Object.keys(rows[0] || {})
+  if (keys.length === 0) return
+  worksheet['!cols'] = keys.map(key => {
+    const lowerKey = key.toLowerCase()
+    if (lowerKey.includes('extracto') || lowerKey.includes('resumen')) {
+      return { wch: 65 }
+    }
+    if (lowerKey.includes('título') || lowerKey.includes('titulo') || lowerKey.includes('empresas') || lowerKey.includes('abogados')) {
+      return { wch: 40 }
+    }
+    let maxLen = key.length
+    for (const row of rows.slice(0, 100)) {
+      const val = row[key]
+      if (val !== null && val !== undefined) {
+        const len = String(val).length
+        if (len > maxLen) maxLen = len
+      }
+    }
+    return { wch: Math.min(Math.max(maxLen + 3, 14), 42) }
+  })
+}
+
 export function exportToExcel(data: any[], filename: string, sheetName: string = "Datos") {
-  const worksheet = XLSX.utils.json_to_sheet(data)
+  const safeRows = sanitizeRowsForExcel(data)
+  const worksheet = XLSX.utils.json_to_sheet(safeRows)
+  applyAutoColumnWidths(worksheet, safeRows)
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   XLSX.writeFile(workbook, `${filename}.xlsx`)
@@ -25,7 +66,9 @@ export function exportToExcel(data: any[], filename: string, sheetName: string =
 export function exportToExcelMultiSheet(sheets: { name: string; data: any[] }[], filename: string) {
   const workbook = XLSX.utils.book_new()
   for (const sheet of sheets) {
-    const worksheet = XLSX.utils.json_to_sheet(sheet.data.length > 0 ? sheet.data : [{}])
+    const safeRows = sanitizeRowsForExcel(sheet.data)
+    const worksheet = XLSX.utils.json_to_sheet(safeRows)
+    applyAutoColumnWidths(worksheet, safeRows)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name)
   }
   XLSX.writeFile(workbook, `${filename}.xlsx`)

@@ -95,6 +95,7 @@ export async function GET(request: Request) {
           country: true,
           dateAnnounced: true,
           dateClosed: true,
+          excerpt: true,
           industry: { select: { id: true, name: true } },
           industries: { select: { industry: { select: { id: true, name: true } } } },
           companies: { select: { company: { select: { name: true } } } },
@@ -187,9 +188,10 @@ export async function GET(request: Request) {
               type: tx.type || 'M&A',
               monto: val > 0 ? val : null,
               montoString: tx.valueString || (val > 0 ? `USD ${val.toLocaleString()}` : 'Valor confidencial'),
-              fecha: tx.dateAnnounced?.toISOString() || tx.dateClosed?.toISOString() || null,
+              fecha: tx.dateClosed?.toISOString() || tx.dateAnnounced?.toISOString() || null,
               empresa: tx.companies?.map((c: any) => c.company?.name).filter(Boolean).join(', ') || 'N/D',
-              abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D'
+              abogados: tx.lawyers?.map((l: any) => l.lawyer?.name).filter(Boolean).join(', ') || 'N/D',
+              excerpt: tx.excerpt ? tx.excerpt.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim() : ''
             })
           }
         })

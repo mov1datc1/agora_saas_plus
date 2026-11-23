@@ -2,6 +2,17 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.8] — 2026-11-23 📑 Columna "Resumen de Operaciones" Visible en Hoja 1 de Excel (Clasificación y Jurisdicciones)
+
+### 📊 Mejora en Exportaciones Excel (Feedback Henry Infante)
+- **Columna `Resumen de Operaciones` Directamente en Hoja 1 (`Clasificación de Firmas` y `Firmas en Sector`)**:
+  - Se incorporó la columna H (`Resumen de Operaciones`) directamente en la primera hoja del Excel descargado desde **Clasificación** (`/dashboard/metrics/firms`) y **Jurisdicciones** (`/dashboard/metrics/countries`), mostrando de forma inmediata el listado numerado de operaciones con su tipo, monto y extracto resumido sin necesidad de cambiar de pestaña.
+  - Se mantiene la **Hoja 2 (`Operaciones y Extractos`)** con una fila individual por transacción y el texto completo del `Extracto / Resumen` para auditorías detalladas.
+- **Auto-ajuste de Anchos de Columna y Protección de Celdas en `exportUtils.ts`**:
+  - Ajuste automático de ancho de columnas (`!cols`) para evitar encabezados recortados al abrir en Excel y truncamiento seguro a 32,000 caracteres por celda conforme al límite nativo de Excel.
+
+---
+
 ## [5.11.7] — 2026-11-23 💳 Acceso Completo Hasta Fin de Ciclo al Cancelar Suscripción Pagada
 
 ### 🛡️ Retención de Acceso Durante el Periodo Pagado (Feedback Equipo LexLatin / Caso Ángela Castillo)

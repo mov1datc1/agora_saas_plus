@@ -29,7 +29,7 @@ import ProDateRangePicker from '@/components/ui/ProDateRangePicker'
 import SearchableSelect from '@/components/ui/SearchableSelect'
 import PaywallModal from '@/components/ui/PaywallModal'
 import EntityDetailModal from '@/components/ui/EntityDetailModal'
-import { exportToExcel } from '@/lib/exportUtils'
+import { exportToExcel, exportToExcelMultiSheet, cleanExcerpt } from '@/lib/exportUtils'
 import useSWR from 'swr'
 
 const fetcher = (url: string) => fetch(url).then(res => res.json())
@@ -307,15 +307,50 @@ export default function CountriesClient() {
       return
     }
 
-    exportToExcel(sortedFirmsForIndustry.map(f => ({
-      'Posición': f.posicion,
-      'Firma': f.firma,
-      'País Sede': f.pais,
-      'Industria': selectedIndustry.nombre,
-      'Jurisdicción': selectedCountry,
-      'Operaciones en Sector': f.operaciones,
-      'Monto Acumulado en Sector (USD)': f.montoAcumulado > 0 ? f.montoAcumulado : 0
-    })), `firmas_${selectedIndustry.nombre.toLowerCase().replace(/\s+/g, '_')}_${selectedCountry.toLowerCase()}`)
+    const firmsSheet = sortedFirmsForIndustry.map(f => {
+      const opsSummary = (f.transacciones || [])
+        .map((tx: any, idx: number) => {
+          const excerptText = cleanExcerpt(tx.excerpt)
+          const snippet = excerptText.length > 350 ? `${excerptText.slice(0, 347)}...` : excerptText
+          return `${idx + 1}) ${tx.title} [${tx.type} · ${tx.montoString}]${snippet ? `: ${snippet}` : ''}`
+        })
+        .join('\n\n')
+
+      return {
+        'Posición': f.posicion,
+        'Firma': f.firma,
+        'País Sede': f.pais,
+        'Industria': selectedIndustry.nombre,
+        'Jurisdicción': selectedCountry,
+        'Operaciones en Sector': f.operaciones,
+        'Monto Acumulado en Sector (USD)': f.montoAcumulado > 0 ? f.montoAcumulado : 0,
+        'Resumen de Operaciones': opsSummary || 'Ver pestaña Operaciones y Extractos'
+      }
+    })
+
+    const operationsSheet: any[] = []
+    sortedFirmsForIndustry.forEach(f => {
+      (f.transacciones || []).forEach((tx: any) => {
+        operationsSheet.push({
+          'Firma': f.firma,
+          'Posición': f.posicion,
+          'Industria': selectedIndustry.nombre,
+          'Jurisdicción': selectedCountry,
+          'Título de la Operación': tx.title,
+          'Tipo': tx.type,
+          'Monto': tx.montoString,
+          'Fecha': tx.fecha ? tx.fecha.split('T')[0] : '',
+          'Empresas / Partes': tx.empresa,
+          'Abogados Involucrados': tx.abogados,
+          'Extracto / Resumen': cleanExcerpt(tx.excerpt)
+        })
+      })
+    })
+
+    exportToExcelMultiSheet([
+      { name: 'Firmas en Sector', data: firmsSheet },
+      { name: 'Operaciones y Extractos', data: operationsSheet }
+    ], `firmas_${selectedIndustry.nombre.toLowerCase().replace(/\s+/g, '_')}_${selectedCountry.toLowerCase()}`)
   }
 
   const renderSortIndicator = (currentCol: string, targetCol: string, order: string) => {
