@@ -54,9 +54,10 @@ export async function login(formData: FormData) {
       const isDeactivated = dbUser.isActive === false || (dbUser.parentId && dbUser.parent?.isActive === false)
       const isCanceled = effectiveSub?.status === 'CANCELED'
       const isTrialExpired = effectiveSub?.status === 'TRIAL' && effectiveSub.trialEndsAt && new Date(effectiveSub.trialEndsAt) < new Date()
+      const isPaidCanceledExpired = effectiveSub?.status === 'ACTIVE' && effectiveSub.cancelAtPeriodEnd && effectiveSub.currentPeriodEnd && new Date(effectiveSub.currentPeriodEnd) < new Date()
       const isIncomplete = !effectiveSub || effectiveSub?.status === 'INCOMPLETE'
 
-      if (isDeactivated || isCanceled || isTrialExpired || isIncomplete) {
+      if (isDeactivated || isCanceled || isTrialExpired || isPaidCanceledExpired || isIncomplete) {
         revalidatePath('/', 'layout')
         redirect('/deactivated')
       }

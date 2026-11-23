@@ -243,6 +243,35 @@ export async function GET(request: Request) {
       }
     }
 
+    // -------------------------------------------------------------------------
+    // 3. PAID SUBSCRIPTIONS SCHEDULED FOR CANCELLATION AT PERIOD END
+    // Safety net in case a Stripe customer.subscription.deleted webhook was missed
+    // -------------------------------------------------------------------------
+    const now = new Date()
+    const expiredCancelingUsers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        subscription: {
+          status: 'ACTIVE',
+          cancelAtPeriodEnd: true,
+          currentPeriodEnd: { lt: now }
+        }
+      },
+      include: { subscription: true }
+    })
+
+    for (const user of expiredCancelingUsers) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: false }
+      })
+      await prisma.subscription.update({
+        where: { userId: user.id },
+        data: { status: 'CANCELED', cancelAtPeriodEnd: false }
+      })
+      deactivatedUsers.push(user.email)
+    }
+
     // Update CronLog with success
     if (cronLogId) {
       try {

@@ -110,10 +110,10 @@ export default async function BillingPage() {
               </div>
               
               {isCancelingAtPeriodEnd && (
-                <div className="mt-4 bg-red-50 border border-red-100 rounded-xl p-3 flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-none mt-0.5" />
-                  <p className="text-sm text-red-800">
-                    Tu suscripción se cancelará automáticamente el <strong>{subscription.currentPeriodEnd?.toLocaleDateString()}</strong>. Después de esta fecha perderás acceso a la plataforma.
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-none mt-0.5" />
+                  <p className="text-sm text-amber-900">
+                    Tu suscripción no se renovará y finalizará el <strong>{subscription.currentPeriodEnd?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. Mantendrás acceso completo a la plataforma hasta esa fecha sin cargos adicionales.
                   </p>
                 </div>
               )}
@@ -121,7 +121,10 @@ export default async function BillingPage() {
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <PortalButton />
                 {!isCanceled && !isCancelingAtPeriodEnd && (
-                  <CancelSubscriptionModal />
+                  <CancelSubscriptionModal
+                    isTrial={hasActiveTrial}
+                    currentPeriodEnd={subscription.currentPeriodEnd?.toISOString() || null}
+                  />
                 )}
               </div>
             </div>

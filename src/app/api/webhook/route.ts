@@ -261,7 +261,7 @@ export async function POST(req: Request) {
             data: {
               status: newStatus,
               priceId: subscription.items.data[0].price.id,
-              currentPeriodEnd: new Date(((subscription as any).current_period_end || subscription.trial_end || subscription.created || Math.floor(Date.now() / 1000)) * 1000),
+              currentPeriodEnd: new Date(((subscription as any).current_period_end || (subscription.items?.data?.[0] as any)?.current_period_end || subscription.trial_end || subscription.created || Math.floor(Date.now() / 1000)) * 1000),
               cancelAtPeriodEnd: Boolean((subscription as any).cancel_at_period_end),
             }
           })

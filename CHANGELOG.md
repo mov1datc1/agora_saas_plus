@@ -2,6 +2,22 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.7] — 2026-11-23 💳 Acceso Completo Hasta Fin de Ciclo al Cancelar Suscripción Pagada
+
+### 🛡️ Retención de Acceso Durante el Periodo Pagado (Feedback Equipo LexLatin / Caso Ángela Castillo)
+- **Cancelación Diferida al Fin de Ciclo en Stripe (`/api/subscription/cancel`)**:
+  - Se diferenció el comportamiento entre cancelación durante **prueba gratuita** (`TRIAL`) y cancelación con **suscripción mensual ya pagada** (`ACTIVE`):
+    - **Suscripción Pagada (`ACTIVE`)**: Ahora utiliza `stripe.subscriptions.update(id, { cancel_at_period_end: true })` en lugar de cancelar de forma inmediata. El usuario conserva `status: 'ACTIVE'`, `isActive: true` y `cancelAtPeriodEnd: true`, manteniendo acceso total a la plataforma hasta su `currentPeriodEnd` (fin del mes ya cobrado) sin cargos futuros.
+    - **Prueba Gratuita (`TRIAL`)**: Mantiene la cancelación inmediata en Stripe para garantizar cero cargos al usuario que desiste durante el trial.
+- **Experiencia de Usuario en Facturación (`/dashboard/billing` y `CancelSubscriptionModal`)**:
+  - El modal de confirmación muestra mensajes dinámicos según el estado del usuario: para suscriptores pagos indica la fecha exacta hasta la cual conservarán acceso y, tras confirmar, los mantiene dentro de la plataforma recargando la vista con el aviso de cancelación programada (sin expulsarlos a `/deactivated`).
+- **Cierre Automático al Vencer el Periodo Pagado**:
+  - Al llegar `currentPeriodEnd`, el webhook `customer.subscription.deleted` de Stripe desactiva la cuenta automáticamente; adicionalmente se incorporó validación en tiempo real en `DashboardLayout`, `login()` y el cron diario `/api/cron/check-subscriptions` como red de seguridad.
+- **Restauración de Cuenta de Prueba (`angelalilianacastillo@gmail.com`)**:
+  - Se restableció su acceso activo con `cancelAtPeriodEnd: true` hasta el `30/11/2026` (fin de su mes pagado), con cierre automático al expirar el periodo.
+
+---
+
 ## [5.11.6] — 2026-11-11 ⚡ Optimización de Huella de CPU en Sincronización con Drupal (`/api/sync-drupal`)
 
 ### 🚀 Reducción del 85% en Peticiones por Ventana de Sincronización

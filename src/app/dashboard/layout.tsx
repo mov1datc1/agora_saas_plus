@@ -81,6 +81,13 @@ export default async function DashboardLayout({
           redirect('/deactivated');
         }
       }
+
+      // 7. Paid subscription scheduled for cancellation at period end has now elapsed
+      if (effectiveSub.status === 'ACTIVE' && effectiveSub.cancelAtPeriodEnd && effectiveSub.currentPeriodEnd) {
+        if (new Date(effectiveSub.currentPeriodEnd) < new Date()) {
+          redirect('/deactivated');
+        }
+      }
     }
 
     // Auto-track firstLoginAt and lastLoginAt
