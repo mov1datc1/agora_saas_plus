@@ -89,7 +89,7 @@ export async function loginWithMagicLink(formData: FormData) {
   }
 
   // 2. Generar el enlace mágico seguro a través de Supabase Admin (bypasea el SMTP interno de Supabase)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com'
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com').replace(/\/$/, '')
   const redirectCallback = `${siteUrl}/auth/callback?next=/dashboard`
 
   let actionLink: string | null = null
@@ -97,7 +97,7 @@ export async function loginWithMagicLink(formData: FormData) {
   try {
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email,
+      email: user.email,
       options: {
         redirectTo: redirectCallback,
       },
@@ -108,7 +108,10 @@ export async function loginWithMagicLink(formData: FormData) {
       redirect('/login?error=' + encodeURIComponent(linkError.message || 'Error al generar enlace de acceso.'))
     }
 
-    actionLink = linkData?.properties?.action_link || null
+    const hashedToken = linkData?.properties?.hashed_token
+    actionLink = hashedToken
+      ? `${siteUrl}/auth/callback?token_hash=${encodeURIComponent(hashedToken)}&type=magiclink&next=/dashboard`
+      : (linkData?.properties?.action_link || null)
   } catch (err: any) {
     if (err.digest?.startsWith('NEXT_REDIRECT')) throw err
     console.error('[MAGIC_LINK_EXCEPTION]', err)
@@ -128,10 +131,12 @@ export async function loginWithMagicLink(formData: FormData) {
 
       const displayName = user.name && user.name !== 'Independiente' ? user.name : 'Hola'
 
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: 'Ágora Plus <soporte@agora-lexlatin.com>',
-        to: [email],
+        replyTo: 'soporte@agora-lexlatin.com',
+        to: [user.email],
         subject: 'Tu enlace de acceso a Ágora Plus',
+        text: `${displayName}, abre este enlace seguro para ingresar directamente a tu cuenta de Ágora Plus:\n${actionLink}\n\nEste enlace es de uso único y caduca automáticamente por seguridad.`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 20px; color: #111827;">
             <div style="text-align: center; margin-bottom: 28px;">
@@ -155,7 +160,11 @@ export async function loginWithMagicLink(formData: FormData) {
           </div>
         `,
       })
-      console.log(`[MAGIC_LINK_RESEND_SUCCESS] Email sent to ${email}`)
+      if (sendError) {
+        console.error('[MAGIC_LINK_RESEND_ERROR]', sendError)
+        redirect('/login?error=' + encodeURIComponent('Error al enviar el correo con el enlace. Por favor intenta más tarde.'))
+      }
+      console.log(`[MAGIC_LINK_RESEND_SUCCESS] Email sent to ${user.email}`)
     } catch (emailErr: any) {
       if (emailErr.digest?.startsWith('NEXT_REDIRECT')) throw emailErr
       console.error('[RESEND_SEND_ERROR]', emailErr)

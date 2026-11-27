@@ -2,6 +2,18 @@
 
 Todas las versiones notables del proyecto Ágora Plus están documentadas aquí.
 
+## [5.11.10] — 2026-11-27 🔐 Enlaces de Recuperación y Magic Link en Dominio Propio (`token_hash`) y Validación Real de Entrega
+
+### ✉️ Corrección en Recuperación de Contraseña (`/forgot-password`) y Enlace Mágico (`/login`)
+- **Migración a Enlaces Directos en Dominio Propio (`www.agora-lexlatin.com/auth/callback?token_hash=...`)**:
+  - Se detectó que `supabaseAdmin.auth.admin.generateLink` devolvía un `action_link` en el dominio `*.supabase.co` que además recortaba `redirect_to` hacia la portada `/` (omitiendo `/reset-password`) y activaba filtros anti-phishing/spam de Gmail y Outlook por desalineación de dominio respecto al remitente `soporte@agora-lexlatin.com`.
+  - Ahora tanto **Recuperación de Contraseña** (`/forgot-password`) como **Enlace Mágico** (`/login`) construyen el botón directamente con `hashed_token` sobre `https://www.agora-lexlatin.com/auth/callback?token_hash=...&type=recovery&next=/reset-password` (o `type=magiclink&next=/dashboard`), verificando la sesión del lado del servidor con `verifyOtp` sin perder nunca la ruta de destino.
+- **Mejora de Entregabilidad y Cero Falsos Positivos en Envío**:
+  - Se añadió versión `text` (texto plano) y `replyTo: soporte@agora-lexlatin.com` a los envíos vía Resend.
+  - Se validan explícitamente tanto `sendError` de Resend como cualquier error del fallback, evitando mostrar mensajes de éxito cuando la entrega falla.
+
+---
+
 ## [5.11.9] — 2026-11-23 🛡️ Bloqueo de Correos `UPCOMING_RENEWAL` a Suscripciones Canceladas y Validación Estricta en Stripe
 
 ### 💳 Protección contra Cobros y Correos de Renovación Indebidos

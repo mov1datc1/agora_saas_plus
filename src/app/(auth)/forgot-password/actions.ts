@@ -25,7 +25,7 @@ export async function sendPasswordResetLink(formData: FormData) {
   }
 
   // 2. Generar el enlace de recuperación seguro con Supabase Admin (bypasea límites de SMTP interno)
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com'
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.agora-lexlatin.com').replace(/\/$/, '')
   const redirectCallback = `${siteUrl}/auth/callback?next=/reset-password`
 
   let actionLink: string | null = null
@@ -44,7 +44,13 @@ export async function sendPasswordResetLink(formData: FormData) {
       redirect('/forgot-password?error=' + encodeURIComponent(linkError.message || 'Error al generar enlace de recuperación.'))
     }
 
-    actionLink = linkData?.properties?.action_link || null
+    // Prefer direct token_hash callback on our own domain (www.agora-lexlatin.com):
+    // 1. Prevents Supabase from stripping redirect_to back to '/' when allowlist doesn't match query params
+    // 2. Aligns link domain with sender domain (soporte@agora-lexlatin.com) for far better Gmail/Outlook deliverability
+    const hashedToken = linkData?.properties?.hashed_token
+    actionLink = hashedToken
+      ? `${siteUrl}/auth/callback?token_hash=${encodeURIComponent(hashedToken)}&type=recovery&next=/reset-password`
+      : (linkData?.properties?.action_link || null)
   } catch (err: any) {
     if (err.digest?.startsWith('NEXT_REDIRECT')) throw err
     console.error('[PASSWORD_RESET_EXCEPTION]', err)
@@ -100,7 +106,9 @@ export async function sendPasswordResetLink(formData: FormData) {
     .replace(/{{resetUrl}}/g, actionLink)
     .replace(/{{actionLink}}/g, actionLink)
 
-  // 4. Enviar vía Resend con fallback a Supabase
+  // 4. Enviar vía Resend con fallback validado a Supabase (nunca mentir si ambos fallan)
+  const plainText = `Hola ${displayName},\n\nRecibimos una solicitud para restablecer tu contraseña en Ágora Plus.\n\nAbre el siguiente enlace seguro para definir tu nueva contraseña:\n${actionLink}\n\nEste enlace es de un solo uso y caduca automáticamente por seguridad.\n\nSaludos,\nEquipo Ágora Plus`
+
   const resendApiKey = process.env.RESEND_API_KEY
   if (resendApiKey) {
     try {
@@ -108,16 +116,21 @@ export async function sendPasswordResetLink(formData: FormData) {
       const resend = new Resend(resendApiKey)
       const { error: sendError } = await resend.emails.send({
         from: 'Ágora Plus <soporte@agora-lexlatin.com>',
+        replyTo: 'soporte@agora-lexlatin.com',
         to: [user.email],
         subject,
         html,
+        text: plainText,
       })
 
       if (sendError) {
         console.error('[PASSWORD_RESET_RESEND_ERROR]', sendError)
-        // Fallback a Supabase mailer
         const supabase = await createClient()
-        await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: redirectCallback })
+        const { error: fallbackErr } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: redirectCallback })
+        if (fallbackErr) {
+          console.error('[PASSWORD_RESET_FALLBACK_ERROR]', fallbackErr)
+          redirect('/forgot-password?error=' + encodeURIComponent('No pudimos entregar el correo en este momento. Por favor intenta de nuevo en unos minutos o escribe a soporte@agora-lexlatin.com.'))
+        }
       } else {
         console.log(`[PASSWORD_RESET_RESEND_SUCCESS] Email sent to ${user.email}`)
       }
@@ -125,7 +138,11 @@ export async function sendPasswordResetLink(formData: FormData) {
       if (emailErr.digest?.startsWith('NEXT_REDIRECT')) throw emailErr
       console.error('[PASSWORD_RESET_RESEND_EXCEPTION]', emailErr)
       const supabase = await createClient()
-      await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: redirectCallback })
+      const { error: fallbackErr } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: redirectCallback })
+      if (fallbackErr) {
+        console.error('[PASSWORD_RESET_FALLBACK_EXCEPTION_ERROR]', fallbackErr)
+        redirect('/forgot-password?error=' + encodeURIComponent('Error al enviar el correo de recuperación. Por favor intenta más tarde o contacta a soporte.'))
+      }
     }
   } else {
     const supabase = await createClient()
